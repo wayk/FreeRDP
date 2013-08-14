@@ -24,5 +24,6 @@
 @property (assign) rdpContext *context;
 
 - (BOOL)connect:(NSArray *)arguments;
+- (void)releaseResources;
 
 @end

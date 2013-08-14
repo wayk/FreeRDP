@@ -75,13 +75,9 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
 
 - (void)dealloc
 {
-    [[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPViewDidPostErrorInfoNotification object:nil];
-    [[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPViewDidConnectWithResultNotification object:nil];
-    [[NSNotificationCenter defaultCenter] removeObserver:self name:
-        MRDPViewDidPostEmbedNotification object:nil];
+    NSLog(@"dealloc");
     
-    [mrdpView releaseResources];
-    [self releaseContext];
+    
     
     [super dealloc];
 }
@@ -91,6 +87,19 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     mrdpView = [[MRDPView alloc] initWithFrame:NSZeroRect];
     
     self.view = mrdpView;
+}
+
+- (void)releaseResources
+{
+    self.delegate = nil;
+    
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPViewDidPostErrorInfoNotification object:nil];
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPViewDidConnectWithResultNotification object:nil];
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:
+     MRDPViewDidPostEmbedNotification object:nil];
+    
+    [mrdpView releaseResources];
+//    [self releaseContext];
 }
 
 - (BOOL)connect:(NSArray *)arguments
@@ -189,8 +198,7 @@ void ConnectionResultEventHandler(void* ctx, ConnectionResultEventArgs* e)
         }
     }
     
-    NSDictionary *userInfo = [[NSDictionary alloc] initWithObjectsAndKeys:message, @"message", e->result, @"result", nil];
-    [message release];
+    NSDictionary *userInfo = [[NSDictionary alloc] initWithObjectsAndKeys:message, @"message", [NSNumber numberWithInt:e->result], @"result", nil];
     
     mfContext* context = (mfContext*)ctx;
     [[NSNotificationCenter defaultCenter] postNotificationName:MRDPViewDidConnectWithResultNotification object:context->view userInfo:userInfo];
@@ -210,8 +218,10 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e)
         message = [[NSString alloc] initWithUTF8String:errorMessage];
     }
     
-    NSDictionary *userInfo = [[NSDictionary alloc] initWithObjectsAndKeys:message, @"message", e->code, @"code", nil];
-    [message release];
+    NSDictionary *userInfo = [[NSDictionary alloc] initWithObjectsAndKeys:message, @"message", [NSNumber numberWithInt:e->code], @"code", nil];
+    
+    if(message != nil)
+        [message release];
     
     mfContext* context = (mfContext*)ctx;
     [[NSNotificationCenter defaultCenter] postNotificationName:MRDPViewDidPostErrorInfoNotification object:context->view userInfo:userInfo];

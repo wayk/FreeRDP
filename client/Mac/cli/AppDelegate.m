@@ -137,7 +137,7 @@ void AppDelegate_ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 
 - (void) alertDidEnd:(NSAlert *)a returnCode:(NSInteger)rc contextInfo:(void *)ci
 {
-	[NSApp terminate:nil];
+	
 }
 
 
@@ -179,7 +179,6 @@ void AppDelegate_ConnectionResultEventHandler(void* ctx, ConnectionResultEventAr
 			
 			// Making sure this should be invoked on the main UI thread.
 			[_singleDelegate performSelectorOnMainThread:@selector(rdpConnectError:) withObject:message waitUntilDone:FALSE];
-			[message release];
 		}
 	}
 }
@@ -199,6 +198,8 @@ void AppDelegate_ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e)
 		
 		// Making sure this should be invoked on the main UI thread.
 		[_singleDelegate performSelectorOnMainThread:@selector(rdpConnectError:) withObject:message waitUntilDone:TRUE];
-		[message release];
+        
+        if(message != nil)
+            [message release];
 	}
 }

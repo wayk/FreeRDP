@@ -223,7 +223,7 @@ DWORD mac_client_thread(void* param)
 				}
 			}
 		}
-		
+        
 		ExitThread(0);
 		return 0;
 	}
@@ -330,7 +330,7 @@ DWORD mac_client_thread(void* param)
 	if (!is_connected)
 		return;
 	
-	NSPoint loc = [event locationInWindow];
+    NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
 	int x = (int) loc.x;
 	int y = (int) loc.y;
 	
@@ -351,7 +351,7 @@ DWORD mac_client_thread(void* param)
 	if (!is_connected)
 		return;
 	
-	NSPoint loc = [event locationInWindow];
+    NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
 	int x = (int) loc.x;
 	int y = (int) loc.y;
 	
@@ -371,7 +371,7 @@ DWORD mac_client_thread(void* param)
 	if (!is_connected)
 		return;
 	
-	NSPoint loc = [event locationInWindow];
+    NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
 	int x = (int) loc.x;
 	int y = (int) loc.y;
 	
@@ -391,7 +391,7 @@ DWORD mac_client_thread(void* param)
 	if (!is_connected)
 		return;
 	
-	NSPoint loc = [event locationInWindow];
+    NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
 	int x = (int) loc.x;
 	int y = (int) loc.y;
 	
@@ -411,7 +411,7 @@ DWORD mac_client_thread(void* param)
 	if (!is_connected)
 		return;
 	
-	NSPoint loc = [event locationInWindow];
+    NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
 	int x = (int) loc.x;
 	int y = (int) loc.y;
 	
@@ -431,7 +431,7 @@ DWORD mac_client_thread(void* param)
 	if (!is_connected)
 		return;
 	
-	NSPoint loc = [event locationInWindow];
+    NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
 	int x = (int) loc.x;
 	int y = (int) loc.y;
 	
@@ -451,7 +451,7 @@ DWORD mac_client_thread(void* param)
 	if (!is_connected)
 		return;
 	
-	NSPoint loc = [event locationInWindow];
+    NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
 	int x = (int) loc.x;
 	int y = (int) loc.y;
 	
@@ -469,7 +469,7 @@ DWORD mac_client_thread(void* param)
 	if (!is_connected)
 		return;
 	
-	NSPoint loc = [event locationInWindow];
+    NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
 	int x = (int) loc.x;
 	int y = (int) loc.y;
 	
@@ -500,7 +500,7 @@ DWORD mac_client_thread(void* param)
 	if (!is_connected)
 		return;
 	
-	NSPoint loc = [event locationInWindow];
+    NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
 	int x = (int) loc.x;
 	int y = (int) loc.y;
 	
@@ -677,7 +677,6 @@ DWORD mac_client_thread(void* param)
 {
 	int i;
 
-
 	for (i = 0; i < argc; i++)
 	{
 		if (argv[i])
@@ -714,7 +713,7 @@ DWORD mac_client_thread(void* param)
 	}
 	else
 	{
-		// just clear the screen with black
+		// just clear the screen with red
 		[[NSColor redColor] set];
 		NSRectFill([self bounds]);
 	}
@@ -809,7 +808,7 @@ BOOL mac_pre_connect(freerdp* instance)
 	if (!settings->ServerHostname)
 	{
 		fprintf(stderr, "error: server hostname was not specified with /v:<server>[:port]\n");
-		[NSApp terminate:nil];
+//		[NSApp terminate:nil];
 		return -1;
 	}
 
