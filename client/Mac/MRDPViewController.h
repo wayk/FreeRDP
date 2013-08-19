@@ -23,7 +23,8 @@
 @property(readwrite , assign) id<MRDPViewControllerDelegate> delegate;
 @property (assign) rdpContext *context;
 
-- (BOOL)connect:(NSArray *)arguments;
-- (void)releaseResources;
+- (BOOL)configure:(NSArray *)arguments;
+- (void)start;
+- (void)stop;
 
 @end

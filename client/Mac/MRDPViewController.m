@@ -19,8 +19,8 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 
 @implementation MRDPViewController
 
-@synthesize context = context;
-@synthesize delegate = delegate;
+@synthesize context;
+@synthesize delegate;
 
 static NSString *MRDPViewDidPostErrorInfoNotification = @"MRDPViewDidPostErrorInfoNotification";
 static NSString *MRDPViewDidConnectWithResultNotification = @"MRDPViewDidConnectWithResultNotification";
@@ -41,35 +41,49 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
 
 - (void)viewDidConnect:(NSNotification *)notification
 {
-    if(mrdpView == (MRDPView *)notification.object)
+    rdpContext *ctx;
+    [[[notification userInfo] valueForKey:@"context"] getValue:&ctx];
+    
+    if(ctx == self->context)
     {
-        NSLog(@"viewDidConnect - %@", [notification.userInfo valueForKey:@"result"]);
+        ConnectionResultEventArgs *e = nil;
+        [[[notification userInfo] valueForKey:@"connectionArgs"] getValue:&e];
         
         if(delegate && [delegate respondsToSelector:@selector(didConnectWithResult:)])
         {
-            [delegate didConnectWithResult:[notification.userInfo valueForKey:@"result"]];
+            [delegate didConnectWithResult:e->result];
         }
     }
 }
 
 - (void)viewDidPostError:(NSNotification *)notification
 {
-    if(mrdpView == (MRDPView *)notification.object)
+    rdpContext *ctx;
+    [[[notification userInfo] valueForKey:@"context"] getValue:&ctx];
+    
+    if(ctx == self->context)
     {
-        NSLog(@"viewDidPostError - %@", [notification.userInfo valueForKey:@"message"]);
+        ErrorInfoEventArgs *e = nil;
+        [[[notification userInfo] valueForKey:@"errorArgs"] getValue:&e];
         
-        if(delegate && [delegate respondsToSelector:@selector(didErrorWithCode:message:)])
+        if(delegate && [delegate respondsToSelector:@selector(didErrorWithCode:)])
         {
-            [delegate didErrorWithCode:[notification.userInfo valueForKey:@"code"] message:[notification.userInfo valueForKey:@"message"]];
+            [delegate didErrorWithCode:e->code];
         }
     }
 }
 
 - (void)viewDidEmbed:(NSNotification *)notification
 {
-    if(mrdpView == (MRDPView *)notification.object)
+    rdpContext *ctx;
+    [[[notification userInfo] valueForKey:@"context"] getValue:&ctx];
+    
+    if(ctx == self->context)
     {
-        NSLog(@"viewDidEmbed");
+        mfContext* mfc = (mfContext*)context;
+        
+        self->mrdpView = mfc->view;
+        [self.view addSubview:mfc->view];
     }
 }
 
@@ -77,33 +91,27 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
 {
     NSLog(@"dealloc");
     
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPViewDidPostErrorInfoNotification object:nil];
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPViewDidConnectWithResultNotification object:nil];
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPViewDidPostEmbedNotification object:nil];
     
+    self.delegate = nil;
+    
+    [mrdpView releaseResources];
+    [self releaseContext];
     
     [super dealloc];
 }
 
 - (void)loadView
 {
-    mrdpView = [[MRDPView alloc] initWithFrame:NSZeroRect];
-    
-    self.view = mrdpView;
+    self.view = [[NSView alloc] init];
 }
 
-- (void)releaseResources
+- (BOOL)configure:(NSArray *)arguments
 {
-    self.delegate = nil;
+    NSLog(@"configure");
     
-    [[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPViewDidPostErrorInfoNotification object:nil];
-    [[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPViewDidConnectWithResultNotification object:nil];
-    [[NSNotificationCenter defaultCenter] removeObserver:self name:
-     MRDPViewDidPostEmbedNotification object:nil];
-    
-    [mrdpView releaseResources];
-//    [self releaseContext];
-}
-
-- (BOOL)connect:(NSArray *)arguments
-{
     int status;
     mfContext* mfc;
     
@@ -123,11 +131,23 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
         PubSub_SubscribeConnectionResult(context->pubSub, ConnectionResultEventHandler);
     	PubSub_SubscribeErrorInfo(context->pubSub, ErrorInfoEventHandler);
         PubSub_SubscribeEmbedWindow(context->pubSub, EmbedWindowEventHandler);
-        
-        freerdp_client_start(context);
     }
 
     return true;
+}
+
+- (void)start
+{
+    NSLog(@"start");
+    
+    freerdp_client_start(context);
+}
+
+- (void)stop
+{
+    NSLog(@"stop");
+    
+    freerdp_client_stop(context);
 }
 
 - (void)createContext
@@ -180,51 +200,33 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
 
 void EmbedWindowEventHandler(void* ctx, EmbedWindowEventArgs* e)
 {
-    mfContext* context = (mfContext*)ctx;
-    [[NSNotificationCenter defaultCenter] postNotificationName:MRDPViewDidPostEmbedNotification object:context->view userInfo:nil];
+    rdpContext* context = (rdpContext*) ctx;
+    
+    NSDictionary *userInfo = [NSDictionary dictionaryWithObject:[NSValue valueWithPointer:context] forKey:@"context"];
+    
+    [[NSNotificationCenter defaultCenter] postNotificationName:MRDPViewDidPostEmbedNotification object:nil userInfo:userInfo];
 }
 
 void ConnectionResultEventHandler(void* ctx, ConnectionResultEventArgs* e)
 {
 	NSLog(@"ConnectionResult event result:%d\n", e->result);
     
-    NSString* message = nil;
+    rdpContext* context = (rdpContext*) ctx;
     
-    if (e->result != 0)
-    {
-        if (connectErrorCode == AUTHENTICATIONERROR)
-        {
-            message = [NSString stringWithFormat:@"%@:\n%@", message, @"Authentication failure, check credentials."];
-        }
-    }
+    NSDictionary *userInfo = [NSDictionary dictionaryWithObjectsAndKeys:[NSValue valueWithPointer:context], @"context",
+                              [NSValue valueWithPointer:e], @"connectionArgs", nil];
     
-    NSDictionary *userInfo = [[NSDictionary alloc] initWithObjectsAndKeys:message, @"message", [NSNumber numberWithInt:e->result], @"result", nil];
-    
-    mfContext* context = (mfContext*)ctx;
-    [[NSNotificationCenter defaultCenter] postNotificationName:MRDPViewDidConnectWithResultNotification object:context->view userInfo:userInfo];
-    
-    [userInfo release];
+    [[NSNotificationCenter defaultCenter] postNotificationName:MRDPViewDidConnectWithResultNotification object:nil userInfo:userInfo];
 }
 
 void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e)
 {
 	NSLog(@"ErrorInfo event code:%d\n", e->code);
     
-    // Retrieve error message associated with error code
-    NSString* message = nil;
-    if (e->code != ERRINFO_NONE)
-    {
-        const char* errorMessage = freerdp_get_error_info_string(e->code);
-        message = [[NSString alloc] initWithUTF8String:errorMessage];
-    }
+    rdpContext* context = (rdpContext*) ctx;
     
-    NSDictionary *userInfo = [[NSDictionary alloc] initWithObjectsAndKeys:message, @"message", [NSNumber numberWithInt:e->code], @"code", nil];
+    NSDictionary *userInfo = [NSDictionary dictionaryWithObjectsAndKeys:[NSValue valueWithPointer:context], @"context",
+                              [NSValue valueWithPointer:e], @"errorArgs", nil];
     
-    if(message != nil)
-        [message release];
-    
-    mfContext* context = (mfContext*)ctx;
-    [[NSNotificationCenter defaultCenter] postNotificationName:MRDPViewDidPostErrorInfoNotification object:context->view userInfo:userInfo];
-    
-    [userInfo release];
+    [[NSNotificationCenter defaultCenter] postNotificationName:MRDPViewDidPostErrorInfoNotification object:nil userInfo:userInfo];
 }

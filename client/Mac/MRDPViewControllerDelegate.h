@@ -12,6 +12,6 @@
 @optional
 
 - (void)didConnectWithResult:(int)result;
-- (void)didErrorWithCode:(uint)code message:(NSString *)message;
+- (void)didErrorWithCode:(uint)code;
 
 @end
