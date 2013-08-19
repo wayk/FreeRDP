@@ -51,7 +51,7 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
         
         if(delegate && [delegate respondsToSelector:@selector(didConnectWithResult:)])
         {
-            [delegate didConnectWithResult:e->result];
+            [delegate performSelectorOnMainThread:@selector(didConnectWithResult:) withObject:[NSNumber numberWithInt:e->result] waitUntilDone:false];
         }
     }
 }
@@ -68,7 +68,7 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
         
         if(delegate && [delegate respondsToSelector:@selector(didErrorWithCode:)])
         {
-            [delegate didErrorWithCode:e->code];
+            [delegate performSelectorOnMainThread:@selector(didErrorWithCode:) withObject:[NSNumber numberWithInt:e->code] waitUntilDone:false];
         }
     }
 }

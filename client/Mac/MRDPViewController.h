@@ -13,14 +13,14 @@
 
 @interface MRDPViewController : NSViewController
 {
-    id<MRDPViewControllerDelegate> delegate;
+    NSObject<MRDPViewControllerDelegate> *delegate;
     
     @public
 	rdpContext* context;
 	MRDPView* mrdpView;
 }
 
-@property(readwrite , assign) id<MRDPViewControllerDelegate> delegate;
+@property(nonatomic, assign) NSObject<MRDPViewControllerDelegate> *delegate;
 @property (assign) rdpContext *context;
 
 - (BOOL)configure:(NSArray *)arguments;

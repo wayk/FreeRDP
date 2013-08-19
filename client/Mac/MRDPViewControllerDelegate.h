@@ -11,7 +11,7 @@
 @protocol MRDPViewControllerDelegate <NSObject>
 @optional
 
-- (void)didConnectWithResult:(int)result;
-- (void)didErrorWithCode:(uint)code;
+- (void)didConnectWithResult:(NSNumber *)result;
+- (void)didErrorWithCode:(NSNumber *)code;
 
 @end
