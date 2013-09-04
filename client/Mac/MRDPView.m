@@ -748,28 +748,7 @@ DWORD mac_client_thread(void* param)
 	width = w;
 	height = h;
 	
-	// compute difference between window and client area
-	NSRect outerRect = [[self window] frame];
 	NSRect innerRect = [self frame];
-	
-	int widthDiff = outerRect.size.width - innerRect.size.width;
-	int heightDiff = outerRect.size.height - innerRect.size.height;
-	
-	// we are not in RemoteApp mode, disable resizing
-	outerRect.size.width = w + widthDiff;
-	outerRect.size.height = h + heightDiff;
-	[[self window] setMaxSize:outerRect.size];
-	[[self window] setMinSize:outerRect.size];
-
-    @try
-    {
-        [[self window] setFrame:outerRect display:YES];
-    }
-    @catch (NSException * e) {
-       NSLog(@"Exception: %@", e);
-    }
-    @finally {
-    }
 
 	// set client area to specified dimensions
 	innerRect.size.width = w;
