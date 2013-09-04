@@ -22,6 +22,7 @@
 
 @property(nonatomic, assign) NSObject<MRDPViewControllerDelegate> *delegate;
 @property (assign) rdpContext *context;
+@property (nonatomic, readonly) BOOL isConnected;
 
 - (BOOL)configure:(NSArray *)arguments;
 - (void)start;

@@ -39,6 +39,11 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     return self;
 }
 
+- (BOOL)isConnected
+{
+    return self->mrdpView.is_connected;
+}
+
 - (void)viewDidConnect:(NSNotification *)notification
 {
     rdpContext *ctx;
