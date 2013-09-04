@@ -102,8 +102,11 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     
     self.delegate = nil;
     
-    [mrdpView releaseResources];
-    [self releaseContext];
+    // Done inside freerdp_client_stop(context);
+    // [mrdpView releaseResources];
+    
+    // Wayk client doesn't do this...
+    // [self releaseContext];
     
     [super dealloc];
 }
