@@ -189,6 +189,11 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
 //    }
 //
     
+    if(delegate && [delegate respondsToSelector:@selector(provideServerCredentials:)])
+    {
+        return [delegate provideServerCredentials:credentials];
+    }
+    
     return FALSE;
 }
 

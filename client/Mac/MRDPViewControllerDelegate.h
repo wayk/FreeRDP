@@ -8,9 +8,10 @@
 
 #import <Foundation/Foundation.h>
 
-@protocol MRDPViewControllerDelegate <NSObject>
-@optional
+#import "ServerCredential.h"
 
+@protocol MRDPViewControllerDelegate <NSObject, MRDPViewPasswordPromptDelegate>
+@optional
 - (void)didConnectWithResult:(NSNumber *)result;
 - (void)didErrorWithCode:(NSNumber *)code;
 

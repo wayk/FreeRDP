@@ -41,10 +41,10 @@ set(${MODULE_PREFIX}_HEADERS
        mf_client.h
        MRDPCursor.h
        ServerCredential.h
-       MRDPViewPasswordPromptDelegate.h
        MRDPView.h
        MRDPViewController.h
        MRDPViewControllerDelegate.h
+       MRDPViewPasswordPromptDelegate.h
        PasswordDialog.h)
 
 set(${MODULE_PREFIX}_RESOURCES "en.lproj/InfoPlist.strings")
