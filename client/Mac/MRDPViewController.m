@@ -99,7 +99,8 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     [[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPViewDidPostErrorInfoNotification object:nil];
     [[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPViewDidConnectWithResultNotification object:nil];
     [[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPViewDidPostEmbedNotification object:nil];
-    
+
+    self->mrdpView.delegate = nil;
     self.delegate = nil;
     
     // Done inside freerdp_client_stop(context);
@@ -127,8 +128,8 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     
     status = [self parseCommandLineArguments:arguments];
     
-    mfc = (mfContext*) context;
-    mfc->view = (void*) mrdpView;
+    mfc = (mfContext*)context;
+    mfc->view = (void*)mrdpView;
     
     if (status < 0)
     {
@@ -149,6 +150,12 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     NSLog(@"start");
     
     freerdp_client_start(context);
+    
+    // Is this a race condition? Probably a slight hack at least to do this here
+    // We need to provide a password prompt delegate to the view, but we can only do that once it's been created
+    mfContext* mfc = (mfContext*)context;
+    MRDPView* view = (MRDPView*)mfc->view;
+    view.delegate = self;
 }
 
 - (void)stop
@@ -156,6 +163,33 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     NSLog(@"stop");
     
     freerdp_client_stop(context);
+}
+
+- (BOOL)provideServerCredentials:(ServerCredential **)credentials;
+{
+//  Implemented like this:
+//
+//  PasswordDialog* dialog = [[PasswordDialog alloc] initWithWindowNibName:@"PasswordDialog"];
+//  ServerCredential* c = *credentials;
+//    
+//	dialog.serverHostname = c.serverHostname;
+//    
+//	if (c.username)
+//		dialog.username = c.username;
+//    
+//	if (c.password)
+//		dialog.password = c.password;
+//    
+//    if([NSApp runModalForWindow:dialog.window] == TRUE)
+//    {
+//        c.username = dialog.username;
+//        c.password = dialog.password;
+//        
+//        return TRUE;
+//    }
+//
+    
+    return FALSE;
 }
 
 - (void)createContext

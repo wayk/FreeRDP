@@ -39,6 +39,8 @@
 #import "mfreerdp.h"
 #import "mf_client.h"
 
+#import "MRDPViewPasswordPromptDelegate.h"
+
 @interface MRDPView : NSView
 {
 	NSBitmapImageRep* bmiRep;
@@ -85,6 +87,8 @@
 	int pasteboard_changecount;
 	int pasteboard_format;
 	int is_connected;
+    
+    NSObject<MRDPViewPasswordPromptDelegate> *delegate;
 }
 
 - (int)  rdpStart :(rdpContext*) rdp_context;
@@ -95,6 +99,7 @@
 - (void) setViewSize : (int) w : (int) h;
 
 @property (assign) int is_connected;
+@property(nonatomic, assign) NSObject<MRDPViewPasswordPromptDelegate> *delegate;
 
 @end
 

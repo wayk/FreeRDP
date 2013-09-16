@@ -26,23 +26,26 @@ set(${MODULE_PREFIX}_XIBS PasswordDialog.xib)
 set(${MODULE_PREFIX}_SOURCES "")
 
 set(${MODULE_PREFIX}_OBJECTIVE_SOURCES
-	main.m
-	mf_client.m
-	MRDPCursor.m
-	MRDPView.m
+       main.m
+       mf_client.m
+       MRDPCursor.m
+       ServerCredential.m
+       MRDPView.m
        MRDPViewController.m
-	PasswordDialog.m)
+       PasswordDialog.m)
 
 list(APPEND ${MODULE_PREFIX}_SOURCES ${${MODULE_PREFIX}_OBJECTIVE_SOURCES})
 
 set(${MODULE_PREFIX}_HEADERS
-	mfreerdp.h
-	mf_client.h
-	MRDPCursor.h
-	MRDPView.h
+       mfreerdp.h
+       mf_client.h
+       MRDPCursor.h
+       ServerCredential.h
+       MRDPViewPasswordPromptDelegate.h
+       MRDPView.h
        MRDPViewController.h
        MRDPViewControllerDelegate.h
-	PasswordDialog.h)
+       PasswordDialog.h)
 
 set(${MODULE_PREFIX}_RESOURCES "en.lproj/InfoPlist.strings")
 

@@ -11,7 +11,7 @@
 #import "MRDPViewControllerDelegate.h"
 #import "mfreerdp.h"
 
-@interface MRDPViewController : NSViewController
+@interface MRDPViewController : NSViewController <MRDPViewPasswordPromptDelegate>
 {
     NSObject<MRDPViewControllerDelegate> *delegate;
     
@@ -27,5 +27,6 @@
 - (BOOL)configure:(NSArray *)arguments;
 - (void)start;
 - (void)stop;
+- (BOOL)provideServerCredentials:(ServerCredential **)credentials;
 
 @end

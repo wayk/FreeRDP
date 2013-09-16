@@ -7,6 +7,7 @@
 //
 
 #import "AppDelegate.h"
+#import "MacFreeRDP/MRDPViewController.h"
 #import "MacFreeRDP/mfreerdp.h"
 #import "MacFreeRDP/mf_client.h"
 
@@ -29,29 +30,35 @@ void AppDelegate_ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 
 - (void) applicationDidFinishLaunching:(NSNotification*)aNotification
 {
-	int status;
-	mfContext* mfc;
-
-    _singleDelegate = self;
-	[self CreateContext];
-
-	status = [self ParseCommandLineArguments];
-
-	mfc = (mfContext*) context;
-	mfc->view = (void*) mrdpView;
-
-	if (status < 0)
-	{
-
-	}
-	else
-	{
-		PubSub_SubscribeConnectionResult(context->pubSub, AppDelegate_ConnectionResultEventHandler);
-		PubSub_SubscribeErrorInfo(context->pubSub, AppDelegate_ErrorInfoEventHandler);
-		PubSub_SubscribeEmbedWindow(context->pubSub, AppDelegate_EmbedWindowEventHandler);
-		
-		freerdp_client_start(context);
-	}
+//	int status;
+//	mfContext* mfc;
+//
+//    _singleDelegate = self;
+//	[self CreateContext];
+//
+//	status = [self ParseCommandLineArguments];
+//
+//	mfc = (mfContext*) context;
+//	mfc->view = (void*) mrdpView;
+//
+//	if (status < 0)
+//	{
+//
+//	}
+//	else
+//	{
+//		PubSub_SubscribeConnectionResult(context->pubSub, AppDelegate_ConnectionResultEventHandler);
+//		PubSub_SubscribeErrorInfo(context->pubSub, AppDelegate_ErrorInfoEventHandler);
+//		PubSub_SubscribeEmbedWindow(context->pubSub, AppDelegate_EmbedWindowEventHandler);
+//		
+//		freerdp_client_start(context);
+//	}
+    
+    MRDPViewController *controller = [[MRDPViewController alloc] initWithNibName:nil bundle:nil];
+    [self.window setContentView:controller.view];
+    
+    [controller configure:[[NSProcessInfo processInfo] arguments]];
+    [controller start];
 }
 
 - (void) applicationWillTerminate:(NSNotification*)notification

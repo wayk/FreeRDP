@@ -49,6 +49,7 @@
 #import "MRDPView.h"
 #import "MRDPCursor.h"
 #import "PasswordDialog.h"
+#import "MRDPViewPasswordPromptDelegate.h"
 
 #include <winpr/crt.h>
 #include <winpr/input.h>
@@ -120,6 +121,7 @@ struct rgba_data
 @implementation MRDPView
 
 @synthesize is_connected;
+@synthesize delegate;
 
 - (int) rdpStart:(rdpContext*) rdp_context
 {
@@ -889,30 +891,43 @@ BOOL mac_post_connect(freerdp* instance)
 
 BOOL mac_authenticate(freerdp* instance, char** username, char** password, char** domain)
 {
-	PasswordDialog* dialog = [PasswordDialog new];
+	mfContext *mfc = (mfContext *)instance->context;
+	MRDPView *view = (MRDPView*)mfc->view;
+    NSObject<MRDPViewPasswordPromptDelegate> *delegate = view->delegate;
+    
+    NSString *hostName = [NSString stringWithCString:instance->settings->ServerHostname encoding:NSUTF8StringEncoding];
+    NSString *userName = nil;
+    NSString *userPass = nil;
+    
+    if(*username)
+    {
+        userName = [NSString stringWithCString:*username encoding:NSUTF8StringEncoding];
+    }
+    
+    if(*password)
+    {
+        [NSString stringWithCString:*password encoding:NSUTF8StringEncoding];
+    }
+    
+    ServerCredential *credential = [[ServerCredential alloc] initWithHostName:hostName
+                                                                     userName:userName
+                                                                  andPassword:userPass];
+    
+    if(delegate && [delegate respondsToSelector:@selector(provideServerCredentials:)])
+    {
+        if([delegate provideServerCredentials:&credential] == TRUE)
+        {
+            const char* submittedUsername = [credential.username cStringUsingEncoding:NSUTF8StringEncoding];
+            *username = malloc((strlen(submittedUsername) + 1) * sizeof(char));
+            strcpy(*username, submittedUsername);
+            
+            const char* submittedPassword = [credential.password cStringUsingEncoding:NSUTF8StringEncoding];
+            *password = malloc((strlen(submittedPassword) + 1) * sizeof(char));
+            strcpy(*password, submittedPassword);
+        }
+    }
 
-	dialog.serverHostname = [NSString stringWithCString:instance->settings->ServerHostname encoding:NSUTF8StringEncoding];
-
-	if (*username)
-		dialog.username = [NSString stringWithCString:*username encoding:NSUTF8StringEncoding];
-
-	if (*password)
-		dialog.password = [NSString stringWithCString:*password encoding:NSUTF8StringEncoding];
-
-	BOOL ok = [dialog runModal];
-
-	if (ok)
-	{
-		const char* submittedUsername = [dialog.username cStringUsingEncoding:NSUTF8StringEncoding];
-		*username = malloc((strlen(submittedUsername) + 1) * sizeof(char));
-		strcpy(*username, submittedUsername);
-
-		const char* submittedPassword = [dialog.password cStringUsingEncoding:NSUTF8StringEncoding];
-		*password = malloc((strlen(submittedPassword) + 1) * sizeof(char));
-		strcpy(*password, submittedPassword);
-	}
-
-	return ok;
+	return TRUE;
 }
 
 /** *********************************************************************
