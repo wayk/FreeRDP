@@ -117,6 +117,11 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     self.view = [[NSView alloc] init];
 }
 
+- (BOOL)configure
+{
+    return [self configure:[NSArray array]];
+}
+
 - (BOOL)configure:(NSArray *)arguments
 {
     NSLog(@"configure");
@@ -126,7 +131,14 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     
     [self createContext];
     
-    status = [self parseCommandLineArguments:arguments];
+    if(arguments && [arguments count] > 0)
+    {
+        status = [self parseCommandLineArguments:arguments];
+    }
+    else
+    {
+        status = 0;
+    }
     
     mfc = (mfContext*)context;
     mfc->view = (void*)mrdpView;
@@ -163,6 +175,70 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     NSLog(@"stop");
     
     freerdp_client_stop(context);
+}
+
+- (BOOL)getBooleanSettingForIdentifier:(int)identifier
+{
+    return freerdp_get_param_bool(context->settings, identifier);
+}
+
+- (int)setBooleanSettingForIdentifier:(int)identifier withValue:(BOOL)value
+{
+    return freerdp_set_param_bool(context->settings, identifier, value);
+}
+
+- (int)getIntegerSettingForIdentifier:(int)identifier
+{
+    return freerdp_get_param_int(context-> settings, identifier);
+}
+
+- (int)setIntegerSettingForIdentifier:(int)identifier withValue:(int)value
+{
+    return freerdp_set_param_int(context->settings, identifier, value);
+}
+
+- (uint32)getInt32SettingForIdentifier:(int)identifier
+{
+    return freerdp_get_param_uint32(context-> settings, identifier);
+}
+
+- (int)setInt32SettingForIdentifier:(int)identifier withValue:(uint32)value
+{
+    return freerdp_set_param_uint32(context->settings, identifier, value);
+}
+
+- (uint64)getInt64SettingForIdentifier:(int)identifier
+{
+    return freerdp_get_param_uint64(context-> settings, identifier);    
+}
+
+- (int)setInt64SettingForIdentifier:(int)identifier withValue:(uint64)value
+{
+    return freerdp_set_param_uint64(context->settings, identifier, value);
+}
+
+- (NSString *)getStringSettingForIdentifier:(int)identifier
+{
+    char* cString = freerdp_get_param_string(context-> settings, identifier);
+    
+    return [NSString stringWithUTF8String:cString];
+}
+
+- (int)setStringSettingForIdentifier:(int)identifier withValue:(NSString *)value
+{
+    char* cString = (char*)[value UTF8String];
+    
+    return freerdp_set_param_string(context->settings, identifier, cString);
+}
+
+- (double)getDoubleSettingForIdentifier:(int)identifier
+{
+    return freerdp_get_param_double(context-> settings, identifier);    
+}
+
+- (int)setDoubleSettingForIdentifier:(int)identifier withValue:(double)value
+{
+    return freerdp_set_param_double(context->settings, identifier, value);
 }
 
 - (BOOL)provideServerCredentials:(ServerCredential **)credentials;
