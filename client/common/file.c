@@ -456,7 +456,10 @@ BOOL freerdp_client_parse_rdp_file(rdpFile* file, const char* name)
 	fseek(fp, 0, SEEK_SET);
 
 	if (file_size < 1)
+	{
+		fclose(fp);
 		return FALSE;
+	}
 
 	buffer = (BYTE*) malloc(file_size + 2);
 	read_size = fread(buffer, file_size, 1, fp);
@@ -466,6 +469,7 @@ BOOL freerdp_client_parse_rdp_file(rdpFile* file, const char* name)
 		if (!ferror(fp))
 			read_size = file_size;
 	}
+	fclose(fp);
 
 	if (read_size < 1)
 	{
@@ -669,14 +673,19 @@ BOOL freerdp_client_populate_settings_from_rdp_file(rdpFile* file, rdpSettings* 
 
 	if (~((size_t) file->Username))
 	{
-		char* user;
-		char* domain;
+		char* user = NULL;
+		char* domain = NULL;
 
 		freerdp_parse_username(file->Username, &user, &domain);
 		freerdp_set_param_string(settings, FreeRDP_Username, user);
 
 		if (domain != NULL)
 			freerdp_set_param_string(settings, FreeRDP_Domain, domain);
+
+		if (user)
+			free(user);
+		if(domain)
+			free(domain);
 	}
 
 	if (~file->ServerPort)
@@ -764,6 +773,22 @@ BOOL freerdp_client_populate_settings_from_rdp_file(rdpFile* file, rdpSettings* 
 		freerdp_set_param_bool(settings, FreeRDP_SpanMonitors, file->SpanMonitors);
 	if (~file->UseMultiMon)
 		freerdp_set_param_bool(settings, FreeRDP_UseMultimon, file->UseMultiMon);
+
+	if (~file->AllowFontSmoothing)
+		freerdp_set_param_bool(settings, FreeRDP_AllowFontSmoothing, file->AllowFontSmoothing);
+	if (~file->DisableWallpaper)
+		freerdp_set_param_bool(settings, FreeRDP_DisableWallpaper, file->DisableWallpaper);
+	if (~file->DisableFullWindowDrag)
+		freerdp_set_param_bool(settings, FreeRDP_DisableFullWindowDrag, file->DisableFullWindowDrag);
+	if (~file->DisableMenuAnims)
+		freerdp_set_param_bool(settings, FreeRDP_DisableMenuAnims, file->DisableMenuAnims);
+	if (~file->DisableThemes)
+		freerdp_set_param_bool(settings, FreeRDP_DisableThemes, file->DisableThemes);
+	if (~file->AllowDesktopComposition)
+		freerdp_set_param_bool(settings, FreeRDP_DisableCursorShadow, file->AllowDesktopComposition);
+
+	if (~file->BitmapCachePersistEnable)
+		freerdp_set_param_bool(settings, FreeRDP_BitmapCachePersistEnabled, file->BitmapCachePersistEnable);
 
 	return TRUE;
 }

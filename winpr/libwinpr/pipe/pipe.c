@@ -23,6 +23,7 @@
 
 #include <winpr/crt.h>
 #include <winpr/path.h>
+#include <winpr/synch.h>
 #include <winpr/handle.h>
 
 #include <winpr/pipe.h>
@@ -65,7 +66,13 @@ BOOL CreatePipe(PHANDLE hReadPipe, PHANDLE hWritePipe, LPSECURITY_ATTRIBUTES lpP
 	pWritePipe = (WINPR_PIPE*) malloc(sizeof(WINPR_PIPE));
 
 	if (!pReadPipe || !pWritePipe)
+	{
+		if (pReadPipe)
+			free(pReadPipe);
+		if (pWritePipe)
+			free(pWritePipe);
 		return FALSE;
+	}
 
 	pReadPipe->fd = pipe_fd[0];
 	pWritePipe->fd = pipe_fd[1];
@@ -108,6 +115,7 @@ HANDLE CreateNamedPipeA(LPCSTR lpName, DWORD dwOpenMode, DWORD dwPipeMode, DWORD
 	pNamedPipe->nOutBufferSize = nOutBufferSize;
 	pNamedPipe->nInBufferSize = nInBufferSize;
 	pNamedPipe->nDefaultTimeOut = nDefaultTimeOut;
+	pNamedPipe->dwFlagsAndAttributes = dwOpenMode;
 
 	pNamedPipe->lpFileName = GetNamedPipeNameWithoutPrefixA(lpName);
 	pNamedPipe->lpFilePath = GetNamedPipeUnixDomainSocketFilePathA(lpName);
@@ -176,6 +184,14 @@ BOOL ConnectNamedPipe(HANDLE hNamedPipe, LPOVERLAPPED lpOverlapped)
 		return FALSE;
 
 	pNamedPipe->clientfd = status;
+
+	if (pNamedPipe->dwFlagsAndAttributes & FILE_FLAG_OVERLAPPED)
+	{
+		if (!lpOverlapped)
+			return FALSE;
+
+		SetEvent(lpOverlapped->hEvent);
+	}
 
 	return TRUE;
 }
