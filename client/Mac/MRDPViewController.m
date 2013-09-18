@@ -241,7 +241,7 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     return freerdp_set_param_double(context->settings, identifier, value);
 }
 
-- (BOOL)provideServerCredentials:(ServerCredential **)credentials;
+- (BOOL)provideServerCredentials:(ServerCredential **)credentials
 {
 //  Implemented like this:
 //
