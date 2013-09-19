@@ -221,7 +221,7 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
 {
     char* cString = freerdp_get_param_string(context-> settings, identifier);
     
-    return [NSString stringWithUTF8String:cString];
+    return cString ? [NSString stringWithUTF8String:cString] : nil;
 }
 
 - (int)setStringSettingForIdentifier:(int)identifier withValue:(NSString *)value

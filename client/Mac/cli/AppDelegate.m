@@ -57,14 +57,15 @@ void AppDelegate_ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
     MRDPViewController *controller = [[MRDPViewController alloc] initWithNibName:nil bundle:nil];
     [self.window setContentView:controller.view];
     
-//    [controller configure];
-    [controller configure:[[NSProcessInfo processInfo] arguments]];
+    [controller configure];
+//    [controller configure:[[NSProcessInfo processInfo] arguments]];
     
 //    [controller setBooleanSettingForIdentifier:962 withValue:FALSE];
 //    [controller setBooleanSettingForIdentifier:1408 withValue:FALSE];
-//    [controller setStringSettingForIdentifier:20 withValue:@"10.211.55.3"];
-//    [controller setStringSettingForIdentifier:21 withValue:@"richard"];
-//    [controller setStringSettingForIdentifier:22 withValue:@"M1crosoft"];
+    [controller setStringSettingForIdentifier:20 withValue:@"10.211.55.3"];
+    [controller setStringSettingForIdentifier:21 withValue:@"richard"];
+    [controller setStringSettingForIdentifier:22 withValue:@"M1crosoft"];
+    [controller setInt32SettingForIdentifier:960 withValue:384];
     
     [controller start];
 }
