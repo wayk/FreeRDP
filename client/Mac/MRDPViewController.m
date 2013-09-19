@@ -9,6 +9,9 @@
 #import "MRDPViewController.h"
 #import "MRDPView.h"
 
+#include <freerdp/addin.h>
+#include <freerdp/client/channels.h>
+
 void EmbedWindowEventHandler(void* context, EmbedWindowEventArgs* e);
 void ConnectionResultEventHandler(void* context, ConnectionResultEventArgs* e);
 void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
@@ -137,6 +140,9 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     }
     else
     {
+        // Workaround bug when not using the command line parser
+        freerdp_register_addin_provider(freerdp_channels_load_static_addin_entry, 0);
+        
         status = 0;
     }
     
