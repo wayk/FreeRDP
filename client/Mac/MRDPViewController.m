@@ -91,7 +91,14 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
         mfContext* mfc = (mfContext*)context;
         
         self->mrdpView = mfc->view;
-        [self.view addSubview:mfc->view];
+        
+        
+        [mrdpView setFrameOrigin:NSMakePoint(
+                                             (NSWidth([self.view bounds]) - NSWidth([mrdpView frame])) / 2,
+                                             (NSHeight([self.view bounds]) - NSHeight([mrdpView frame])) / 2
+                                             )];
+        [mrdpView setAutoresizingMask:NSViewMinXMargin | NSViewMaxXMargin | NSViewMinYMargin | NSViewMaxYMargin | NSViewWidthSizable | NSViewHeightSizable];
+        [self.view addSubview:mrdpView];
     }
 }
 
