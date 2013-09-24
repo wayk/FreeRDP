@@ -8,6 +8,8 @@
 
 #import "MRDPViewController.h"
 #import "MRDPView.h"
+#import "MRDPScrollView.h"
+#import "MRDPCenteringClipView.h"
 
 #include <freerdp/addin.h>
 #include <freerdp/client/channels.h>
@@ -92,13 +94,36 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
         
         self->mrdpView = mfc->view;
         
-        
-        [mrdpView setFrameOrigin:NSMakePoint(
-                                             (NSWidth([self.view bounds]) - NSWidth([mrdpView frame])) / 2,
-                                             (NSHeight([self.view bounds]) - NSHeight([mrdpView frame])) / 2
-                                             )];
-        [mrdpView setAutoresizingMask:NSViewMinXMargin | NSViewMaxXMargin | NSViewMinYMargin | NSViewMaxYMargin | NSViewWidthSizable | NSViewHeightSizable];
-        [self.view addSubview:mrdpView];
+        if([self getBooleanSettingForIdentifier:FreeRDP_SmartSizing])
+        {
+            [mrdpView setFrameOrigin:NSMakePoint(
+                                                 (NSWidth([self.view bounds]) - NSWidth([mrdpView frame])) / 2,
+                                                 (NSHeight([self.view bounds]) - NSHeight([mrdpView frame])) / 2
+                                                 )];
+            [mrdpView setAutoresizingMask:NSViewMinXMargin | NSViewMaxXMargin | NSViewMinYMargin | NSViewMaxYMargin | NSViewWidthSizable | NSViewHeightSizable];
+            [self.view addSubview:mrdpView];
+        }
+        else
+        {
+            // TODO leaked...
+            MRDPScrollView *scroller = [[MRDPScrollView alloc] init];
+            [scroller setFrame:self.view.frame];
+            [scroller setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
+            [self.view addSubview:scroller];
+            
+            [scroller setDocumentView:mrdpView];
+            
+            [scroller setScrollerStyle:NSScrollerStyleLegacy];
+            [scroller setBorderType:NSBorderlessWindowMask];
+            [scroller setHasHorizontalScroller:TRUE];
+            [scroller setHasVerticalScroller:TRUE];
+            
+            // Replace NSClipView of scrollView with a CenteringClipView
+            id docView = [scroller documentView];
+            NSClipView* clipView = [[MRDPCenteringClipView alloc] initWithFrame:[docView frame]];
+            [scroller setContentView:clipView];
+            [scroller setDocumentView:docView];
+        }
     }
 }
 
@@ -124,6 +149,7 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
 
 - (void)loadView
 {
+    // TODO leaked...
     self.view = [[NSView alloc] init];
 }
 

@@ -96,7 +96,6 @@
 
 - (void) onPasteboardTimerFired :(NSTimer *) timer;
 - (void) releaseResources;
-- (void) setViewSize : (int) w : (int) h;
 
 @property (assign) int is_connected;
 @property(nonatomic, assign) NSObject<MRDPViewPasswordPromptDelegate> *delegate;

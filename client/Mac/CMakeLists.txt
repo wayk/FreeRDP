@@ -32,7 +32,9 @@ set(${MODULE_PREFIX}_OBJECTIVE_SOURCES
        ServerCredential.m
        MRDPView.m
        MRDPViewController.m
-       PasswordDialog.m)
+       PasswordDialog.m
+       MRDPScrollView.m
+       MRDPCenteringClipView.m)
 
 list(APPEND ${MODULE_PREFIX}_SOURCES ${${MODULE_PREFIX}_OBJECTIVE_SOURCES})
 
@@ -45,7 +47,9 @@ set(${MODULE_PREFIX}_HEADERS
        MRDPViewController.h
        MRDPViewControllerDelegate.h
        MRDPViewPasswordPromptDelegate.h
-       PasswordDialog.h)
+       PasswordDialog.h
+       MRDPScrollView.h
+       MRDPCenteringClipView.h)
 
 set(${MODULE_PREFIX}_RESOURCES "en.lproj/InfoPlist.strings")
 

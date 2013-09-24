@@ -140,8 +140,6 @@ struct rgba_data
 	e.embed = TRUE;
 	e.handle = (void*) self;
 	PubSub_OnEmbedWindow(context->pubSub, context, &e);
-    [self setViewSize :instance->settings->DesktopWidth :instance->settings->DesktopHeight];
-
     mfc->thread = CreateThread(NULL, 0, mac_client_thread, (void*) context, 0, &mfc->mainThreadId);
 	
 	return 0;
@@ -303,6 +301,53 @@ DWORD mac_client_thread(void* param)
     [self addCursorRect:[self visibleRect] cursor:currentCursor];
 }
 
+// Support for SmartSizing in app
+// We want the view to grow and shrink, but never get larger than the configured desktop size
+// The implementation is not perfect because we only reconfigure the view once the resize is complete,
+// not live
+// However, I get a lot of weird bugs doing this live inside resizeWithOldSuperviewSize:(NSSize)oldBoundsSize
+- (void)viewDidEndLiveResize
+{
+    if(freerdp_get_param_bool(self->context->settings, FreeRDP_SmartSizing))
+    {
+        NSSize oldBoundsSize = self.superview.bounds.size;
+        
+        int newWidth = self.frame.size.width;
+        int newHeight = self.frame.size.height;
+        
+        if(oldBoundsSize.width > freerdp_get_param_uint32(self->context->settings, FreeRDP_DesktopWidth))
+        {
+            self.autoresizingMask = self.autoresizingMask & ~NSViewWidthSizable;
+            newWidth = freerdp_get_param_uint32(self->context->settings, FreeRDP_DesktopWidth);
+        }
+        else if(oldBoundsSize.width <= freerdp_get_param_uint32(self->context->settings, FreeRDP_DesktopWidth))
+        {
+            self.autoresizingMask = self.autoresizingMask |= NSViewWidthSizable;
+            newWidth = oldBoundsSize.width;
+        }
+        
+        if(oldBoundsSize.height > freerdp_get_param_uint32(self->context->settings, FreeRDP_DesktopHeight))
+        {
+            self.autoresizingMask = self.autoresizingMask & ~NSViewHeightSizable;
+            newHeight = freerdp_get_param_uint32(self->context->settings, FreeRDP_DesktopHeight);
+        }
+        else if(oldBoundsSize.height <= freerdp_get_param_uint32(self->context->settings, FreeRDP_DesktopHeight))
+        {
+            self.autoresizingMask = self.autoresizingMask |= NSViewHeightSizable;
+            newHeight = oldBoundsSize.height;
+        }
+        
+        [self setFrameSize:NSMakeSize(newWidth, newHeight)];
+        [self setFrameOrigin:NSMakePoint((oldBoundsSize.width - newWidth) / 2,
+                                         (oldBoundsSize.height - newHeight) / 2)];
+    }
+}
+
+- (void)resizeWithOldSuperviewSize:(NSSize)oldBoundsSize
+{
+    [super resizeWithOldSuperviewSize:oldBoundsSize];
+}
+
 /** *********************************************************************
  * become first responder so we can get keyboard and mouse events
  ***********************************************************************/
@@ -333,6 +378,7 @@ DWORD mac_client_thread(void* param)
 		return;
 	
     NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
+    
 	int x = (int) loc.x;
 	int y = (int) loc.y;
 	
@@ -744,20 +790,6 @@ DWORD mac_client_thread(void* param)
 	}
 }
 
-- (void) setViewSize : (int) w : (int) h
-{
-	// store current dimensions
-	width = w;
-	height = h;
-	
-	NSRect innerRect = [self frame];
-
-	// set client area to specified dimensions
-	innerRect.size.width = w;
-	innerRect.size.height = h;
-	[self setFrame:innerRect];
-}
-
 /************************************************************************
  *                                                                      *
  *                              C functions                             *
@@ -887,7 +919,6 @@ BOOL mac_post_connect(freerdp* instance)
 
 	return TRUE;
 }
-
 
 BOOL mac_authenticate(freerdp* instance, char** username, char** password, char** domain)
 {
