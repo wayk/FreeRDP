@@ -56,11 +56,17 @@
 #endif
 
 #include <winpr/crt.h>
+#include <winpr/heap.h>
+#include <winpr/path.h>
 #include <winpr/tchar.h>
 #include <winpr/environment.h>
 
+#include <pwd.h>
+#include <grp.h>
+
 #include <errno.h>
 #include <spawn.h>
+#include <string.h>
 #include <sys/wait.h>
 
 #include <pthread.h>
@@ -68,6 +74,7 @@
 #include "thread.h"
 
 #include "../handle/handle.h"
+#include "../security/security.h"
 
 char** EnvironmentBlockToEnvpA(LPCH lpszEnvironmentBlock)
 {
@@ -104,18 +111,79 @@ char** EnvironmentBlockToEnvpA(LPCH lpszEnvironmentBlock)
 	return envp;
 }
 
+/**
+ * If the file name does not contain a directory path, the system searches for the executable file in the following sequence:
+ *
+ * 1) The directory from which the application loaded.
+ * 2) The current directory for the parent process.
+ * 3) The 32-bit Windows system directory. Use the GetSystemDirectory function to get the path of this directory.
+ * 4) The 16-bit Windows system directory. There is no function that obtains the path of this directory,
+ *    but it is searched. The name of this directory is System.
+ * 5) The Windows directory. Use the GetWindowsDirectory function to get the path of this directory.
+ * 6) The directories that are listed in the PATH environment variable. Note that this function
+ *    does not search the per-application path specified by the App Paths registry key. To include
+ *    this per-application path in the search sequence, use the ShellExecute function.
+ */
+
+char* FindApplicationPath(char* application)
+{
+	char* path;
+	char* save;
+	DWORD nSize;
+	LPSTR lpSystemPath;
+	char* filename = NULL;
+
+	if (!application)
+		return NULL;
+
+	if (application[0] == '/')
+		return application;
+
+	nSize = GetEnvironmentVariableA("PATH", NULL, 0);
+
+	if (!nSize)
+		return application;
+
+	lpSystemPath = (LPSTR) malloc(nSize);
+	nSize = GetEnvironmentVariableA("PATH", lpSystemPath, nSize);
+
+	save = NULL;
+	path = strtok_s(lpSystemPath, ":", &save);
+
+	while (path)
+	{
+		filename = GetCombinedPath(path, application);
+
+		if (PathFileExistsA(filename))
+		{
+			break;
+		}
+
+		free(filename);
+		filename = NULL;
+
+		path = strtok_s(NULL, ":", &save);
+	}
+
+	free(lpSystemPath);
+
+	return filename;
+}
+
 BOOL _CreateProcessExA(HANDLE hToken, DWORD dwLogonFlags,
 		LPCSTR lpApplicationName, LPSTR lpCommandLine, LPSECURITY_ATTRIBUTES lpProcessAttributes,
 		LPSECURITY_ATTRIBUTES lpThreadAttributes, BOOL bInheritHandles, DWORD dwCreationFlags, LPVOID lpEnvironment,
 		LPCSTR lpCurrentDirectory, LPSTARTUPINFOA lpStartupInfo, LPPROCESS_INFORMATION lpProcessInformation)
 {
 	pid_t pid;
-	int status;
+	int flags;
 	int numArgs;
 	LPSTR* pArgs;
 	char** envp;
+	char* filename;
 	WINPR_THREAD* thread;
 	WINPR_PROCESS* process;
+	WINPR_ACCESS_TOKEN* token;
 	LPTCH lpszEnvironmentBlock;
 
 	pid = 0;
@@ -124,6 +192,10 @@ BOOL _CreateProcessExA(HANDLE hToken, DWORD dwLogonFlags,
 	lpszEnvironmentBlock = NULL;
 
 	pArgs = CommandLineToArgvA(lpCommandLine, &numArgs);
+
+	flags = 0;
+
+	token = (WINPR_ACCESS_TOKEN*) hToken;
 
 	if (lpEnvironment)
 	{
@@ -135,10 +207,43 @@ BOOL _CreateProcessExA(HANDLE hToken, DWORD dwLogonFlags,
 		envp = EnvironmentBlockToEnvpA(lpszEnvironmentBlock);
 	}
 
-	status = posix_spawnp(&pid, pArgs[0], NULL, NULL, pArgs, envp);
+	filename = FindApplicationPath(pArgs[0]);
 
-	if (status != 0)
+	/* fork and exec */
+
+	pid = fork();
+
+	if (pid < 0)
+	{
+		/* fork failure */
 		return FALSE;
+	}
+
+	if (pid == 0)
+	{
+		/* child process */
+
+		if (token)
+		{
+			if (token->GroupId)
+			{
+				setgid((gid_t) token->GroupId);
+				initgroups(token->Username, (gid_t) token->GroupId);
+			}
+
+			if (token->UserId)
+				setuid((uid_t) token->UserId);
+		}
+
+		if (execve(filename, pArgs, envp) < 0)
+		{
+			return FALSE;
+		}
+	}
+	else
+	{
+		/* parent process */
+	}
 
 	process = (WINPR_PROCESS*) malloc(sizeof(WINPR_PROCESS));
 
@@ -168,6 +273,29 @@ BOOL _CreateProcessExA(HANDLE hToken, DWORD dwLogonFlags,
 	lpProcessInformation->hThread = (HANDLE) thread;
 	lpProcessInformation->dwProcessId = (DWORD) pid;
 	lpProcessInformation->dwThreadId = (DWORD) pid;
+
+	free(filename);
+
+	if (pArgs)
+	{
+		HeapFree(GetProcessHeap(), 0, pArgs);
+	}
+
+	if (lpszEnvironmentBlock)
+		FreeEnvironmentStrings(lpszEnvironmentBlock);
+
+	if (envp)
+	{
+		int i = 0;
+
+		while (envp[i])
+		{
+			free(envp[i]);
+			i++;
+		}
+
+		free(envp);
+	}
 
 	return TRUE;
 }
@@ -237,9 +365,9 @@ BOOL CreateProcessWithTokenW(HANDLE hToken, DWORD dwLogonFlags,
 	return TRUE;
 }
 
-DECLSPEC_NORETURN VOID ExitProcess(UINT uExitCode)
+VOID ExitProcess(UINT uExitCode)
 {
-
+	exit((int) uExitCode);
 }
 
 BOOL GetExitCodeProcess(HANDLE hProcess, LPDWORD lpExitCode)
@@ -271,11 +399,28 @@ DWORD GetCurrentProcessId(VOID)
 
 DWORD GetProcessId(HANDLE Process)
 {
-	return 0;
+	WINPR_PROCESS* process;
+
+	process = (WINPR_PROCESS*) Process;
+
+	if (!process)
+		return 0;
+
+	return (DWORD) process->pid;
 }
 
 BOOL TerminateProcess(HANDLE hProcess, UINT uExitCode)
 {
+	WINPR_PROCESS* process;
+
+	process = (WINPR_PROCESS*) hProcess;
+
+	if (!process)
+		return FALSE;
+
+	if (kill(process->pid, SIGTERM))
+		return FALSE;
+
 	return TRUE;
 }
 

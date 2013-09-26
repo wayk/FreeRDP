@@ -216,13 +216,7 @@ HANDLE CreateFileA(LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode, 
 
 	pNamedPipe->clientfd = socket(PF_LOCAL, SOCK_STREAM, 0);
 	pNamedPipe->serverfd = -1;
-
-	if (0)
-	{
-		flags = fcntl(pNamedPipe->clientfd, F_GETFL);
-		flags = flags | O_NONBLOCK;
-		fcntl(pNamedPipe->clientfd, F_SETFL, flags);
-	}
+	pNamedPipe->ServerMode = FALSE;
 
 	ZeroMemory(&s, sizeof(struct sockaddr_un));
 	s.sun_family = AF_UNIX;
@@ -248,7 +242,11 @@ HANDLE CreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
 
 BOOL DeleteFileA(LPCSTR lpFileName)
 {
-	return TRUE;
+	int status;
+
+	status = unlink(lpFileName);
+
+	return (status != -1) ? TRUE : FALSE;
 }
 
 BOOL DeleteFileW(LPCWSTR lpFileName)
@@ -731,6 +729,25 @@ char* GetNamedPipeUnixDomainSocketFilePathA(LPCSTR lpName)
 	free(lpFileName);
 
 	return lpFilePath;
+}
+
+int GetNamePipeFileDescriptor(HANDLE hNamedPipe)
+{
+#ifndef _WIN32
+	int fd;
+	WINPR_NAMED_PIPE* pNamedPipe;
+
+	pNamedPipe = (WINPR_NAMED_PIPE*) hNamedPipe;
+
+	if (!pNamedPipe)
+		return -1;
+
+	fd = (pNamedPipe->ServerMode) ? pNamedPipe->serverfd : pNamedPipe->clientfd;
+
+	return fd;
+#else
+	return -1;
+#endif
 }
 
 int UnixChangeFileMode(const char* filename, int flags)

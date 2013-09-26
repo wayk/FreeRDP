@@ -10,6 +10,7 @@
 #import "MacFreeRDP/MRDPViewController.h"
 #import "MacFreeRDP/mfreerdp.h"
 #import "MacFreeRDP/mf_client.h"
+#import <freerdp/client/cmdline.h>
 
 static AppDelegate* _singleDelegate = nil;
 void AppDelegate_EmbedWindowEventHandler(void* context, EmbedWindowEventArgs* e);
@@ -106,6 +107,7 @@ void AppDelegate_ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 	}
 	
 	status = freerdp_client_parse_command_line(context, argc, argv);
+	status = freerdp_client_command_line_status_print(context->argc, context->argv, context->settings, status);
 
 	return status;
 }
