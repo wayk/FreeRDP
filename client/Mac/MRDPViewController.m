@@ -105,7 +105,6 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
         }
         else
         {
-            // TODO leaked...
             MRDPScrollView *scroller = [[MRDPScrollView alloc] init];
             [scroller setFrame:self.view.frame];
             [scroller setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
@@ -123,6 +122,9 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
             NSClipView* clipView = [[MRDPCenteringClipView alloc] initWithFrame:[docView frame]];
             [scroller setContentView:clipView];
             [scroller setDocumentView:docView];
+            
+            [clipView release];
+            [scroller release];
         }
     }
 }
