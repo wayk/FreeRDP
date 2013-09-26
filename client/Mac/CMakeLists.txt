@@ -30,6 +30,7 @@ set(${MODULE_PREFIX}_OBJECTIVE_SOURCES
        mf_client.m
        MRDPCursor.m
        ServerCredential.m
+       ServerCertificate.m
        MRDPView.m
        MRDPViewController.m
        PasswordDialog.m
@@ -43,10 +44,11 @@ set(${MODULE_PREFIX}_HEADERS
        mf_client.h
        MRDPCursor.h
        ServerCredential.h
+       ServerCertificate.h
        MRDPView.h
        MRDPViewController.h
        MRDPViewControllerDelegate.h
-       MRDPViewPasswordPromptDelegate.h
+       MRDPViewDelegate.h
        PasswordDialog.h
        MRDPScrollView.h
        MRDPCenteringClipView.h)

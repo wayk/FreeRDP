@@ -49,7 +49,7 @@
 #import "MRDPView.h"
 #import "MRDPCursor.h"
 #import "PasswordDialog.h"
-#import "MRDPViewPasswordPromptDelegate.h"
+#import "MRDPViewDelegate.h"
 
 #include <winpr/crt.h>
 #include <winpr/input.h>
@@ -924,7 +924,7 @@ BOOL mac_authenticate(freerdp* instance, char** username, char** password, char*
 {
 	mfContext *mfc = (mfContext *)instance->context;
 	MRDPView *view = (MRDPView*)mfc->view;
-    NSObject<MRDPViewPasswordPromptDelegate> *delegate = view->delegate;
+    NSObject<MRDPViewDelegate> *delegate = view->delegate;
     
     NSString *hostName = [NSString stringWithCString:instance->settings->ServerHostname encoding:NSUTF8StringEncoding];
     NSString *userName = nil;
@@ -937,7 +937,7 @@ BOOL mac_authenticate(freerdp* instance, char** username, char** password, char*
     
     if(*password)
     {
-        [NSString stringWithCString:*password encoding:NSUTF8StringEncoding];
+        userPass = [NSString stringWithCString:*password encoding:NSUTF8StringEncoding];
     }
     
     ServerCredential *credential = [[ServerCredential alloc] initWithHostName:hostName
@@ -957,8 +957,48 @@ BOOL mac_authenticate(freerdp* instance, char** username, char** password, char*
             strcpy(*password, submittedPassword);
         }
     }
+    
+    [credential release];
 
 	return TRUE;
+}
+
+BOOL mac_verify_certificate(freerdp* instance, char* subject, char* issuer, char* fingerprint)
+{
+    mfContext *mfc = (mfContext *)instance->context;
+	MRDPView *view = (MRDPView*)mfc->view;
+    NSObject<MRDPViewDelegate> *delegate = view->delegate;
+    
+    NSString *certSubject = nil;
+    NSString *certIssuer = nil;
+    NSString *certFingerprint = nil;
+    
+    if(*subject)
+    {
+        certSubject = [NSString stringWithUTF8String:subject];
+    }
+    
+    if(*issuer)
+    {
+        certIssuer = [NSString stringWithUTF8String:issuer];
+    }
+    
+    if(*fingerprint)
+    {
+        certFingerprint = [NSString stringWithUTF8String:fingerprint];
+    }
+    
+    bool result = FALSE;
+    ServerCertificate *certificate = [[ServerCertificate alloc] initWithSubject:certSubject issuer:certIssuer andFingerprint:certFingerprint];
+    
+    if(delegate && [delegate respondsToSelector:@selector(validateCertificate:)])
+    {
+        result = [delegate validateCertificate:certificate];
+    }
+    
+    [certificate release];
+    
+    return result;
 }
 
 /** *********************************************************************

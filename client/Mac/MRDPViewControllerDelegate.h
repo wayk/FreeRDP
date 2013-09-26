@@ -9,10 +9,13 @@
 #import <Foundation/Foundation.h>
 
 #import "ServerCredential.h"
+#import "ServerCertificate.h"
 
-@protocol MRDPViewControllerDelegate <NSObject, MRDPViewPasswordPromptDelegate>
+@protocol MRDPViewControllerDelegate <NSObject, MRDPViewDelegate>
 @optional
 - (void)didConnectWithResult:(NSNumber *)result;
 - (void)didErrorWithCode:(NSNumber *)code;
+- (BOOL)provideServerCredentials:(ServerCredential **)credentials;
+- (BOOL)validateCertificate:(ServerCertificate *)certificate;
 
 @end

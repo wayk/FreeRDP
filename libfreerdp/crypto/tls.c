@@ -628,6 +628,10 @@ BOOL tls_verify_certificate(rdpTls* tls, CryptoCert cert, char* hostname)
 		/* search for matching entry in known_hosts file */
 		match = certificate_data_match(tls->certificate_store, certificate_data);
 
+        /* RM - Fix the value to 1, so certificate verification always goes through our client */
+        /* RM - Ultimately this will be fixed upstream to manage certificates properly */
+        match = 1;
+        
 		if (match == 1)
 		{
 			/* no entry was found in known_hosts file, prompt user for manual verification */

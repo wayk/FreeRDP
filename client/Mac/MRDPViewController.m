@@ -282,31 +282,19 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
 
 - (BOOL)provideServerCredentials:(ServerCredential **)credentials
 {
-//  Implemented like this:
-//
-//  PasswordDialog* dialog = [[PasswordDialog alloc] initWithWindowNibName:@"PasswordDialog"];
-//  ServerCredential* c = *credentials;
-//    
-//	dialog.serverHostname = c.serverHostname;
-//    
-//	if (c.username)
-//		dialog.username = c.username;
-//    
-//	if (c.password)
-//		dialog.password = c.password;
-//    
-//    if([NSApp runModalForWindow:dialog.window] == TRUE)
-//    {
-//        c.username = dialog.username;
-//        c.password = dialog.password;
-//        
-//        return TRUE;
-//    }
-//
-    
     if(delegate && [delegate respondsToSelector:@selector(provideServerCredentials:)])
     {
         return [delegate provideServerCredentials:credentials];
+    }
+    
+    return FALSE;
+}
+
+- (BOOL)validateCertificate:(ServerCertificate *)certificate
+{
+    if(delegate && [delegate respondsToSelector:@selector(validateCertificate:)])
+    {
+        return [delegate validateCertificate:certificate];
     }
     
     return FALSE;

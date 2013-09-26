@@ -11,7 +11,7 @@
 #import "MRDPViewControllerDelegate.h"
 #import "mfreerdp.h"
 
-@interface MRDPViewController : NSViewController <MRDPViewPasswordPromptDelegate>
+@interface MRDPViewController : NSViewController <MRDPViewDelegate>
 {
     NSObject<MRDPViewControllerDelegate> *delegate;
     

@@ -39,7 +39,7 @@
 #import "mfreerdp.h"
 #import "mf_client.h"
 
-#import "MRDPViewPasswordPromptDelegate.h"
+#import "MRDPViewDelegate.h"
 
 @interface MRDPView : NSView
 {
@@ -88,7 +88,7 @@
 	int pasteboard_format;
 	int is_connected;
     
-    NSObject<MRDPViewPasswordPromptDelegate> *delegate;
+    NSObject<MRDPViewDelegate> *delegate;
 }
 
 - (int)  rdpStart :(rdpContext*) rdp_context;
@@ -98,7 +98,7 @@
 - (void) releaseResources;
 
 @property (assign) int is_connected;
-@property(nonatomic, assign) NSObject<MRDPViewPasswordPromptDelegate> *delegate;
+@property(nonatomic, assign) NSObject<MRDPViewDelegate> *delegate;
 
 @end
 
@@ -115,5 +115,6 @@
 BOOL mac_pre_connect(freerdp* instance);
 BOOL mac_post_connect(freerdp*	instance);
 BOOL mac_authenticate(freerdp* instance, char** username, char** password, char** domain);
+BOOL mac_verify_certificate(freerdp* instance, char* subject, char* issuer, char* fingerprint);
 int mac_receive_channel_data(freerdp* instance, int chan_id, BYTE* data, int size, int flags, int total_size);
 DWORD mac_client_thread(void* param);
