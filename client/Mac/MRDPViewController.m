@@ -111,7 +111,6 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
             [self.view addSubview:scroller];
             
             [scroller setDocumentView:mrdpView];
-            
             [scroller setScrollerStyle:NSScrollerStyleLegacy];
             [scroller setBorderType:NSBorderlessWindowMask];
             [scroller setHasHorizontalScroller:TRUE];
@@ -122,6 +121,8 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
             NSClipView* clipView = [[MRDPCenteringClipView alloc] initWithFrame:[docView frame]];
             [scroller setContentView:clipView];
             [scroller setDocumentView:docView];
+            
+            [clipView centerView];
             
             [clipView release];
             [scroller release];
