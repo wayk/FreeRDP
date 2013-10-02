@@ -64,6 +64,7 @@ void AppDelegate_ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
     [controller setStringSettingForIdentifier:20 withValue:@"10.211.55.5"];
     [controller setStringSettingForIdentifier:21 withValue:@"ieuser"];
     [controller setStringSettingForIdentifier:22 withValue:@"Passw0rd!"];
+    [controller setBooleanSettingForIdentifier:707 withValue:TRUE];
 //    [controller setBooleanSettingForIdentifier:FreeRDP_RdpSecurity withValue:TRUE];
     
     [controller start];
