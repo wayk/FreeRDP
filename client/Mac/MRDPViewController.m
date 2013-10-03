@@ -111,6 +111,8 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
 {
     NSLog(@"dealloc");
 
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+    
     self->mrdpView.delegate = nil;
     self.delegate = nil;
     
@@ -184,9 +186,7 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
 {
     NSLog(@"stop");
     
-    [[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPViewDidPostErrorInfoNotification object:nil];
-    [[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPViewDidConnectWithResultNotification object:nil];
-    [[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPViewDidPostEmbedNotification object:nil];
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
     
     freerdp_client_stop(context);
 }
