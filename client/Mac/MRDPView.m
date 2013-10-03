@@ -134,7 +134,6 @@ struct rgba_data
 	context = rdp_context;
 	mfc = (mfContext*) rdp_context;
 	instance = context->instance;
-	settings = context->settings;
 
 	EventArgsInit(&e, "mfreerdp");
 	e.embed = TRUE;
@@ -269,15 +268,12 @@ DWORD mac_client_thread(void* param)
         height = [self frame].size.height;
         titleBarHeight = 22;
 
-        [[self window] becomeFirstResponder];
-        [[self window] setAcceptsMouseMovedEvents:YES];
-
         cursors = [[NSMutableArray alloc] initWithCapacity:10];
 
         // setup a mouse tracking area
         NSTrackingArea * trackingArea = [[NSTrackingArea alloc] initWithRect:[self visibleRect] options:NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved | NSTrackingCursorUpdate | NSTrackingEnabledDuringMouseDrag | NSTrackingActiveWhenFirstResponder owner:self userInfo:nil];
-
         [self addTrackingArea:trackingArea];
+        [trackingArea release];
         
         // Set the default cursor
         currentCursor = [NSCursor arrowCursor];
@@ -301,11 +297,13 @@ DWORD mac_client_thread(void* param)
     [self addCursorRect:[self visibleRect] cursor:currentCursor];
 }
 
-// Support for SmartSizing in app
-// We want the view to grow and shrink, but never get larger than the configured desktop size
-// The implementation is not perfect because we only reconfigure the view once the resize is complete,
-// not live
-// However, I get a lot of weird bugs doing this live inside resizeWithOldSuperviewSize:(NSSize)oldBoundsSize
+/*************************************************************************************************************
+ * Support for SmartSizing in app
+ * We want the view to grow and shrink, but never get larger than the configured desktop size
+ * The implementation is not perfect because we only reconfigure the view once the resize is complete,
+ * not live
+ * However, I get a lot of weird bugs doing this live inside resizeWithOldSuperviewSize:(NSSize)oldBoundsSize
+ ************************************************************************************************************/
 - (void)viewDidEndLiveResize
 {
     if(freerdp_get_param_bool(self->context->settings, FreeRDP_SmartSizing))
@@ -348,7 +346,7 @@ DWORD mac_client_thread(void* param)
     [super resizeWithOldSuperviewSize:oldBoundsSize];
 }
 
-/** *********************************************************************
+/***********************************************************************
  * become first responder so we can get keyboard and mouse events
  ***********************************************************************/
 
@@ -740,7 +738,7 @@ DWORD mac_client_thread(void* param)
 		free(pixel_data);
 }
 
-/** *********************************************************************
+/***********************************************************************
  * called when our view needs refreshing
  ***********************************************************************/
 
@@ -761,9 +759,8 @@ DWORD mac_client_thread(void* param)
 	}
 	else
 	{
-		// just clear the screen with red
-		[[NSColor redColor] set];
-		NSRectFill([self bounds]);
+		[[NSColor blackColor] set];
+		NSRectFill(rect);
 	}
 }
 
@@ -814,14 +811,12 @@ BOOL mac_pre_connect(freerdp* instance)
 	instance->update->BeginPaint = mac_begin_paint;
 	instance->update->EndPaint = mac_end_paint;
 	instance->update->SetBounds = mac_set_bounds;
-	//instance->update->BitmapUpdate = mac_bitmap_update;
 
 	settings = instance->settings;
 
 	if (!settings->ServerHostname)
 	{
 		fprintf(stderr, "error: server hostname was not specified with /v:<server>[:port]\n");
-//		[NSApp terminate:nil];
 		return -1;
 	}
 
@@ -903,7 +898,8 @@ BOOL mac_post_connect(freerdp* instance)
 	rdpGdi* gdi = instance->context->gdi;
 	CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
 	view->bitmap_context = CGBitmapContextCreate(gdi->primary_buffer, gdi->width, gdi->height, 8, gdi->width * 4, colorSpace, kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst);
-
+    CGColorSpaceRelease(colorSpace);
+    
 	pointer_cache_register_callbacks(instance->update);
 	graphics_register_pointer(instance->context->graphics, &rdp_pointer);
 
@@ -1001,7 +997,7 @@ BOOL mac_verify_certificate(freerdp* instance, char* subject, char* issuer, char
     return result;
 }
 
-/** *********************************************************************
+/***********************************************************************
  * create a new mouse cursor
  *
  * @param context our context state
@@ -1072,9 +1068,11 @@ void mf_Pointer_New(rdpContext* context, rdpPointer* pointer)
 	/* save cursor for later use in mf_Pointer_Set() */
 	ma = view->cursors;
 	[ma addObject:mrdpCursor];
+    
+    [mrdpCursor release];
 }
 
-/** *********************************************************************
+/************************************************************************
  * release resources on specified cursor
  ************************************************************************/
 
@@ -1098,7 +1096,7 @@ void mf_Pointer_Free(rdpContext* context, rdpPointer* pointer)
 	}
 }
 
-/** *********************************************************************
+/************************************************************************
  * set specified cursor as the current cursor
  ************************************************************************/
 
@@ -1121,7 +1119,7 @@ void mf_Pointer_Set(rdpContext* context, rdpPointer* pointer)
     NSLog(@"Cursor not found");
 }
 
-/** *********************************************************************
+/***********************************************************************
  * do not display any mouse cursor
  ***********************************************************************/
 
@@ -1130,7 +1128,7 @@ void mf_Pointer_SetNull(rdpContext* context)
 	
 }
 
-/** *********************************************************************
+/***********************************************************************
  * display default mouse cursor
  ***********************************************************************/
 
@@ -1141,7 +1139,7 @@ void mf_Pointer_SetDefault(rdpContext* context)
     [view setCursor:[NSCursor arrowCursor]];
 }
 
-/** *********************************************************************
+/***********************************************************************
  * clip drawing surface so nothing is drawn outside specified bounds
  ***********************************************************************/
 
@@ -1150,7 +1148,7 @@ void mac_set_bounds(rdpContext* context, rdpBounds* bounds)
 	
 }
 
-/** *********************************************************************
+/***********************************************************************
  * we don't do much over here
  ***********************************************************************/
 
@@ -1159,7 +1157,7 @@ void mac_bitmap_update(rdpContext* context, BITMAP_UPDATE* bitmap)
 	
 }
 
-/** *********************************************************************
+/***********************************************************************
  * we don't do much over here
  ***********************************************************************/
 
@@ -1169,7 +1167,7 @@ void mac_begin_paint(rdpContext* context)
 	gdi->primary->hdc->hwnd->invalid->null = 1;
 }
 
-/** *********************************************************************
+/***********************************************************************
  * RDP server wants us to draw new data in the view
  ***********************************************************************/
 
@@ -1206,7 +1204,7 @@ void mac_end_paint(rdpContext* context)
 }
 
 
-/** *********************************************************************
+/***********************************************************************
  * called when update data is available
  ***********************************************************************/
 
@@ -1235,7 +1233,7 @@ static void update_activity_cb(freerdp* instance)
 	}
 }
 
-/** *********************************************************************
+/***********************************************************************
  * called when input data is available
  ***********************************************************************/
 
@@ -1264,7 +1262,7 @@ static void input_activity_cb(freerdp* instance)
     }
 }
 
-/** *********************************************************************
+/***********************************************************************
  * called when data is available on a virtual channel
  ***********************************************************************/
 
@@ -1288,7 +1286,7 @@ static void channel_activity_cb(freerdp* instance)
 	}
 }
 
-/** *********************************************************************
+/***********************************************************************
  * called when channel data is available
  ***********************************************************************/
 

@@ -13,7 +13,8 @@
 
 @protocol MRDPViewControllerDelegate <NSObject, MRDPViewDelegate>
 @optional
-- (void)didConnectWithResult:(NSNumber *)result;
+- (void)didConnect;
+- (void)didFailToConnectWithError:(NSNumber *)connectErrorCode;
 - (void)didErrorWithCode:(NSNumber *)code;
 - (BOOL)provideServerCredentials:(ServerCredential **)credentials;
 - (BOOL)validateCertificate:(ServerCertificate *)certificate;

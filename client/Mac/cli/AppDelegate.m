@@ -8,14 +8,6 @@
 
 #import "AppDelegate.h"
 #import "MacFreeRDP/MRDPViewController.h"
-#import "MacFreeRDP/mfreerdp.h"
-#import "MacFreeRDP/mf_client.h"
-#import <freerdp/client/cmdline.h>
-
-static AppDelegate* _singleDelegate = nil;
-void AppDelegate_EmbedWindowEventHandler(void* context, EmbedWindowEventArgs* e);
-void AppDelegate_ConnectionResultEventHandler(void* context, ConnectionResultEventArgs* e);
-void AppDelegate_ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 
 @implementation AppDelegate
 
@@ -26,54 +18,49 @@ void AppDelegate_ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 
 @synthesize window = window;
 
-
-@synthesize context = context;
-
 - (void) applicationDidFinishLaunching:(NSNotification*)aNotification
 {
-//	int status;
-//	mfContext* mfc;
-//
-//    _singleDelegate = self;
-//	[self CreateContext];
-//
-//	status = [self ParseCommandLineArguments];
-//
-//	mfc = (mfContext*) context;
-//	mfc->view = (void*) mrdpView;
-//
-//	if (status < 0)
-//	{
-//
-//	}
-//	else
-//	{
-//		PubSub_SubscribeConnectionResult(context->pubSub, AppDelegate_ConnectionResultEventHandler);
-//		PubSub_SubscribeErrorInfo(context->pubSub, AppDelegate_ErrorInfoEventHandler);
-//		PubSub_SubscribeEmbedWindow(context->pubSub, AppDelegate_EmbedWindowEventHandler);
-//		
-//		freerdp_clixent_start(context);
-//	}
+    mrdpViewController = [[MRDPViewController alloc] init];
+    mrdpViewController.delegate = self;
     
-    MRDPViewController *controller = [[MRDPViewController alloc] initWithNibName:nil bundle:nil];
-    [self.window setContentView:controller.view];
+    [mrdpViewController configure];
+    // [controller configure:[[NSProcessInfo processInfo] arguments]];
     
-    [controller configure];
-//    [controller configure:[[NSProcessInfo processInfo] arguments]];
+    [mrdpViewController setStringSettingForIdentifier:20 withValue:@"10.211.55.5"];
+    [mrdpViewController setStringSettingForIdentifier:21 withValue:@"ieuser"];
+    [mrdpViewController setStringSettingForIdentifier:22 withValue:@"Passw0rd!"];
     
-    [controller setStringSettingForIdentifier:20 withValue:@"10.211.55.5"];
-    [controller setStringSettingForIdentifier:21 withValue:@"ieuser"];
-    [controller setStringSettingForIdentifier:22 withValue:@"Passw0rd!"];
-    [controller setBooleanSettingForIdentifier:707 withValue:TRUE];
-//    [controller setBooleanSettingForIdentifier:FreeRDP_RdpSecurity withValue:TRUE];
-    
-    [controller start];
+    [mrdpViewController start];
+}
+
+- (void)didConnect
+{
+   [self.window setContentView:mrdpViewController.rdpView];
+}
+
+- (void)didFailToConnectWithError:(NSNumber *)connectErrorCode
+{
+
+}
+
+- (void)didErrorWithCode:(NSNumber *)code
+{
+
+}
+
+- (BOOL)provideServerCredentials:(ServerCredential **)credentials
+{
+    return false;
+}
+
+- (BOOL)validateCertificate:(ServerCertificate *)certificate
+{
+    return true;
 }
 
 - (void) applicationWillTerminate:(NSNotification*)notification
 {
-	[mrdpView releaseResources];
-    _singleDelegate = nil;    
+   
 }
 
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender
@@ -81,142 +68,4 @@ void AppDelegate_ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 	return YES;
 }
 
-- (int) ParseCommandLineArguments
-{
-	int i;
-	int len;
-	int status;
-	char* cptr;
-	int argc;
-	char** argv = nil;
-
-	NSArray* args = [[NSProcessInfo processInfo] arguments];
-
-	argc = (int) [args count];
-	argv = malloc(sizeof(char*) * argc);
-	
-	i = 0;
-	
-	for (NSString* str in args)
-	{
-		len = (int) ([str length] + 1);
-		cptr = (char*) malloc(len);
-		strcpy(cptr, [str UTF8String]);
-		argv[i++] = cptr;
-	}
-	
-	status = freerdp_client_parse_command_line(context, argc, argv);
-	status = freerdp_client_command_line_status_print(context->argc, context->argv, context->settings, status);
-
-	return status;
-}
-
-- (void) CreateContext
-{
-	RDP_CLIENT_ENTRY_POINTS clientEntryPoints;
-
-	ZeroMemory(&clientEntryPoints, sizeof(RDP_CLIENT_ENTRY_POINTS));
-	clientEntryPoints.Size = sizeof(RDP_CLIENT_ENTRY_POINTS);
-	clientEntryPoints.Version = RDP_CLIENT_INTERFACE_VERSION;
-
-	RdpClientEntry(&clientEntryPoints);
-
-	context = freerdp_client_context_new(&clientEntryPoints);
-}
-
-- (void) ReleaseContext
-{
-	freerdp_client_context_free(context);
-	context = nil;
-}
-
-
-/** *********************************************************************
- * called when we fail to connect to a RDP server - Make sure this is called from the main thread.
- ***********************************************************************/
-
-- (void) rdpConnectError : (NSString*) withMessage
-{
-	NSString* message = withMessage ? withMessage : @"Error connecting to server";
-
-	NSAlert *alert = [[NSAlert alloc] init];
-	[alert setMessageText:message];
-	[alert beginSheetModalForWindow:[self window]
-					  modalDelegate:self
-					 didEndSelector:@selector(alertDidEnd:returnCode:contextInfo:)
-						contextInfo:nil];
-}
-
-
-/** *********************************************************************
- * just a terminate selector for above call
- ***********************************************************************/
-
-- (void) alertDidEnd:(NSAlert *)a returnCode:(NSInteger)rc contextInfo:(void *)ci
-{
-	
-}
-
-
 @end
-
-void AppDelegate_EmbedWindowEventHandler(void* ctx, EmbedWindowEventArgs* e)
-{
-	rdpContext* context = (rdpContext*) ctx;
-	
-    if (_singleDelegate)
-    {
-        mfContext* mfc = (mfContext*) context;
-        _singleDelegate->mrdpView = mfc->view;
-        
-        if (_singleDelegate->window)
-        {
-            [[_singleDelegate->window contentView] addSubview:mfc->view];
-        }
-    }
-}
-
-/** *********************************************************************
- * On connection error, display message and quit application
- ***********************************************************************/
-
-void AppDelegate_ConnectionResultEventHandler(void* ctx, ConnectionResultEventArgs* e)
-{
-	NSLog(@"ConnectionResult event result:%d\n", e->result);
-	if (_singleDelegate)
-	{
-		if (e->result != 0)
-		{
-			NSString* message = nil;
-			if (connectErrorCode == AUTHENTICATIONERROR)
-			{
-				message = [NSString stringWithFormat:@"%@:\n%@", message, @"Authentication failure, check credentials."];
-			}
-			
-			
-			// Making sure this should be invoked on the main UI thread.
-			[_singleDelegate performSelectorOnMainThread:@selector(rdpConnectError:) withObject:message waitUntilDone:FALSE];
-		}
-	}
-}
-
-void AppDelegate_ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e)
-{
-	NSLog(@"ErrorInfo event code:%d\n", e->code);
-	if (_singleDelegate)
-	{
-		// Retrieve error message associated with error code
-		NSString* message = nil;
-		if (e->code != ERRINFO_NONE)
-		{
-			const char* errorMessage = freerdp_get_error_info_string(e->code);
-			message = [[NSString alloc] initWithUTF8String:errorMessage];
-		}
-		
-		// Making sure this should be invoked on the main UI thread.
-		[_singleDelegate performSelectorOnMainThread:@selector(rdpConnectError:) withObject:message waitUntilDone:TRUE];
-        
-        if(message != nil)
-            [message release];
-	}
-}

@@ -11,9 +11,10 @@
 #import "MRDPViewControllerDelegate.h"
 #import "mfreerdp.h"
 
-@interface MRDPViewController : NSViewController <MRDPViewDelegate>
+@interface MRDPViewController : NSObject <MRDPViewDelegate>
 {
     NSObject<MRDPViewControllerDelegate> *delegate;
+    NSView *rdpView;
     
     @public
 	rdpContext* context;
@@ -23,6 +24,7 @@
 @property(nonatomic, assign) NSObject<MRDPViewControllerDelegate> *delegate;
 @property (assign) rdpContext *context;
 @property (nonatomic, readonly) BOOL isConnected;
+@property (nonatomic, assign) NSView *rdpView;
 
 - (BOOL)configure;
 - (BOOL)configure:(NSArray *)arguments;
@@ -40,5 +42,6 @@
 - (int)setStringSettingForIdentifier:(int)identifier withValue:(NSString *)value;
 - (double)getDoubleSettingForIdentifier:(int)identifier;
 - (int)setDoubleSettingForIdentifier:(int)identifier withValue:(double)value;
+- (NSString *)getErrorInfoString:(int)code;
 
 @end

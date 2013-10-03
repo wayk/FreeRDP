@@ -8,7 +8,6 @@
 
 #import "MRDPCenteringClipView.h"
 
-// http://programerror.com/2011/04/centering-custom-views-inside-an-nsscrollview/
 @implementation MRDPCenteringClipView
 
 - (id)initWithFrame:(NSRect)frame

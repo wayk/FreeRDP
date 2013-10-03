@@ -27,4 +27,13 @@
     return self;
 }
 
+- (void)dealloc
+{
+    [subject release];
+    [issuer release];
+    [fingerprint release];
+    
+    [super dealloc];
+}
+
 @end

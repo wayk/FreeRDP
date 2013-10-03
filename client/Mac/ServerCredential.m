@@ -27,4 +27,13 @@
     return self;
 }
 
+- (void) dealloc
+{
+    [serverHostname release];
+    [username release];
+    [password release];
+    
+    [super dealloc];
+}
+
 @end

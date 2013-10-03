@@ -8,7 +8,6 @@
 
 #import "MRDPViewController.h"
 #import "MRDPView.h"
-#import "MRDPScrollView.h"
 #import "MRDPCenteringClipView.h"
 
 #include <freerdp/addin.h>
@@ -26,14 +25,15 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 
 @synthesize context;
 @synthesize delegate;
+@synthesize rdpView;
 
 static NSString *MRDPViewDidPostErrorInfoNotification = @"MRDPViewDidPostErrorInfoNotification";
 static NSString *MRDPViewDidConnectWithResultNotification = @"MRDPViewDidConnectWithResultNotification";
 static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotification";
 
-- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+- (id)init
 {
-    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    self = [super init];
     if (self)
     {
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidPostError:) name:MRDPViewDidPostErrorInfoNotification object:nil];
@@ -59,9 +59,21 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
         ConnectionResultEventArgs *e = nil;
         [[[notification userInfo] valueForKey:@"connectionArgs"] getValue:&e];
         
-        if(delegate && [delegate respondsToSelector:@selector(didConnectWithResult:)])
+        if(e->result == 0)
         {
-            [delegate performSelectorOnMainThread:@selector(didConnectWithResult:) withObject:[NSNumber numberWithInt:e->result] waitUntilDone:false];
+            if(delegate && [delegate respondsToSelector:@selector(didConnect)])
+            {
+                [delegate performSelectorOnMainThread:@selector(didConnect) withObject:nil waitUntilDone:false];
+            }
+        }
+        else
+        {
+            if(delegate && [delegate respondsToSelector:@selector(didFailToConnectWithError:)])
+            {
+                NSNumber *connectErrorCode = [[notification userInfo] valueForKey:@"connectErrorCode"];
+                
+                [delegate performSelectorOnMainThread:@selector(didFailToConnectWithError:) withObject:connectErrorCode waitUntilDone:false];
+            }
         }
     }
 }
@@ -93,40 +105,7 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
         mfContext* mfc = (mfContext*)context;
         
         self->mrdpView = mfc->view;
-        
-        if([self getBooleanSettingForIdentifier:FreeRDP_SmartSizing])
-        {
-            [mrdpView setFrameOrigin:NSMakePoint(
-                                                 (NSWidth([self.view bounds]) - NSWidth([mrdpView frame])) / 2,
-                                                 (NSHeight([self.view bounds]) - NSHeight([mrdpView frame])) / 2
-                                                 )];
-            [mrdpView setAutoresizingMask:NSViewMinXMargin | NSViewMaxXMargin | NSViewMinYMargin | NSViewMaxYMargin | NSViewWidthSizable | NSViewHeightSizable];
-            [self.view addSubview:mrdpView];
-        }
-        else
-        {
-            MRDPScrollView *scroller = [[MRDPScrollView alloc] init];
-            [scroller setFrame:self.view.frame];
-            [scroller setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
-            [self.view addSubview:scroller];
-            
-            [scroller setDocumentView:mrdpView];
-            [scroller setScrollerStyle:NSScrollerStyleLegacy];
-            [scroller setBorderType:NSBorderlessWindowMask];
-            [scroller setHasHorizontalScroller:TRUE];
-            [scroller setHasVerticalScroller:TRUE];
-            
-            // Replace NSClipView of scrollView with a CenteringClipView
-            id docView = [scroller documentView];
-            NSClipView* clipView = [[MRDPCenteringClipView alloc] initWithFrame:[docView frame]];
-            [scroller setContentView:clipView];
-            [scroller setDocumentView:docView];
-            
-            [clipView centerView];
-            
-            [clipView release];
-            [scroller release];
-        }
+        self.rdpView = mfc->view;
     }
 }
 
@@ -150,12 +129,6 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     [super dealloc];
 }
 
-- (void)loadView
-{
-    // TODO leaked...
-    self.view = [[NSView alloc] init];
-}
-
 - (BOOL)configure
 {
     return [self configure:[NSArray array]];
@@ -176,9 +149,6 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     }
     else
     {
-        // Workaround bug when not using the command line parser
-        freerdp_register_addin_provider(freerdp_channels_load_static_addin_entry, 0);
-        
         status = 0;
     }
     
@@ -283,6 +253,12 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     return freerdp_set_param_double(context->settings, identifier, value);
 }
 
+- (NSString *)getErrorInfoString:(int)code
+{
+    const char* errorMessage = freerdp_get_error_info_string(code);
+    return [NSString stringWithUTF8String:errorMessage];
+}
+
 - (BOOL)provideServerCredentials:(ServerCredential **)credentials
 {
     if(delegate && [delegate respondsToSelector:@selector(provideServerCredentials:)])
@@ -353,33 +329,39 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
 
 void EmbedWindowEventHandler(void* ctx, EmbedWindowEventArgs* e)
 {
-    rdpContext* context = (rdpContext*) ctx;
-    
-    NSDictionary *userInfo = [NSDictionary dictionaryWithObject:[NSValue valueWithPointer:context] forKey:@"context"];
-    
-    [[NSNotificationCenter defaultCenter] postNotificationName:MRDPViewDidPostEmbedNotification object:nil userInfo:userInfo];
+    @autoreleasepool
+    {
+        rdpContext* context = (rdpContext*) ctx;
+        
+        NSDictionary *userInfo = [NSDictionary dictionaryWithObject:[NSValue valueWithPointer:context] forKey:@"context"];
+        
+        [[NSNotificationCenter defaultCenter] postNotificationName:MRDPViewDidPostEmbedNotification object:nil userInfo:userInfo];
+    }
 }
 
 void ConnectionResultEventHandler(void* ctx, ConnectionResultEventArgs* e)
 {
-	NSLog(@"ConnectionResult event result:%d\n", e->result);
-    
-    rdpContext* context = (rdpContext*) ctx;
-    
-    NSDictionary *userInfo = [NSDictionary dictionaryWithObjectsAndKeys:[NSValue valueWithPointer:context], @"context",
-                              [NSValue valueWithPointer:e], @"connectionArgs", nil];
-    
-    [[NSNotificationCenter defaultCenter] postNotificationName:MRDPViewDidConnectWithResultNotification object:nil userInfo:userInfo];
+    @autoreleasepool
+    {
+        rdpContext* context = (rdpContext*) ctx;
+        
+        NSDictionary *userInfo = [NSDictionary dictionaryWithObjectsAndKeys:[NSValue valueWithPointer:context], @"context",
+                                  [NSValue valueWithPointer:e], @"connectionArgs",
+                                  [NSNumber numberWithInt:connectErrorCode], @"connectErrorCode", nil];
+        
+        [[NSNotificationCenter defaultCenter] postNotificationName:MRDPViewDidConnectWithResultNotification object:nil userInfo:userInfo];
+    }
 }
 
 void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e)
 {
-	NSLog(@"ErrorInfo event code:%d\n", e->code);
-    
-    rdpContext* context = (rdpContext*) ctx;
-    
-    NSDictionary *userInfo = [NSDictionary dictionaryWithObjectsAndKeys:[NSValue valueWithPointer:context], @"context",
-                              [NSValue valueWithPointer:e], @"errorArgs", nil];
-    
-    [[NSNotificationCenter defaultCenter] postNotificationName:MRDPViewDidPostErrorInfoNotification object:nil userInfo:userInfo];
+    @autoreleasepool
+    {
+        rdpContext* context = (rdpContext*) ctx;
+
+        NSDictionary *userInfo = [NSDictionary dictionaryWithObjectsAndKeys:[NSValue valueWithPointer:context], @"context",
+                                  [NSValue valueWithPointer:e], @"errorArgs", nil];
+
+        [[NSNotificationCenter defaultCenter] postNotificationName:MRDPViewDidPostErrorInfoNotification object:nil userInfo:userInfo];
+    }
 }
