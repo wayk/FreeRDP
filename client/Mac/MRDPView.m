@@ -137,21 +137,10 @@ struct rgba_data
 	e.embed = TRUE;
 	e.handle = (void*) self;
 	PubSub_OnEmbedWindow(context->pubSub, context, &e);
+    
+    mfc->client_height = instance->settings->DesktopHeight;
+	mfc->client_width = instance->settings->DesktopWidth;
     mfc->thread = CreateThread(NULL, 0, mac_client_thread, (void*) context, 0, &mfc->mainThreadId);
-
-//	NSScreen *screen = [[NSScreen screens] objectAtIndex:0];
-//	NSRect screenFrame = [screen frame];
-//
-//	if(instance->settings->Fullscreen)
-//	{
-//		instance->settings->DesktopWidth  = screenFrame.size.width;
-//		instance->settings->DesktopHeight = screenFrame.size.height;
-//	}
-//
-//	mfc->client_height = instance->settings->DesktopHeight;
-//	mfc->client_width = instance->settings->DesktopWidth;
-//
-//	mfc->thread = CreateThread(NULL, 0, mac_client_thread, (void*) context, 0, &mfc->mainThreadId);
 	
 	return 0;
 }
@@ -275,11 +264,6 @@ DWORD mac_client_thread(void* param)
 {
     if (!initialized)
     {
-        // store our window dimensions
-//        width = [self frame].size.width;
-//        height = [self frame].size.height;
-//        titleBarHeight = 22;
-
         cursors = [[NSMutableArray alloc] initWithCapacity:10];
 
         // setup a mouse tracking area
@@ -289,18 +273,6 @@ DWORD mac_client_thread(void* param)
         
         // Set the default cursor
         currentCursor = [NSCursor arrowCursor];
-
-//	if (!initialized)
-//	{
-//		cursors = [[NSMutableArray alloc] initWithCapacity:10];
-//
-//		// setup a mouse tracking area
-//		NSTrackingArea * trackingArea = [[NSTrackingArea alloc] initWithRect:[self visibleRect] options:NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved | NSTrackingCursorUpdate | NSTrackingEnabledDuringMouseDrag | NSTrackingActiveWhenFirstResponder owner:self userInfo:nil];
-//
-//		[self addTrackingArea:trackingArea];
-//
-//		// Set the default cursor
-//		currentCursor = [NSCursor arrowCursor];
 
 		initialized = YES;
 	}
@@ -530,46 +502,32 @@ DWORD mac_client_thread(void* param)
 - (void) scrollWheel:(NSEvent *)event
 {
 	UINT16 flags;
-	
+
 	[super scrollWheel:event];
-	
+
 	if (!is_connected)
 		return;
 	
     NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
 	int x = (int) loc.x;
 	int y = (int) loc.y;
-	
-//	y = height - y;
+
+	y = [self frame].size.height - y;
 	
 	flags = PTR_FLAGS_WHEEL;
-	
-	if ([event deltaY] < 0)
-		flags |= PTR_FLAGS_WHEEL_NEGATIVE | 0x0088;
-	else
-		flags |= 0x0078;
-	
-	x += (int) [event deltaX];
-	y += (int) [event deltaY];
-	
-	instance->input->MouseEvent(instance->input, flags, x, y);
-    
-//	y = [self frame].size.height - y;
-//	
-//	flags = PTR_FLAGS_WHEEL;
-//
-//	/* 1 event = 120 units */
-//	int units = [event deltaY] * 120;
-//
-//	/* send out all accumulated rotations */
-//	while(units != 0)
-//	{
-//		/* limit to maximum value in WheelRotationMask (9bit signed value) */
-//		int step = MIN(MAX(-256, units), 255);
-//
-//		mf_scale_mouse_event(context, instance->input, flags | ((UINT16)step & WheelRotationMask), x, y);
-//		units -= step;
-//	}
+
+	/* 1 event = 120 units */
+	int units = [event deltaY] * 120;
+
+	/* send out all accumulated rotations */
+	while(units != 0)
+	{
+		/* limit to maximum value in WheelRotationMask (9bit signed value) */
+		int step = MIN(MAX(-256, units), 255);
+
+		mf_scale_mouse_event(context, instance->input, flags | ((UINT16)step & WheelRotationMask), x, y);
+		units -= step;
+	}
 }
 
 /** *********************************************************************
@@ -727,10 +685,13 @@ DWORD mac_client_thread(void* param)
 	else if (!(modFlags & NSAlternateKeyMask) && (kbdModFlags & NSAlternateKeyMask))
 		freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_RELEASE, scancode);
 
-	if ((modFlags & NSCommandKeyMask) && !(kbdModFlags & NSCommandKeyMask))
-		freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_DOWN, scancode);
-	else if (!(modFlags & NSCommandKeyMask) && (kbdModFlags & NSCommandKeyMask))
-		freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_RELEASE, scancode);
+    if(context->settings->EnableWindowsKey)
+    {
+        if ((modFlags & NSCommandKeyMask) && !(kbdModFlags & NSCommandKeyMask))
+            freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_DOWN, scancode);
+        else if (!(modFlags & NSCommandKeyMask) && (kbdModFlags & NSCommandKeyMask))
+            freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_RELEASE, scancode);
+    }
 
 	if ((modFlags & NSNumericPadKeyMask) && !(kbdModFlags & NSNumericPadKeyMask))
 		freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_DOWN, scancode);
