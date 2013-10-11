@@ -16,6 +16,7 @@ int mac_client_start(rdpContext* context);
 void mac_set_view_size(rdpContext* context, MRDPView* view);
 
 @implementation AppDelegate
+@synthesize connContainer;
 
 - (void)dealloc
 {
@@ -32,16 +33,21 @@ void mac_set_view_size(rdpContext* context, MRDPView* view);
     [mrdpViewController configure];
     // [controller configure:[[NSProcessInfo processInfo] arguments]];
     
-    [mrdpViewController setStringSettingForIdentifier:20 withValue:@"10.211.55.5"];
-    [mrdpViewController setStringSettingForIdentifier:21 withValue:@"ieuser"];
-    [mrdpViewController setStringSettingForIdentifier:22 withValue:@"Passw0rd!"];
+    [mrdpViewController setStringSettingForIdentifier:20 withValue:@"10.211.55.3"];
+    [mrdpViewController setStringSettingForIdentifier:21 withValue:@"richard"];
+    [mrdpViewController setStringSettingForIdentifier:22 withValue:@"M1crosoft"];
     
-    [mrdpViewController start];
+    //    [mrdpViewController setBooleanSettingForIdentifier:707 withValue:true];
+    //    [mrdpViewController setStringSettingForIdentifier:23 withValue:@"lab"];
 }
 
 - (void)didConnect
 {
-   [self.window setContentView:mrdpViewController.rdpView];
+    [self.connContainer setFrameSize:NSMakeSize(
+        [mrdpViewController getInt32SettingForIdentifier:129],
+        [mrdpViewController getInt32SettingForIdentifier:130])];
+    
+    [self.connContainer.contentView addSubview:mrdpViewController.rdpView];
 }
 
 - (void)didFailToConnectWithError:(NSNumber *)connectErrorCode
@@ -51,7 +57,17 @@ void mac_set_view_size(rdpContext* context, MRDPView* view);
 
 - (void)didErrorWithCode:(NSNumber *)code
 {
-
+    if(self.connContainer.contentView)
+    {
+        NSView *contentView = (NSView *)self.connContainer.contentView;
+        
+        if([contentView.subviews count] > 0)
+        {
+            NSView *firstSubView = (NSView *)[contentView.subviews objectAtIndex:0];
+            
+            [firstSubView removeFromSuperview];
+        }
+    }
 }
 
 - (BOOL)provideServerCredentials:(ServerCredential **)credentials
@@ -72,6 +88,16 @@ void mac_set_view_size(rdpContext* context, MRDPView* view);
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender
 {
 	return YES;
+}
+
+- (IBAction)start:(id)sender
+{
+    [mrdpViewController start];
+}
+
+- (IBAction)stop:(id)sender
+{
+    [mrdpViewController stop];
 }
 
 @end

@@ -16,8 +16,12 @@
 @public
 	NSWindow* window;
 	MRDPViewController* mrdpViewController;
+    NSBox *connContainer;
 }
 
 @property (assign) IBOutlet NSWindow *window;
+- (IBAction)start:(id)sender;
+- (IBAction)stop:(id)sender;
+@property (assign) IBOutlet NSBox *connContainer;
 
 @end
