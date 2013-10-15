@@ -162,7 +162,7 @@ DWORD mac_client_thread(void* param)
 		MRDPView* view = mfc->view;
 		
 		status = freerdp_connect(context->instance);
-		
+        
 		if (!status)
 		{
 			[view setIs_connected:0];

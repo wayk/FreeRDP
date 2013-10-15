@@ -13,6 +13,8 @@
 #include <freerdp/addin.h>
 #include <freerdp/client/channels.h>
 
+#include <pthread.h>
+
 void EmbedWindowEventHandler(void* context, EmbedWindowEventArgs* e);
 void ConnectionResultEventHandler(void* context, ConnectionResultEventArgs* e);
 void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
@@ -116,6 +118,15 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     self->mrdpView.delegate = nil;
     self.delegate = nil;
     
+    freerdp_client_stop(context);
+    
+    mfContext* mfc = (mfContext*)context;
+    
+    MRDPView* view = (MRDPView*)mfc->view;
+    [view releaseResources];
+    [view release];
+    mfc->view = nil;
+    
     [self releaseContext];
     
     [super dealloc];
@@ -169,13 +180,12 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidConnect:) name:MRDPViewDidConnectWithResultNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidEmbed:) name:MRDPViewDidPostEmbedNotification object:nil];
     
-    freerdp_client_start(context);
-    
-    // Is this a race condition? Probably a slight hack at least to do this here
-    // We need to provide a password prompt delegate to the view, but we can only do that once it's been created
     mfContext* mfc = (mfContext*)context;
+    mfc->view = [[MRDPView alloc] initWithFrame : NSMakeRect(0, 0, context->settings->DesktopWidth, context->settings->DesktopHeight)];
     MRDPView* view = (MRDPView*)mfc->view;
     view.delegate = self;
+    
+    freerdp_client_start(context);
 }
 
 - (void)stop

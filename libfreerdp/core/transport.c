@@ -104,10 +104,147 @@ BOOL transport_connect_rdp(rdpTransport* transport)
 	return TRUE;
 }
 
+long transport_bio_tsg_callback(BIO* bio, int mode, const char* argp, int argi, long argl, long ret)
+{
+	printf("transport_bio_tsg_callback: mode: %d argp: %p argi: %d argl: %d ret: %d\n",
+			mode, argp, argi, argl, ret);
+
+	return 1;
+}
+
+static int transport_bio_tsg_write(BIO* bio, const char* buf, int num)
+{
+	int status;
+	rdpTsg* tsg;
+
+	printf("transport_bio_tsg_write: %d\n", num);
+
+	tsg = (rdpTsg*) bio->ptr;
+	status = tsg_write(tsg, (BYTE*) buf, num);
+
+	printf("tsg_write: %d\n", status);
+
+	BIO_clear_retry_flags(bio);
+
+	if (status <= 0)
+	{
+		BIO_set_retry_write(bio);
+	}
+
+	return num;
+}
+
+static int transport_bio_tsg_read(BIO* bio, char* buf, int size)
+{
+	int status;
+	rdpTsg* tsg;
+
+	printf("transport_bio_tsg_read: %d\n", size);
+
+	tsg = (rdpTsg*) bio->ptr;
+	status = tsg_read(bio->ptr, (BYTE*) buf, size);
+
+	printf("tsg_read: %d\n", status);
+
+	BIO_clear_retry_flags(bio);
+
+	if (status <= 0)
+	{
+		BIO_set_retry_read(bio);
+	}
+
+	return status;
+}
+
+static int transport_bio_tsg_puts(BIO* bio, const char* str)
+{
+	printf("transport_bio_tsg_puts: %d\n", strlen(str));
+	return 1;
+}
+
+static int transport_bio_tsg_gets(BIO* bio, char* str, int size)
+{
+	printf("transport_bio_tsg_gets: %d\n", size);
+	return 1;
+}
+
+static long transport_bio_tsg_ctrl(BIO* bio, int cmd, long arg1, void* arg2)
+{
+	printf("transport_bio_tsg_ctrl: cmd: %d arg1: %d arg2: %p\n", cmd, arg1, arg2);
+	return 1;
+}
+
+static int transport_bio_tsg_new(BIO* bio)
+{
+	printf("transport_bio_tsg_new\n");
+
+	bio->init = 1;
+	bio->num = 0;
+	bio->ptr = NULL;
+	bio->flags = 0;
+
+	return 1;
+}
+
+static int transport_bio_tsg_free(BIO* bio)
+{
+	printf("transport_bio_tsg_free\n");
+	return 1;
+}
+
+#define BIO_TYPE_TSG	65
+
+static BIO_METHOD transport_bio_tsg_methods =
+{
+	BIO_TYPE_TSG,
+	"TSGateway",
+	transport_bio_tsg_write,
+	transport_bio_tsg_read,
+	transport_bio_tsg_puts,
+	transport_bio_tsg_gets,
+	transport_bio_tsg_ctrl,
+	transport_bio_tsg_new,
+	transport_bio_tsg_free,
+	NULL,
+};
+
+BIO_METHOD* BIO_s_tsg(void)
+{
+	return &transport_bio_tsg_methods;
+}
+
 BOOL transport_connect_tls(rdpTransport* transport)
 {
 	if (transport->layer == TRANSPORT_LAYER_TSG)
+	{
+		if (!transport->TlsIn)
+			transport->TlsIn = tls_new(transport->settings);
+
+		if (!transport->TlsOut)
+			transport->TlsOut = transport->TlsIn;
+
+		transport->TlsIn->methods = BIO_s_tsg();
+		transport->TlsIn->tsg = (void*) transport->tsg;
+
+		transport->layer = TRANSPORT_LAYER_TLS;
+
+		if (tls_connect(transport->TlsIn) != TRUE)
+		{
+			if (!connectErrorCode)
+				connectErrorCode = TLSCONNECTERROR;
+
+			tls_free(transport->TlsIn);
+
+			if (transport->TlsIn == transport->TlsOut)
+				transport->TlsIn = transport->TlsOut = NULL;
+			else
+				transport->TlsIn = NULL;
+
+			return FALSE;
+		}
+
 		return TRUE;
+	}
 
 	if (transport->TlsIn == NULL)
 		transport->TlsIn = tls_new(transport->settings);
@@ -499,7 +636,7 @@ int transport_read(rdpTransport* transport, wStream* s)
 
 	if (streamPosition + status >= pduLength)
 	{
-		WLog_Packet(transport->log, WLOG_TRACE, Stream_Buffer(s), pduLength, 0);
+		WLog_Packet(transport->log, WLOG_TRACE, Stream_Buffer(s), pduLength, WLOG_PACKET_INBOUND);
 	}
 
 	return transport_status;
@@ -539,7 +676,7 @@ int transport_write(rdpTransport* transport, wStream* s)
 
 	if (length > 0)
 	{
-		WLog_Packet(transport->log, WLOG_TRACE, Stream_Buffer(s), length, 1);
+		WLog_Packet(transport->log, WLOG_TRACE, Stream_Buffer(s), length, WLOG_PACKET_OUTBOUND);
 	}
 
 	while (length > 0)
