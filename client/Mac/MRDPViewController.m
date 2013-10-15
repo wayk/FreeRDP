@@ -328,7 +328,7 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
 		argv[i++] = cptr;
 	}
 	
-	status = freerdp_client_parse_command_line(context, argc, argv);
+	status = freerdp_client_settings_parse_command_line(context->settings, argc, argv);
     
 	return status;
 }
