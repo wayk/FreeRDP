@@ -21,6 +21,8 @@
 #include "config.h"
 #endif
 
+#include <assert.h>
+
 #include <winpr/crt.h>
 #include <winpr/cmdline.h>
 
@@ -100,6 +102,7 @@ COMMAND_LINE_ARGUMENT_A args[] =
 	{ "themes", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "Themes" },
 	{ "wallpaper", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "Wallpaper" },
 	{ "gdi", COMMAND_LINE_VALUE_REQUIRED, "<sw|hw>", NULL, NULL, -1, NULL, "GDI rendering" },
+	{ "gfx", COMMAND_LINE_VALUE_OPTIONAL, NULL, NULL, NULL, -1, NULL, "RDP8 graphics pipeline (experimental)" },
 	{ "rfx", COMMAND_LINE_VALUE_FLAG, NULL, NULL, NULL, -1, NULL, "RemoteFX" },
 	{ "rfx-mode", COMMAND_LINE_VALUE_REQUIRED, "<image|video>", NULL, NULL, -1, NULL, "RemoteFX mode" },
 	{ "frame-ack", COMMAND_LINE_VALUE_REQUIRED, "<number>", NULL, NULL, -1, NULL, "Frame acknowledgement" },
@@ -418,7 +421,7 @@ int freerdp_client_add_dynamic_channel(rdpSettings* settings, int count, char** 
 	return 0;
 }
 
-char** freerdp_command_line_parse_comma_separated_values(char* list, int* count)
+static char** freerdp_command_line_parse_comma_separated_values(char* list, int* count)
 {
 	char** p;
 	char* str;
@@ -428,6 +431,9 @@ char** freerdp_command_line_parse_comma_separated_values(char* list, int* count)
 
 	nArgs = nCommas = 0;
 
+	assert(NULL != count);
+
+	*count = 0;
 	if (!list)
 		return NULL;
 
@@ -456,7 +462,7 @@ char** freerdp_command_line_parse_comma_separated_values(char* list, int* count)
 	return p;
 }
 
-char** freerdp_command_line_parse_comma_separated_values_offset(char* list, int* count)
+static char** freerdp_command_line_parse_comma_separated_values_offset(char* list, int* count)
 {
 	char** p;
 
@@ -1461,6 +1467,10 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings, 
 			else if (strcmp(arg->Value, "hw") == 0)
 				settings->SoftwareGdi = FALSE;
 		}
+		CommandLineSwitchCase(arg, "gfx")
+		{
+			settings->SupportGraphicsPipeline = TRUE;
+		}
 		CommandLineSwitchCase(arg, "rfx")
 		{
 			settings->RemoteFxCodec = TRUE;
@@ -1812,6 +1822,17 @@ int freerdp_client_load_addins(rdpChannels* channels, rdpSettings* settings)
 	if (settings->RemoteApplicationMode)
 	{
 		freerdp_client_load_static_channel_addin(channels, settings, "rail", settings);
+	}
+
+	if (settings->SupportGraphicsPipeline)
+	{
+		char* p[1];
+		int count;
+
+		count = 1;
+		p[0] = "rdpgfx";
+
+		freerdp_client_add_dynamic_channel(settings, count, p);
 	}
 
 	if (settings->DynamicChannelCount)

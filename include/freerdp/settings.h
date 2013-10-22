@@ -94,6 +94,7 @@
 #define RNS_UD_CS_SUPPORT_NETWORK_AUTODETECT	0x0080
 #define RNS_UD_CS_SUPPORT_DYNVC_GFX_PROTOCOL	0x0100
 #define RNS_UD_CS_SUPPORT_DYNAMIC_TIME_ZONE	0x0200
+#define RNS_UD_CS_SUPPORT_HEARTBEAT_PDU		0x0400
 
 /* Early Capability Flags (Server to Client) */
 #define RNS_UD_SC_EDGE_ACTIONS_SUPPORTED	0x00000001
@@ -1291,7 +1292,7 @@ struct rdp_settings
 	ALIGN64 int num_extensions; /*  */
 	ALIGN64 struct rdp_ext_set extensions[16]; /*  */
 	
-	ALIGN64 BYTE* settings_modified; /* byte array marking fields that have been modified from their default value */
+	ALIGN64 BYTE* SettingsModified; /* byte array marking fields that have been modified from their default value */
 };
 typedef struct rdp_settings rdpSettings;
 
@@ -1305,6 +1306,7 @@ extern "C" {
 #define FREERDP_SETTINGS_SERVER_MODE	0x00000001
 
 FREERDP_API rdpSettings* freerdp_settings_new(DWORD flags);
+FREERDP_API rdpSettings* freerdp_settings_clone(rdpSettings* settings);
 FREERDP_API void freerdp_settings_free(rdpSettings* settings);
 
 FREERDP_API int freerdp_addin_set_argument(ADDIN_ARGV* args, char* argument);
@@ -1314,14 +1316,17 @@ FREERDP_API int freerdp_addin_replace_argument_value(ADDIN_ARGV* args, char* pre
 
 FREERDP_API void freerdp_device_collection_add(rdpSettings* settings, RDPDR_DEVICE* device);
 FREERDP_API RDPDR_DEVICE* freerdp_device_collection_find(rdpSettings* settings, const char* name);
+FREERDP_API RDPDR_DEVICE* freerdp_device_clone(RDPDR_DEVICE* device);
 FREERDP_API void freerdp_device_collection_free(rdpSettings* settings);
 
 FREERDP_API void freerdp_static_channel_collection_add(rdpSettings* settings, ADDIN_ARGV* channel);
 FREERDP_API ADDIN_ARGV* freerdp_static_channel_collection_find(rdpSettings* settings, const char* name);
+FREERDP_API ADDIN_ARGV* freerdp_static_channel_clone(ADDIN_ARGV* channel);
 FREERDP_API void freerdp_static_channel_collection_free(rdpSettings* settings);
 
 FREERDP_API void freerdp_dynamic_channel_collection_add(rdpSettings* settings, ADDIN_ARGV* channel);
 FREERDP_API ADDIN_ARGV* freerdp_dynamic_channel_collection_find(rdpSettings* settings, const char* name);
+FREERDP_API ADDIN_ARGV* freerdp_dynamic_channel_clone(ADDIN_ARGV* channel);
 FREERDP_API void freerdp_dynamic_channel_collection_free(rdpSettings* settings);
 
 FREERDP_API void freerdp_performance_flags_make(rdpSettings* settings);

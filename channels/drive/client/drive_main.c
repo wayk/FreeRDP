@@ -38,12 +38,11 @@
 #include <winpr/crt.h>
 #include <winpr/synch.h>
 #include <winpr/thread.h>
-#include <winpr/interlocked.h>
-
-#include <freerdp/utils/list.h>
 #include <winpr/stream.h>
+#include <winpr/interlocked.h>
+#include <winpr/collections.h>
+
 #include <freerdp/channels/rdpdr.h>
-#include <freerdp/utils/svc_plugin.h>
 
 #include "drive_file.h"
 
@@ -54,7 +53,7 @@ struct _DRIVE_DEVICE
 	DEVICE device;
 
 	char* path;
-	LIST* files;
+	wListDictionary* files;
 
 	HANDLE thread;
 	HANDLE irpEvent;
@@ -94,31 +93,23 @@ static UINT32 drive_map_posix_err(int fs_errno)
 			break;
 	}
 
-	DEBUG_SVC("errno 0x%x mapped to 0x%x", fs_errno, rc);
-
 	return rc;
 }
 
 static DRIVE_FILE* drive_get_file_by_id(DRIVE_DEVICE* disk, UINT32 id)
 {
-	LIST_ITEM* item;
-	DRIVE_FILE* file;
+	DRIVE_FILE* file = NULL;
+	void* key = (void*) (size_t) id;
 
-	for (item = disk->files->head; item; item = item->next)
-	{
-		file = (DRIVE_FILE*) item->data;
+	file = (DRIVE_FILE*) ListDictionary_GetItemValue(disk->files, key);
 
-		if (file->id == id)
-			return file;
-	}
-
-	return NULL;
+	return file;
 }
 
 static void drive_process_irp_create(DRIVE_DEVICE* disk, IRP* irp)
 {
-	char* path = NULL;
 	int status;
+	void* key;
 	UINT32 FileId;
 	DRIVE_FILE* file;
 	BYTE Information;
@@ -126,6 +117,7 @@ static void drive_process_irp_create(DRIVE_DEVICE* disk, IRP* irp)
 	UINT32 CreateDisposition;
 	UINT32 CreateOptions;
 	UINT32 PathLength;
+	char* path = NULL;
 
 	Stream_Read_UINT32(irp->input, DesiredAccess);
 	Stream_Seek(irp->input, 16); /* AllocationSize(8), FileAttributes(4), SharedAccess(4) */
@@ -144,13 +136,11 @@ static void drive_process_irp_create(DRIVE_DEVICE* disk, IRP* irp)
 	file = drive_file_new(disk->path, path, FileId,
 		DesiredAccess, CreateDisposition, CreateOptions);
 
-	if (file == NULL)
+	if (!file)
 	{
 		irp->IoStatus = STATUS_UNSUCCESSFUL;
 		FileId = 0;
 		Information = 0;
-
-		DEBUG_WARN("failed to create %s.", path);
 	}
 	else if (file->err)
 	{
@@ -163,7 +153,8 @@ static void drive_process_irp_create(DRIVE_DEVICE* disk, IRP* irp)
 	}
 	else
 	{
-		list_enqueue(disk->files, file);
+		key = (void*) (size_t) file->id;
+		ListDictionary_Add(disk->files, key, file);
 
 		switch (CreateDisposition)
 		{
@@ -183,7 +174,6 @@ static void drive_process_irp_create(DRIVE_DEVICE* disk, IRP* irp)
 				Information = 0;
 				break;
 		}
-		DEBUG_SVC("%s(%d) created.", file->fullpath, file->id);
 	}
 
 	Stream_Write_UINT32(irp->output, FileId);
@@ -196,21 +186,20 @@ static void drive_process_irp_create(DRIVE_DEVICE* disk, IRP* irp)
 
 static void drive_process_irp_close(DRIVE_DEVICE* disk, IRP* irp)
 {
+	void* key;
 	DRIVE_FILE* file;
 
 	file = drive_get_file_by_id(disk, irp->FileId);
 
-	if (file == NULL)
+	key = (void*) (size_t) irp->FileId;
+
+	if (!file)
 	{
 		irp->IoStatus = STATUS_UNSUCCESSFUL;
-
-		DEBUG_WARN("FileId %d not valid.", irp->FileId);
 	}
 	else
 	{
-		DEBUG_SVC("%s(%d) closed.", file->fullpath, file->id);
-
-		list_remove(disk->files, file);
+		ListDictionary_Remove(disk->files, key);
 		drive_file_free(file);
 	}
 
@@ -231,35 +220,30 @@ static void drive_process_irp_read(DRIVE_DEVICE* disk, IRP* irp)
 
 	file = drive_get_file_by_id(disk, irp->FileId);
 
-	if (file == NULL)
+	if (!file)
 	{
 		irp->IoStatus = STATUS_UNSUCCESSFUL;
 		Length = 0;
-
-		DEBUG_WARN("FileId %d not valid.", irp->FileId);
 	}
 	else if (!drive_file_seek(file, Offset))
 	{
 		irp->IoStatus = STATUS_UNSUCCESSFUL;
 		Length = 0;
-
-		DEBUG_WARN("seek %s(%d) failed.", file->fullpath, file->id);
 	}
 	else
 	{
 		buffer = (BYTE*) malloc(Length);
+
 		if (!drive_file_read(file, buffer, &Length))
 		{
 			irp->IoStatus = STATUS_UNSUCCESSFUL;
 			free(buffer);
 			buffer = NULL;
 			Length = 0;
-
-			DEBUG_WARN("read %s(%d) failed.", file->fullpath, file->id);
 		}
 		else
 		{
-			DEBUG_SVC("read %llu-%llu from %s(%d).", Offset, Offset + Length, file->fullpath, file->id);
+
 		}
 	}
 
@@ -288,30 +272,24 @@ static void drive_process_irp_write(DRIVE_DEVICE* disk, IRP* irp)
 
 	file = drive_get_file_by_id(disk, irp->FileId);
 
-	if (file == NULL)
+	if (!file)
 	{
 		irp->IoStatus = STATUS_UNSUCCESSFUL;
 		Length = 0;
-
-		DEBUG_WARN("FileId %d not valid.", irp->FileId);
 	}
 	else if (!drive_file_seek(file, Offset))
 	{
 		irp->IoStatus = STATUS_UNSUCCESSFUL;
 		Length = 0;
-
-		DEBUG_WARN("seek %s(%d) failed.", file->fullpath, file->id);
 	}
 	else if (!drive_file_write(file, Stream_Pointer(irp->input), Length))
 	{
 		irp->IoStatus = STATUS_UNSUCCESSFUL;
 		Length = 0;
-
-		DEBUG_WARN("write %s(%d) failed.", file->fullpath, file->id);
 	}
 	else
 	{
-		DEBUG_SVC("write %llu-%llu to %s(%d).", Offset, Offset + Length, file->fullpath, file->id);
+
 	}
 
 	Stream_Write_UINT32(irp->output, Length);
@@ -329,21 +307,17 @@ static void drive_process_irp_query_information(DRIVE_DEVICE* disk, IRP* irp)
 
 	file = drive_get_file_by_id(disk, irp->FileId);
 
-	if (file == NULL)
+	if (!file)
 	{
 		irp->IoStatus = STATUS_UNSUCCESSFUL;
-
-		DEBUG_WARN("FileId %d not valid.", irp->FileId);
 	}
 	else if (!drive_file_query_information(file, FsInformationClass, irp->output))
 	{
 		irp->IoStatus = STATUS_UNSUCCESSFUL;
-
-		DEBUG_WARN("FsInformationClass %d on %s(%d) failed.", FsInformationClass, file->fullpath, file->id);
 	}
 	else
 	{
-		DEBUG_SVC("FsInformationClass %d on %s(%d).", FsInformationClass, file->fullpath, file->id);
+
 	}
 
 	irp->Complete(irp);
@@ -361,21 +335,17 @@ static void drive_process_irp_set_information(DRIVE_DEVICE* disk, IRP* irp)
 
 	file = drive_get_file_by_id(disk, irp->FileId);
 
-	if (file == NULL)
+	if (!file)
 	{
 		irp->IoStatus = STATUS_UNSUCCESSFUL;
-
-		DEBUG_WARN("FileId %d not valid.", irp->FileId);
 	}
 	else if (!drive_file_set_information(file, FsInformationClass, Length, irp->input))
 	{
 		irp->IoStatus = STATUS_UNSUCCESSFUL;
-
-		DEBUG_WARN("FsInformationClass %d on %s(%d) failed.", FsInformationClass, file->fullpath, file->id);
 	}
 	else
 	{
-		DEBUG_SVC("FsInformationClass %d on %s(%d) ok.", FsInformationClass, file->fullpath, file->id);
+
 	}
 
 	Stream_Write_UINT32(irp->output, Length);
@@ -470,7 +440,6 @@ static void drive_process_irp_query_volume_information(DRIVE_DEVICE* disk, IRP* 
 		default:
 			irp->IoStatus = STATUS_UNSUCCESSFUL;
 			Stream_Write_UINT32(output, 0); /* Length */
-			DEBUG_WARN("invalid FsInformationClass %d", FsInformationClass);
 			break;
 	}
 
@@ -486,7 +455,6 @@ static void drive_process_irp_silent_ignore(DRIVE_DEVICE* disk, IRP* irp)
 
 	Stream_Read_UINT32(irp->input, FsInformationClass);
 
-	DEBUG_SVC("FsInformationClass %d in drive_process_irp_silent_ignore", FsInformationClass);
 	Stream_Write_UINT32(output, 0); /* Length */
 
 	irp->Complete(irp);
@@ -518,7 +486,6 @@ static void drive_process_irp_query_directory(DRIVE_DEVICE* disk, IRP* irp)
 	{
 		irp->IoStatus = STATUS_UNSUCCESSFUL;
 		Stream_Write_UINT32(irp->output, 0); /* Length */
-		DEBUG_WARN("FileId %d not valid.", irp->FileId);
 	}
 	else if (!drive_file_query_directory(file, FsInformationClass, InitialQuery, path, irp->output))
 	{
@@ -543,7 +510,6 @@ static void drive_process_irp_directory_control(DRIVE_DEVICE* disk, IRP* irp)
 			break;
 
 		default:
-			DEBUG_WARN("MinorFunction 0x%X not supported", irp->MinorFunction);
 			irp->IoStatus = STATUS_NOT_SUPPORTED;
 			Stream_Write_UINT32(irp->output, 0); /* Length */
 			irp->Complete(irp);
@@ -591,8 +557,7 @@ static void drive_process_irp(DRIVE_DEVICE* disk, IRP* irp)
 			drive_process_irp_query_volume_information(disk, irp);
 			break;
 
-		case IRP_MJ_LOCK_CONTROL :
-			DEBUG_WARN("MajorFunction IRP_MJ_LOCK_CONTROL silent ignored");
+		case IRP_MJ_LOCK_CONTROL:
 			drive_process_irp_silent_ignore(disk, irp);
 			break;
 
@@ -605,7 +570,6 @@ static void drive_process_irp(DRIVE_DEVICE* disk, IRP* irp)
 			break;
 
 		default:
-			DEBUG_WARN("MajorFunction 0x%X not supported", irp->MajorFunction);
 			irp->IoStatus = STATUS_NOT_SUPPORTED;
 			irp->Complete(irp);
 			break;
@@ -661,7 +625,6 @@ static void drive_irp_request(DEVICE* device, IRP* irp)
 static void drive_free(DEVICE* device)
 {
 	IRP* irp;
-	DRIVE_FILE* file;
 	DRIVE_DEVICE* disk = (DRIVE_DEVICE*) device;
 
 	SetEvent(disk->stopEvent);
@@ -675,10 +638,7 @@ static void drive_free(DEVICE* device)
 
 	_aligned_free(disk->pIrpList);
 
-	while ((file = (DRIVE_FILE*) list_dequeue(disk->files)) != NULL)
-		drive_file_free(file);
-
-	list_free(disk->files);
+	ListDictionary_Free(disk->files);
 
 	free(disk);
 }
@@ -719,7 +679,9 @@ void drive_register_drive_path(PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints, char* 
 			Stream_Write_UINT8(disk->device.data, name[i] < 0 ? '_' : name[i]);
 
 		disk->path = path;
-		disk->files = list_new();
+
+		disk->files = ListDictionary_New(TRUE);
+		ListDictionary_Object(disk->files)->fnObjectFree = (OBJECT_FREE_FN) drive_file_free;
 
 		disk->pIrpList = (PSLIST_HEADER) _aligned_malloc(sizeof(SLIST_HEADER), MEMORY_ALLOCATION_ALIGNMENT);
 		InitializeSListHead(disk->pIrpList);
