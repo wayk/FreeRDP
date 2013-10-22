@@ -12,6 +12,7 @@
 
 #include <freerdp/addin.h>
 #include <freerdp/client/channels.h>
+#include <freerdp/client/cmdline.h>
 
 #include <pthread.h>
 
@@ -195,6 +196,12 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     [[NSNotificationCenter defaultCenter] removeObserver:self];
     
     freerdp_client_stop(context);
+}
+
+- (void)addServerDrive:(ServerDrive *)drive
+{
+    char* d[] = { "drive", (char *)[drive.name UTF8String], (char *)[drive.path UTF8String] };
+    freerdp_client_add_device_channel(context->settings, 3, d);
 }
 
 - (BOOL)getBooleanSettingForIdentifier:(int)identifier

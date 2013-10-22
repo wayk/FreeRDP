@@ -31,6 +31,7 @@ set(${MODULE_PREFIX}_OBJECTIVE_SOURCES
        MRDPCursor.m
        ServerCredential.m
        ServerCertificate.m
+       ServerDrive.m
        MRDPView.m
        MRDPViewController.m
        PasswordDialog.m
@@ -44,6 +45,7 @@ set(${MODULE_PREFIX}_HEADERS
        MRDPCursor.h
        ServerCredential.h
        ServerCertificate.h
+       ServerDrive.h
        MRDPView.h
        MRDPViewController.h
        MRDPViewControllerDelegate.h

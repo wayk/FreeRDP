@@ -9,6 +9,7 @@
 #import <Cocoa/Cocoa.h>
 #import "MRDPView.h"
 #import "MRDPViewControllerDelegate.h"
+#import "ServerDrive.h"
 #import "mfreerdp.h"
 
 @interface MRDPViewController : NSObject <MRDPViewDelegate>
@@ -30,6 +31,7 @@
 - (BOOL)configure:(NSArray *)arguments;
 - (void)start;
 - (void)stop;
+- (void)addServerDrive:(ServerDrive *)drive;
 - (BOOL)getBooleanSettingForIdentifier:(int)identifier;
 - (int)setBooleanSettingForIdentifier:(int)identifier withValue:(BOOL)value;
 - (int)getIntegerSettingForIdentifier:(int)identifier;
