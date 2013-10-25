@@ -36,7 +36,7 @@ void mac_set_view_size(rdpContext* context, MRDPView* view);
     
     [mrdpViewController setStringSettingForIdentifier:20 withValue:@"10.211.55.3"];
     [mrdpViewController setStringSettingForIdentifier:21 withValue:@"richard"];
-    [mrdpViewController setStringSettingForIdentifier:22 withValue:@"M1crosoft"];
+    [mrdpViewController setStringSettingForIdentifier:22 withValue:@"abc123"];
     
     //
     //RedirectDrives = 4288,
