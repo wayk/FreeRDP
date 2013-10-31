@@ -504,10 +504,10 @@ static void rdpdr_virtual_channel_event_terminated(rdpdrPlugin* plugin)
 		plugin->data_in = NULL;
 	}
 
-	rdpdr_process_terminate(plugin);
-
-	rdpdr_remove_open_handle_data(plugin->OpenHandle);
+    rdpdr_remove_open_handle_data(plugin->OpenHandle);
 	rdpdr_remove_init_handle_data(plugin->InitHandle);
+    
+	rdpdr_process_terminate(plugin);
 }
 
 static void rdpdr_virtual_channel_init_event(void* pInitHandle, UINT32 event, void* pData, UINT32 dataLength)
