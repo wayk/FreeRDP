@@ -88,12 +88,19 @@ BOOL transport_disconnect(rdpTransport* transport)
 
 	if (transport->async)
 	{
-		SetEvent(transport->stopEvent);
-		WaitForSingleObject(transport->thread, INFINITE);
+		if (transport->stopEvent)
+		{
+			SetEvent(transport->stopEvent);
+			WaitForSingleObject(transport->thread, INFINITE);
 
-		CloseHandle(transport->thread);
-		CloseHandle(transport->stopEvent);
+			CloseHandle(transport->thread);
+			CloseHandle(transport->stopEvent);
+
+			transport->thread = NULL;
+			transport->stopEvent = NULL;
+		}
 	}
+
 	return status;
 }
 
@@ -325,15 +332,7 @@ BOOL transport_connect(rdpTransport* transport, const char* hostname, UINT16 por
 	BOOL status = FALSE;
 	rdpSettings* settings = transport->settings;
 
-	transport->async = transport->settings->AsyncTransport;
-
-	if (transport->async)
-	{
-		transport->stopEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-
-		transport->thread = CreateThread(NULL, 0,
-				(LPTHREAD_START_ROUTINE) transport_client_thread, transport, 0, NULL);
-	}
+	transport->async = settings->AsyncTransport;
 
 	if (transport->settings->GatewayEnabled)
 	{
@@ -354,6 +353,17 @@ BOOL transport_connect(rdpTransport* transport, const char* hostname, UINT16 por
 
 		transport->SplitInputOutput = FALSE;
 		transport->TcpOut = transport->TcpIn;
+	}
+
+	if (status)
+	{
+		if (transport->async)
+		{
+			transport->stopEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+
+			transport->thread = CreateThread(NULL, 0,
+					(LPTHREAD_START_ROUTINE) transport_client_thread, transport, 0, NULL);
+		}
 	}
 
 	return status;
@@ -786,14 +796,13 @@ void transport_get_read_handles(rdpTransport* transport, HANDLE* events, DWORD* 
 	}
 }
 
-int transport_check_fds(rdpTransport** ptransport)
+int transport_check_fds(rdpTransport* transport)
 {
 	int pos;
 	int status;
 	UINT16 length;
 	int recv_status;
 	wStream* received;
-	rdpTransport* transport = *ptransport;
 
 	if (!transport)
 		return -1;
@@ -886,23 +895,32 @@ int transport_check_fds(rdpTransport** ptransport)
 		Stream_SealLength(received);
 		Stream_SetPosition(received, 0);
 
+		/**
+		 * status:
+		 * 	-1: error
+		 * 	 0: success
+		 * 	 1: redirection
+		 */
+
 		recv_status = transport->ReceiveCallback(transport, received, transport->ReceiveExtra);
 
-		if (transport == *ptransport)
+		if (recv_status == 1)
 		{
-			/* transport might now have been freed by rdp_client_redirect and a new rdp->transport created */
-			/* so only release if still valid */
-			Stream_Release(received);
+			/**
+			 * Last call to ReceiveCallback resulted in a session redirection,
+			 * which means the current rdpTransport* transport pointer has been freed.
+			 * Return 0 for success, the rest of this function is meant for non-redirected cases.
+			 */
+			return 0;
 		}
+
+		Stream_Release(received);
 
 		if (recv_status < 0)
 			status = -1;
 
 		if (status < 0)
 			return status;
-
-		/* transport might now have been freed by rdp_client_redirect and a new rdp->transport created */
-		transport = *ptransport;
 	}
 
 	return 0;
@@ -1022,8 +1040,6 @@ void transport_free(rdpTransport* transport)
 {
 	if (transport)
 	{
-		SetEvent(transport->stopEvent);
-        
 		if (transport->ReceiveBuffer)
 			Stream_Release(transport->ReceiveBuffer);
 
