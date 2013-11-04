@@ -201,8 +201,8 @@ void mf_scale_mouse_event(void* context, rdpInput* input, UINT16 flags, UINT16 x
 
     int ww, wh, dw, dh;
 
-	ww = mfc->client_width;
-	wh = mfc->client_height;
+	ww = view.frame.size.width;
+	wh = view.frame.size.height;
 	dw = mfc->context.settings->DesktopWidth;
     dh = mfc->context.settings->DesktopHeight;
 
