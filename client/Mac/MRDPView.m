@@ -160,6 +160,7 @@ DWORD mac_client_thread(void* param)
 		mfContext* mfc = (mfContext*) context;
 		freerdp* instance = context->instance;
 		MRDPView* view = mfc->view;
+		rdpSettings* settings = context->settings;
 		
 		status = freerdp_connect(context->instance);
         
@@ -175,17 +176,17 @@ DWORD mac_client_thread(void* param)
 		
 		events[nCount++] = mfc->stopEvent;
 		
-		if (instance->settings->AsyncUpdate)
+		if (settings->AsyncUpdate)
 		{
 			events[nCount++] = update_event = freerdp_get_message_queue_event_handle(instance, FREERDP_UPDATE_MESSAGE_QUEUE);
 		}
 		
-		if (instance->settings->AsyncInput)
+		if (settings->AsyncInput)
 		{
 			events[nCount++] = input_event = freerdp_get_message_queue_event_handle(instance, FREERDP_INPUT_MESSAGE_QUEUE);
 		}
 		
-		if (instance->settings->AsyncChannels)
+		if (settings->AsyncChannels)
 		{
 			events[nCount++] = channels_event = freerdp_channels_get_event_handle(instance);
 		}
@@ -196,10 +197,11 @@ DWORD mac_client_thread(void* param)
 			
 			if (WaitForSingleObject(mfc->stopEvent, 0) == WAIT_OBJECT_0)
 			{
+				freerdp_disconnect(instance);
 				break;
 			}
 			
-			if (instance->settings->AsyncUpdate)
+			if (settings->AsyncUpdate)
 			{
 				if (WaitForSingleObject(update_event, 0) == WAIT_OBJECT_0)
 				{
@@ -207,7 +209,7 @@ DWORD mac_client_thread(void* param)
 				}
 			}
 			
-			if (instance->settings->AsyncInput)
+			if (settings->AsyncInput)
 			{
 				if (WaitForSingleObject(input_event, 0) == WAIT_OBJECT_0)
 				{
@@ -215,7 +217,7 @@ DWORD mac_client_thread(void* param)
 				}
 			}
 			
-			if (instance->settings->AsyncChannels)
+			if (settings->AsyncChannels)
 			{
 				if (WaitForSingleObject(channels_event, 0) == WAIT_OBJECT_0)
 				{
