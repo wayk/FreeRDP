@@ -898,6 +898,8 @@ BOOL mac_post_connect(freerdp* instance)
 
 BOOL mac_authenticate(freerdp* instance, char** username, char** password, char** domain)
 {
+    NSLog(@"mac_authenticate");
+    
 	mfContext *mfc = (mfContext *)instance->context;
 	MRDPView *view = (MRDPView*)mfc->view;
     NSObject<MRDPViewDelegate> *delegate = view->delegate;
@@ -905,6 +907,7 @@ BOOL mac_authenticate(freerdp* instance, char** username, char** password, char*
     NSString *hostName = [NSString stringWithCString:instance->settings->ServerHostname encoding:NSUTF8StringEncoding];
     NSString *userName = nil;
     NSString *userPass = nil;
+    NSString *userDomain = nil;
     
     if(*username)
     {
@@ -916,7 +919,13 @@ BOOL mac_authenticate(freerdp* instance, char** username, char** password, char*
         userPass = [NSString stringWithCString:*password encoding:NSUTF8StringEncoding];
     }
     
+    if(*domain)
+    {
+        userDomain = [NSString stringWithCString:*domain encoding:NSUTF8StringEncoding];
+    }
+    
     ServerCredential *credential = [[ServerCredential alloc] initWithHostName:hostName
+                                                                       domain:userDomain
                                                                      userName:userName
                                                                   andPassword:userPass];
     
@@ -931,6 +940,10 @@ BOOL mac_authenticate(freerdp* instance, char** username, char** password, char*
             const char* submittedPassword = [credential.password cStringUsingEncoding:NSUTF8StringEncoding];
             *password = malloc((strlen(submittedPassword) + 1) * sizeof(char));
             strcpy(*password, submittedPassword);
+            
+            const char* submittedDomain = [credential.domain cStringUsingEncoding:NSUTF8StringEncoding];
+            *domain = malloc((strlen(submittedDomain) + 1) * sizeof(char));
+            strcpy(*domain, submittedDomain);
         }
     }
     

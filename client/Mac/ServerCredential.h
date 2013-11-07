@@ -14,12 +14,14 @@
     NSString* serverHostname;
     NSString* username;
     NSString* password;
+    NSString* domain;
 }
 
 @property (retain) NSString* serverHostname;
 @property (retain) NSString* username;
 @property (retain) NSString* password;
+@property (retain) NSString* domain;
 
-- (id)initWithHostName:(NSString *)hostName userName:(NSString *)userName andPassword:(NSString *)password;
+- (id)initWithHostName:(NSString *)hostName domain:(NSString*)domain userName:(NSString *)userName andPassword:(NSString *)password;
 
 @end

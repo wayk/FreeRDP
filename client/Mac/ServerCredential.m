@@ -13,8 +13,9 @@
 @synthesize serverHostname;
 @synthesize username;
 @synthesize password;
+@synthesize domain;
 
-- (id)initWithHostName:(NSString *)hostName userName:(NSString *)userName andPassword:(NSString *)password
+- (id)initWithHostName:(NSString *)hostName domain:(NSString*)domain userName:(NSString *)userName andPassword:(NSString *)password;
 {
     self = [super init];
     if(self)
@@ -22,6 +23,7 @@
         self.serverHostname = hostName;
         self.username = userName;
         self.password = password;
+        self.domain = domain;
     }
     
     return self;
@@ -32,6 +34,7 @@
     [serverHostname release];
     [username release];
     [password release];
+    [domain release];
     
     [super dealloc];
 }
