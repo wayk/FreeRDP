@@ -740,7 +740,7 @@ DWORD mac_client_thread(void* param)
  instance methods
  ************************************************************************/
 
-- (void) onPasteboardTimerFired :(NSTimer*) timer
+- (void)onPasteboardTimerFired:(NSTimer*)timer
 {
 	int i;
 	NSArray* types;
@@ -889,9 +889,11 @@ BOOL mac_post_connect(freerdp* instance)
 	view->pasteboard_wr = [NSPasteboard generalPasteboard];
 	
 	/* setup pasteboard for read operations */
-	view->pasteboard_rd = [NSPasteboard generalPasteboard];
-	view->pasteboard_changecount = (int) [view->pasteboard_rd changeCount];
-	view->pasteboard_timer = [NSTimer scheduledTimerWithTimeInterval:0.5 target:mfc->view selector:@selector(onPasteboardTimerFired:) userInfo:nil repeats:YES];
+    dispatch_async(dispatch_get_main_queue(), ^{
+    	view->pasteboard_rd = [NSPasteboard generalPasteboard];
+        view->pasteboard_changecount = (int) [view->pasteboard_rd changeCount];
+        view->pasteboard_timer = [NSTimer scheduledTimerWithTimeInterval:0.5 target:view selector:@selector(onPasteboardTimerFired:) userInfo:nil repeats:YES];
+    });
 
 	return TRUE;
 }
@@ -1350,6 +1352,8 @@ int process_plugin_args(rdpSettings* settings, const char* name, RDP_PLUGIN_DATA
 
 void cliprdr_process_cb_data_request_event(freerdp* instance)
 {
+    NSLog(@"cliprdr_process_cb_data_request_event");
+    
 	int len;
 	NSArray* types;
 	RDP_CB_DATA_RESPONSE_EVENT* event;
@@ -1380,6 +1384,8 @@ void cliprdr_process_cb_data_request_event(freerdp* instance)
 
 void cliprdr_send_data_request(freerdp* instance, UINT32 format)
 {
+    NSLog(@"cliprdr_send_data_request");
+    
 	RDP_CB_DATA_REQUEST_EVENT* event;
 	
 	event = (RDP_CB_DATA_REQUEST_EVENT*) freerdp_event_new(CliprdrChannel_Class, CliprdrChannel_DataRequest, NULL, NULL);
@@ -1396,6 +1402,8 @@ void cliprdr_send_data_request(freerdp* instance, UINT32 format)
 
 void cliprdr_process_cb_data_response_event(freerdp* instance, RDP_CB_DATA_RESPONSE_EVENT* event)
 {
+    NSLog(@"cliprdr_process_cb_data_response_event");
+    
 	NSString* str;
 	NSArray* types;
 	mfContext* mfc = (mfContext*) instance->context;
@@ -1415,6 +1423,8 @@ void cliprdr_process_cb_data_response_event(freerdp* instance, RDP_CB_DATA_RESPO
 
 void cliprdr_process_cb_monitor_ready_event(freerdp* instance)
 {
+    NSLog(@"cliprdr_process_cb_monitor_ready_event");
+    
 	wMessage* event;
 	RDP_CB_FORMAT_LIST_EVENT* format_list_event;
 	
@@ -1434,6 +1444,8 @@ void cliprdr_process_cb_monitor_ready_event(freerdp* instance)
 
 void cliprdr_process_cb_format_list_event(freerdp* instance, RDP_CB_FORMAT_LIST_EVENT* event)
 {
+    NSLog(@"cliprdr_process_cb_format_list_event");
+    
 	int i;
 	mfContext* mfc = (mfContext*) instance->context;
 	MRDPView* view = (MRDPView*) mfc->view;
@@ -1481,6 +1493,8 @@ void cliprdr_process_cb_format_list_event(freerdp* instance, RDP_CB_FORMAT_LIST_
 
 void process_cliprdr_event(freerdp* instance, wMessage* event)
 {
+    NSLog(@"process_cliprdr_event");
+    
 	if (event)
 	{
 		switch (GetMessageType(event->id))
@@ -1532,6 +1546,8 @@ void process_cliprdr_event(freerdp* instance, wMessage* event)
 
 void cliprdr_send_supported_format_list(freerdp* instance)
 {
+    NSLog(@"cliprdr_send_supported_format_list");
+    
 	RDP_CB_FORMAT_LIST_EVENT* event;
 	
 	event = (RDP_CB_FORMAT_LIST_EVENT*) freerdp_event_new(CliprdrChannel_Class, CliprdrChannel_FormatList, NULL, NULL);

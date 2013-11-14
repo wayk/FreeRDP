@@ -32,12 +32,14 @@ set(${MODULE_PREFIX}_SOURCES "")
 
 set(${MODULE_PREFIX}_OBJECTIVE_SOURCES
 	main.m
-	AppDelegate.m)
+	AppDelegate.m
+    FixedScrollView.m)
 
 list(APPEND ${MODULE_PREFIX}_SOURCES ${${MODULE_PREFIX}_OBJECTIVE_SOURCES})
 
 set(${MODULE_PREFIX}_HEADERS
-	AppDelegate.h)
+	AppDelegate.h
+    FixedScrollView.h)
 
 set(${MODULE_PREFIX}_RESOURCES ${MACOSX_BUNDLE_ICON_FILE})
 
