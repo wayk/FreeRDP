@@ -74,6 +74,9 @@ BOOL transport_disconnect(rdpTransport* transport)
 {
 	BOOL status = TRUE;
 
+	if (!transport)
+		return FALSE;
+
 	if (transport->layer == TRANSPORT_LAYER_TLS)
 		status &= tls_disconnect(transport->TlsIn);
 
@@ -1057,6 +1060,12 @@ void transport_free(rdpTransport* transport)
 {
 	if (transport)
 	{
+		if (transport->async)
+		{
+			assert(!transport->thread);
+			assert(!transport->stopEvent);
+		}
+
 		if (transport->ReceiveBuffer)
 			Stream_Release(transport->ReceiveBuffer);
 
