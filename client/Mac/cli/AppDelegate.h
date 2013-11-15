@@ -23,5 +23,6 @@
 - (IBAction)start:(id)sender;
 - (IBAction)stop:(id)sender;
 @property (assign) IBOutlet NSBox *connContainer;
+- (IBAction)restart:(id)sender;
 
 @end

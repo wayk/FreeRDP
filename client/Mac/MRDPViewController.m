@@ -198,6 +198,40 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     freerdp_client_stop(context);
 }
 
+- (void)restart
+{
+    NSLog(@"restart");
+    
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+    
+    NSArray *trackingAreas = mrdpView.trackingAreas;
+    for(NSTrackingArea *ta in trackingAreas)
+    {
+        [mrdpView removeTrackingArea:ta];
+    }
+    
+    freerdp_client_stop(context);
+    freerdp_client_context_free(context);
+	context = nil;
+    
+    //
+    
+    [self configure:[[NSProcessInfo processInfo] arguments]];
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidPostError:) name:MRDPViewDidPostErrorInfoNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidConnect:) name:MRDPViewDidConnectWithResultNotification object:nil];
+    
+    mfContext* mfc = (mfContext*)context;
+    mfc->view = mrdpView;
+    
+    freerdp_client_start(context);
+    
+    for(NSTrackingArea *ta in trackingAreas)
+    {
+        [mrdpView addTrackingArea:ta];
+    }
+}
+
 - (void)addServerDrive:(ServerDrive *)drive
 {
     char* d[] = { "drive", (char *)[drive.name UTF8String], (char *)[drive.path UTF8String] };

@@ -103,10 +103,13 @@ void mac_set_view_size(rdpContext* context, MRDPView* view);
 
 - (IBAction)start:(id)sender
 {
-    mrdpViewController = [[MRDPViewController alloc] init];
-    mrdpViewController.delegate = self;
-    
-    [mrdpViewController configure:[[NSProcessInfo processInfo] arguments]];
+    if(mrdpViewController == nil)
+    {
+        mrdpViewController = [[MRDPViewController alloc] init];
+        mrdpViewController.delegate = self;
+        
+        [mrdpViewController configure:[[NSProcessInfo processInfo] arguments]];
+    }
     
     [mrdpViewController start];
 }
@@ -114,8 +117,16 @@ void mac_set_view_size(rdpContext* context, MRDPView* view);
 - (IBAction)stop:(id)sender
 {
     [mrdpViewController stop];
+    
     [self removeView];
     [mrdpViewController release];
+    
+    mrdpViewController = nil;
+}
+
+- (IBAction)restart:(id)sender
+{
+    [mrdpViewController restart];
 }
 
 - (void)removeView
