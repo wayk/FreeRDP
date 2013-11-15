@@ -145,7 +145,10 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     int status;
     mfContext* mfc;
     
-    [self createContext];
+    if(self.context == nil)
+    {
+        [self createContext];
+    }
     
     if(arguments && [arguments count] > 0)
     {
@@ -200,32 +203,51 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
 
 - (void)restart
 {
+    [self restart:[NSArray array]];
+}
+
+- (void)restart:(NSArray *)arguments
+{
     NSLog(@"restart");
     
+    // Prevent any notifications from firing
     [[NSNotificationCenter defaultCenter] removeObserver:self];
     
+    // Temporarily remove tracking areas, else we will crash if the mouse
+    // enters the view while restarting
     NSArray *trackingAreas = mrdpView.trackingAreas;
     for(NSTrackingArea *ta in trackingAreas)
     {
         [mrdpView removeTrackingArea:ta];
     }
     
+    // Tear down the context
     freerdp_client_stop(context);
     freerdp_client_context_free(context);
 	context = nil;
     
-    //
+    [self createContext];
     
-    [self configure:[[NSProcessInfo processInfo] arguments]];
+    // Let the delegate change the configuration
+    if(delegate && [delegate respondsToSelector:@selector(willReconnect)])
+    {
+        [delegate performSelectorOnMainThread:@selector(willReconnect) withObject:nil waitUntilDone:true];
+    }
     
+    // Recreate the context
+    [self configure:arguments];
+    
+    // Don't resubscribe the view embedded event, we're already embedded
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidPostError:) name:MRDPViewDidPostErrorInfoNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidConnect:) name:MRDPViewDidConnectWithResultNotification object:nil];
     
+    // Reassign the view back to the context
     mfContext* mfc = (mfContext*)context;
     mfc->view = mrdpView;
     
     freerdp_client_start(context);
     
+    // Put the tracking areas back
     for(NSTrackingArea *ta in trackingAreas)
     {
         [mrdpView addTrackingArea:ta];

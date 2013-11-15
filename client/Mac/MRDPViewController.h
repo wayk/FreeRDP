@@ -32,6 +32,7 @@
 - (void)start;
 - (void)stop;
 - (void)restart;
+- (void)restart:(NSArray *)arguments;
 - (void)addServerDrive:(ServerDrive *)drive;
 - (BOOL)getBooleanSettingForIdentifier:(int)identifier;
 - (int)setBooleanSettingForIdentifier:(int)identifier withValue:(BOOL)value;

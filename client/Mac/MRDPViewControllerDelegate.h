@@ -13,6 +13,7 @@
 
 @protocol MRDPViewControllerDelegate <NSObject, MRDPViewDelegate>
 @optional
+- (void)willReconnect;
 - (void)didConnect;
 - (void)didFailToConnectWithError:(NSNumber *)connectErrorCode;
 - (void)didErrorWithCode:(NSNumber *)code;

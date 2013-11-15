@@ -126,7 +126,7 @@ void mac_set_view_size(rdpContext* context, MRDPView* view);
 
 - (IBAction)restart:(id)sender
 {
-    [mrdpViewController restart];
+    [mrdpViewController restart:[[NSProcessInfo processInfo] arguments]];
 }
 
 - (void)removeView
