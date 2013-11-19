@@ -106,7 +106,7 @@
                 <rect key="frame" x="0.0" y="0.0" width="1024" height="768"/>
                 <autoresizingMask key="autoresizingMask"/>
                 <subviews>
-                    <box autoresizesSubviews="NO" title="Connection" boxType="custom" borderType="line" id="SbT-pZ-7Ac">
+                    <box title="Connection" boxType="custom" borderType="line" id="SbT-pZ-7Ac">
                         <rect key="frame" x="20" y="20" width="984" height="687"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <view key="contentView">

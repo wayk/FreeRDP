@@ -213,13 +213,7 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     // Prevent any notifications from firing
     [[NSNotificationCenter defaultCenter] removeObserver:self];
     
-    // Temporarily remove tracking areas, else we will crash if the mouse
-    // enters the view while restarting
-    NSArray *trackingAreas = mrdpView.trackingAreas;
-    for(NSTrackingArea *ta in trackingAreas)
-    {
-        [mrdpView removeTrackingArea:ta];
-    }
+    [mrdpView pause];
     
     // Tear down the context
     freerdp_client_stop(context);
@@ -246,12 +240,8 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     mfc->view = mrdpView;
     
     freerdp_client_start(context);
-    
-    // Put the tracking areas back
-    for(NSTrackingArea *ta in trackingAreas)
-    {
-        [mrdpView addTrackingArea:ta];
-    }
+
+    [mrdpView resume];
 }
 
 - (void)addServerDrive:(ServerDrive *)drive

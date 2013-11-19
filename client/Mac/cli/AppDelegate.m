@@ -44,8 +44,8 @@ void mac_set_view_size(rdpContext* context, MRDPView* view);
         [mrdpViewController.rdpView setFrameOrigin:
          NSMakePoint((self.connContainer.bounds.size.width - mrdpViewController.rdpView.frame.size.width) / 2,
                      (self.connContainer.bounds.size.height - mrdpViewController.rdpView.frame.size.height) / 2)];
-        mrdpViewController.rdpView.autoresizingMask = NSViewHeightSizable | NSViewWidthSizable |
-        NSViewMaxXMargin | NSViewMaxYMargin | NSViewMinXMargin | NSViewMinYMargin;
+        mrdpViewController.rdpView.autoresizingMask = NSViewHeightSizable | NSViewWidthSizable;// |
+            //NSViewMaxXMargin | NSViewMaxYMargin | NSViewMinXMargin | NSViewMinYMargin;
         
         [self.connContainer.contentView addSubview:mrdpViewController.rdpView];
     }

@@ -699,6 +699,8 @@ DWORD mac_client_thread(void* param)
 		if (argv[i])
 			free(argv[i]);
 	}
+    
+    [self pause]; // Remove tracking areas and invalidate pasteboard timer
 	
 	if (!is_connected)
 		return;
@@ -749,7 +751,6 @@ DWORD mac_client_thread(void* param)
 	
 	if (i != pasteboard_changecount)
 	{
-		pasteboard_changecount = i;
 		types = [NSArray arrayWithObject:NSStringPboardType];
 		NSString *str = [pasteboard_rd availableTypeFromArray:types];
 		if (str != nil)
@@ -757,6 +758,35 @@ DWORD mac_client_thread(void* param)
 			cliprdr_send_supported_format_list(instance);
 		}
 	}
+    
+    pasteboard_changecount = (int) [pasteboard_rd changeCount];
+}
+
+- (void) pause
+{
+    // Invalidate the timer on the thread it was created on
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self->pasteboard_timer invalidate];
+    });
+    
+    // Temporarily remove tracking areas, else we will crash if the mouse
+    // enters the view while restarting
+    NSArray *trackingAreas = self.trackingAreas;
+    for(NSTrackingArea *ta in trackingAreas)
+    {
+        [self removeTrackingArea:ta];
+    }
+}
+
+- (void) resume
+{
+    dispatch_async(dispatch_get_main_queue(), ^{
+        self->pasteboard_timer = [NSTimer scheduledTimerWithTimeInterval:0.5 target:self selector:@selector(onPasteboardTimerFired:) userInfo:nil repeats:YES];
+    });
+    
+    NSTrackingArea * trackingArea = [[NSTrackingArea alloc] initWithRect:[self visibleRect] options:NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved | NSTrackingCursorUpdate | NSTrackingEnabledDuringMouseDrag | NSTrackingActiveWhenFirstResponder owner:self userInfo:nil];
+    [self addTrackingArea:trackingArea];
+    [trackingArea release];
 }
 
 - (void) setScrollOffset:(int)xOffset y:(int)yOffset w:(int)width h:(int)height

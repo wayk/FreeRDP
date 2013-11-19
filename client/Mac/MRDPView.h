@@ -80,6 +80,8 @@
 - (void) setScrollOffset:(int)xOffset y:(int)yOffset w:(int)width h:(int)height;
 
 - (void) onPasteboardTimerFired :(NSTimer *) timer;
+- (void) pause;
+- (void) resume;
 - (void) releaseResources;
 
 @property (assign) int is_connected;
