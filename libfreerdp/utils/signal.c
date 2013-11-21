@@ -131,16 +131,16 @@ int freerdp_handle_signals(void)
      * (i.e. something very bad happened), it will raise a SIGABORT signal.
      */
      
-    //	for (signal_index = 0; signal_index < ARRAYSIZE(fatal_signals); signal_index++)
-    //	{
-    //		if (sigaction(fatal_signals[signal_index], NULL, &orig_sigaction) == 0)
-    //		{
-    //			if (orig_sigaction.sa_handler != SIG_IGN)
-    //			{
-    //				sigaction(fatal_signals[signal_index], &fatal_sigaction, NULL);
-    //			}
-    //		}
-    //	}
+    //    for (signal_index = 0; signal_index < ARRAYSIZE(fatal_signals); signal_index++)
+    //    {
+    //        if (sigaction(fatal_signals[signal_index], NULL, &orig_sigaction) == 0)
+    //        {
+    //            if (orig_sigaction.sa_handler != SIG_IGN)
+    //            {
+    //                sigaction(fatal_signals[signal_index], &fatal_sigaction, NULL);
+    //            }
+    //        }
+    //    }
 
 	pthread_sigmask(SIG_SETMASK, &orig_set, NULL);
 

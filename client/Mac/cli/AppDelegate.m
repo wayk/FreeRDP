@@ -36,6 +36,8 @@
     bool smartSizing = [mrdpViewController getBooleanSettingForIdentifier:1551];
     NSLog(@"Smart sizing: %i", smartSizing);
     
+    [mrdpViewController setBooleanSettingForIdentifier:707 withValue:true]; // EnableWindowsKey
+    
     if(smartSizing)
     {
         [mrdpViewController.rdpView setFrameOrigin:
