@@ -286,7 +286,10 @@ DWORD mac_client_thread(void* param)
 
 - (void)applicationDidBecomeActive:(NSNotification *)notification
 {
-    freerdp_input_send_keyboard_event(instance->input, 256 | KBD_FLAGS_RELEASE, 0x005B);
+    if(self->is_connected)
+    {
+        freerdp_input_send_keyboard_event(instance->input, 256 | KBD_FLAGS_RELEASE, 0x005B);
+    }
 }
 
 - (void) setCursor: (NSCursor*) cursor
@@ -632,7 +635,7 @@ DWORD mac_client_thread(void* param)
 	scancode &= 0xFF;
 	vkcode &= 0xFF;
 
-//#if 0
+#if 0
 	fprintf(stderr, "flagsChanged: key: 0x%04X scancode: 0x%04lX vkcode: 0x%04lX extended: %lu name: %s modFlags: 0x%04lX\n",
 	       key - 8, scancode, vkcode, keyFlags, GetVirtualKeyName(vkcode), modFlags);
 
@@ -656,7 +659,7 @@ DWORD mac_client_thread(void* param)
 
 	if (modFlags & NSHelpKeyMask)
 		fprintf(stderr, "NSHelpKeyMask\n");
-//#endif
+#endif
 
 	if ((modFlags & NSAlphaShiftKeyMask) && !(kbdModFlags & NSAlphaShiftKeyMask))
 		freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_DOWN, scancode);
@@ -711,7 +714,6 @@ DWORD mac_client_thread(void* param)
     
     [self pause]; // Remove tracking areas and invalidate pasteboard timer
 	
-    
     [[NSNotificationCenter defaultCenter] removeObserver:self name:@"NSApplicationDidBecomeActiveNotification" object:nil];
     
 	if (!is_connected)
