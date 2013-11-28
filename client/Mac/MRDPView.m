@@ -50,6 +50,7 @@
 #import "MRDPCursor.h"
 #import "PasswordDialog.h"
 #import "MRDPViewDelegate.h"
+#import "X509Certificate.h"
 
 #include <winpr/crt.h>
 #include <winpr/input.h>
@@ -1040,6 +1041,32 @@ BOOL mac_verify_certificate(freerdp* instance, char* subject, char* issuer, char
     [certificate release];
     
     return result;
+}
+
+int mac_verify_x509certificate(freerdp* instance, BYTE* data, int length, const char* hostname, int port, DWORD flags)
+{
+    mfContext *mfc = (mfContext *)instance->context;
+	MRDPView *view = (MRDPView*)mfc->view;
+    NSObject<MRDPViewDelegate> *delegate = view->delegate;
+    
+    BOOL result = false;
+    
+    if(length > 0 && *hostname)
+    {
+        NSData *certificateData = [NSData dataWithBytes:data length:length];
+        NSString *certificateHostname = [NSString stringWithUTF8String:hostname];
+        
+        X509Certificate *x509 = [[X509Certificate alloc] initWithData:certificateData hostname:certificateHostname andPort:port];
+        
+        if(delegate && [delegate respondsToSelector:@selector(validateX509Certificate:)])
+        {
+            result = [delegate validateX509Certificate:x509];
+        }
+        
+        [x509 release];
+    }
+    
+    return result ? 0 : -1;
 }
 
 /***********************************************************************

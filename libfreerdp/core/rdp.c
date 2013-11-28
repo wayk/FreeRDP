@@ -254,6 +254,7 @@ BOOL rdp_set_error_info(rdpRdp* rdp, UINT32 errorInfo)
  * @param s stream
  * @param length RDP packet length
  * @param channel_id channel id
+ 
  */
 
 BOOL rdp_read_header(rdpRdp* rdp, wStream* s, UINT16* length, UINT16* channelId)

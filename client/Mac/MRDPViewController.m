@@ -57,6 +57,8 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     
     if(ctx == self->context)
     {
+        NSLog(@"viewDidConnect:");
+        
         ConnectionResultEventArgs *e = nil;
         [[[notification userInfo] valueForKey:@"connectionArgs"] getValue:&e];
         
@@ -86,6 +88,8 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     
     if(ctx == self->context)
     {
+        NSLog(@"viewDidPostError:");
+        
         ErrorInfoEventArgs *e = nil;
         [[[notification userInfo] valueForKey:@"errorArgs"] getValue:&e];
         
@@ -199,6 +203,10 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     [[NSNotificationCenter defaultCenter] removeObserver:self];
     
     freerdp_client_stop(context);
+    
+    PubSub_UnsubscribeConnectionResult(context->pubSub, ConnectionResultEventHandler);
+    PubSub_UnsubscribeErrorInfo(context->pubSub, ErrorInfoEventHandler);
+    PubSub_UnsubscribeEmbedWindow(context->pubSub, EmbedWindowEventHandler);
 }
 
 - (void)restart
@@ -219,6 +227,11 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     
     // Tear down the context
     freerdp_client_stop(context);
+    
+    PubSub_UnsubscribeConnectionResult(context->pubSub, ConnectionResultEventHandler);
+    PubSub_UnsubscribeErrorInfo(context->pubSub, ErrorInfoEventHandler);
+    PubSub_UnsubscribeEmbedWindow(context->pubSub, EmbedWindowEventHandler);
+    
     freerdp_client_context_free(context);
 	context = nil;
     
@@ -342,6 +355,16 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     return FALSE;
 }
 
+- (BOOL)validateX509Certificate:(X509Certificate *)certificate
+{
+    if(delegate && [delegate respondsToSelector:@selector(validateX509Certificate:)])
+    {
+        return [delegate validateX509Certificate:certificate];
+    }
+    
+    return FALSE;
+}
+
 - (void)createContext
 {
 	RDP_CLIENT_ENTRY_POINTS clientEntryPoints;
@@ -406,6 +429,8 @@ void ConnectionResultEventHandler(void* ctx, ConnectionResultEventArgs* e)
 {
     @autoreleasepool
     {
+        NSLog(@"ConnectionResultEventHandler");
+        
         rdpContext* context = (rdpContext*) ctx;
         
         NSDictionary *userInfo = [NSDictionary dictionaryWithObjectsAndKeys:[NSValue valueWithPointer:context], @"context",
@@ -420,6 +445,8 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e)
 {
     @autoreleasepool
     {
+        NSLog(@"ErrorInfoEventHandler");
+        
         rdpContext* context = (rdpContext*) ctx;
 
         NSDictionary *userInfo = [NSDictionary dictionaryWithObjectsAndKeys:[NSValue valueWithPointer:context], @"context",

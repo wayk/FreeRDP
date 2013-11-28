@@ -96,6 +96,7 @@ int mfreerdp_client_new(freerdp* instance, rdpContext* context)
     context->instance->ReceiveChannelData = mac_receive_channel_data;
     context->instance->Authenticate = mac_authenticate;
     context->instance->VerifyCertificate = mac_verify_certificate;
+    context->instance->VerifyX509Certificate = mac_verify_x509certificate;
 
 	context->channels = freerdp_channels_new();
 

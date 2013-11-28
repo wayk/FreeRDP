@@ -14,10 +14,13 @@
 #import "MacFreeRDP/MRDPCenteringClipView.h"
 #import "FixedScrollView.h"
 #include <freerdp/client/cmdline.h>
+#import "MacFreeRDP/ServerCredential.h"
 
 @implementation AppDelegate
 
 @synthesize connContainer;
+
+BOOL reconnecting = false;
 
 - (void)dealloc
 {
@@ -33,40 +36,45 @@
 
 - (void)didConnect
 {
-    bool smartSizing = [mrdpViewController getBooleanSettingForIdentifier:1551];
-    NSLog(@"Smart sizing: %i", smartSizing);
-    
-    [mrdpViewController setBooleanSettingForIdentifier:707 withValue:true]; // EnableWindowsKey
-    
-    if(smartSizing)
+    if(!reconnecting)
     {
-        [mrdpViewController.rdpView setFrameOrigin:
-         NSMakePoint((self.connContainer.bounds.size.width - mrdpViewController.rdpView.frame.size.width) / 2,
-                     (self.connContainer.bounds.size.height - mrdpViewController.rdpView.frame.size.height) / 2)];
-        mrdpViewController.rdpView.autoresizingMask = NSViewHeightSizable | NSViewWidthSizable;
+        bool smartSizing = [mrdpViewController getBooleanSettingForIdentifier:1551];
+        NSLog(@"Smart sizing: %i", smartSizing);
         
-        [self.connContainer.contentView addSubview:mrdpViewController.rdpView];
+        [mrdpViewController setBooleanSettingForIdentifier:707 withValue:true]; // EnableWindowsKey
+        
+        if(smartSizing)
+        {
+            [mrdpViewController.rdpView setFrameOrigin:
+             NSMakePoint((self.connContainer.bounds.size.width - mrdpViewController.rdpView.frame.size.width) / 2,
+                         (self.connContainer.bounds.size.height - mrdpViewController.rdpView.frame.size.height) / 2)];
+            mrdpViewController.rdpView.autoresizingMask = NSViewHeightSizable | NSViewWidthSizable;
+            
+            [self.connContainer.contentView addSubview:mrdpViewController.rdpView];
+        }
+        else
+        {
+            FixedScrollView *scrollView = [[FixedScrollView alloc] initWithFrame:self.connContainer.bounds];
+            scrollView.autoresizingMask = NSViewHeightSizable | NSViewWidthSizable;
+            
+            [self.connContainer.contentView addSubview:scrollView];
+            
+            scrollView.documentView = mrdpViewController.rdpView;
+            scrollView.scrollerStyle = NSScrollerStyleLegacy;
+            scrollView.borderType = NSNoBorder;
+            scrollView.hasHorizontalScroller = true;
+            scrollView.hasVerticalScroller = true;
+            scrollView.autohidesScrollers = true;
+            
+            NSView *documentView = (NSView*)scrollView.documentView;
+            MRDPCenteringClipView *centeringClipView = [[MRDPCenteringClipView alloc] initWithFrame:documentView.frame];
+            scrollView.contentView = centeringClipView;
+            scrollView.documentView = documentView;
+            [centeringClipView centerView];
+        }
     }
-    else
-    {
-        FixedScrollView *scrollView = [[FixedScrollView alloc] initWithFrame:self.connContainer.bounds];
-        scrollView.autoresizingMask = NSViewHeightSizable | NSViewWidthSizable;
-        
-        [self.connContainer.contentView addSubview:scrollView];
-        
-        scrollView.documentView = mrdpViewController.rdpView;
-        scrollView.scrollerStyle = NSScrollerStyleLegacy;
-        scrollView.borderType = NSNoBorder;
-        scrollView.hasHorizontalScroller = true;
-        scrollView.hasVerticalScroller = true;
-        scrollView.autohidesScrollers = true;
-        
-        NSView *documentView = (NSView*)scrollView.documentView;
-        MRDPCenteringClipView *centeringClipView = [[MRDPCenteringClipView alloc] initWithFrame:documentView.frame];
-        scrollView.contentView = centeringClipView;
-        scrollView.documentView = documentView;
-        [centeringClipView centerView];
-    }
+    
+    reconnecting = false;
 }
 
 - (void)didFailToConnectWithError:(NSNumber *)connectErrorCode
@@ -79,12 +87,30 @@
     [self removeView];
 }
 
+- (void)willReconnect
+{
+    reconnecting = true;
+    
+    [mrdpViewController setStringSettingForIdentifier:21 withValue:@"USERNAME"];
+    [mrdpViewController setStringSettingForIdentifier:22 withValue:@"PASSWORD"];
+    [mrdpViewController setStringSettingForIdentifier:23 withValue:@"DOMAIN"];
+    [mrdpViewController setStringSettingForIdentifier:20 withValue:@"SERVER"];
+    [mrdpViewController setInt32SettingForIdentifier:19 withValue:0];
+}
+
 - (BOOL)provideServerCredentials:(ServerCredential **)credentials
 {
-    return false;
+    *credentials = [[ServerCredential alloc] initWithHostName:@"SERVER" domain:@"DOMAIN" userName:@"USERNAME" andPassword:@"PASSWORD"];
+    
+    return true;
 }
 
 - (BOOL)validateCertificate:(ServerCertificate *)certificate
+{
+    return true;
+}
+
+- (BOOL)validateX509Certificate:(X509Certificate *)certificate
 {
     return true;
 }
@@ -106,7 +132,15 @@
         mrdpViewController = [[MRDPViewController alloc] init];
         mrdpViewController.delegate = self;
         
-        [mrdpViewController configure:[[NSProcessInfo processInfo] arguments]];
+//        [mrdpViewController configure:[[NSProcessInfo processInfo] arguments]];
+        [mrdpViewController configure];
+        
+        [mrdpViewController setStringSettingForIdentifier:21 withValue:@"USERNAME"];
+        [mrdpViewController setStringSettingForIdentifier:23 withValue:@"DOMAIN"];
+        [mrdpViewController setStringSettingForIdentifier:20 withValue:@"SERVER"];
+        [mrdpViewController setInt32SettingForIdentifier:19 withValue:0];
+        
+        [mrdpViewController setBooleanSettingForIdentifier:1415 withValue:true]; // ExternalCertificateManagement
     }
     
     [mrdpViewController start];
@@ -124,7 +158,8 @@
 
 - (IBAction)restart:(id)sender
 {
-    [mrdpViewController restart:[[NSProcessInfo processInfo] arguments]];
+//    [mrdpViewController restart:[[NSProcessInfo processInfo] arguments]];
+    [mrdpViewController restart];
 }
 
 - (void)removeView
