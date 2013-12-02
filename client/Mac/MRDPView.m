@@ -759,8 +759,6 @@ DWORD mac_client_thread(void* param)
  instance methods
  ************************************************************************/
 
-BOOL didFire = false;
-
 - (void)onPasteboardTimerFired:(NSTimer*)timer
 {
 	int i;
@@ -768,10 +766,8 @@ BOOL didFire = false;
 	
 	i = (int) [pasteboard_rd changeCount];
 	
-	if (!didFire || i != pasteboard_changecount)
+	if (i != pasteboard_changecount)
 	{
-        didFire = true;
-        
         types = [NSArray arrayWithObject:NSStringPboardType];
         NSString *str = [pasteboard_rd availableTypeFromArray:types];
         if (str != nil)
@@ -799,7 +795,7 @@ BOOL didFire = false;
     }
 }
 
-- (void) resume
+- (void)resume
 {
     dispatch_async(dispatch_get_main_queue(), ^{
         self->pasteboard_timer = [NSTimer scheduledTimerWithTimeInterval:0.5 target:self selector:@selector(onPasteboardTimerFired:) userInfo:nil repeats:YES];
@@ -1517,6 +1513,8 @@ void cliprdr_process_cb_monitor_ready_event(freerdp* instance)
 	format_list_event->num_formats = 0;
 	
 	freerdp_channels_send_event(instance->context->channels, event);
+    
+    cliprdr_send_supported_format_list(instance);
 }
 
 /**
@@ -1631,15 +1629,15 @@ void cliprdr_send_supported_format_list(freerdp* instance)
 {
     NSLog(@"cliprdr_send_supported_format_list");
     
-	RDP_CB_FORMAT_LIST_EVENT* event;
-	
-	event = (RDP_CB_FORMAT_LIST_EVENT*) freerdp_event_new(CliprdrChannel_Class, CliprdrChannel_FormatList, NULL, NULL);
-	
-	event->formats = (UINT32*) malloc(sizeof(UINT32) * 1);
-	event->num_formats = 1;
-	event->formats[0] = CB_FORMAT_UNICODETEXT;
-	
-	freerdp_channels_send_event(instance->context->channels, (wMessage*) event);
+    RDP_CB_FORMAT_LIST_EVENT* event;
+    
+    event = (RDP_CB_FORMAT_LIST_EVENT*) freerdp_event_new(CliprdrChannel_Class, CliprdrChannel_FormatList, NULL, NULL);
+    
+    event->formats = (UINT32*) malloc(sizeof(UINT32) * 1);
+    event->num_formats = 1;
+    event->formats[0] = CB_FORMAT_UNICODETEXT;
+    
+    freerdp_channels_send_event(instance->context->channels, (wMessage*) event);
 }
 
 /**

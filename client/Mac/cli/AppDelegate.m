@@ -20,6 +20,13 @@
 
 @synthesize connContainer;
 
+#define USE_CLI true
+#define LOGIN_USERNAME @""
+#define LOGIN_DOMAIN @""
+#define LOGIN_PASSWORD @""
+#define LOGIN_PORT 0
+#define LOGIN_ADDRESS @""
+
 BOOL reconnecting = false;
 
 - (void)dealloc
@@ -91,18 +98,25 @@ BOOL reconnecting = false;
 {
     reconnecting = true;
     
-    [mrdpViewController setStringSettingForIdentifier:21 withValue:@"USERNAME"];
-    [mrdpViewController setStringSettingForIdentifier:22 withValue:@"PASSWORD"];
-    [mrdpViewController setStringSettingForIdentifier:23 withValue:@"DOMAIN"];
-    [mrdpViewController setStringSettingForIdentifier:20 withValue:@"SERVER"];
-    [mrdpViewController setInt32SettingForIdentifier:19 withValue:0];
+    if(!USE_CLI)
+    {
+        [mrdpViewController setStringSettingForIdentifier:21 withValue:LOGIN_USERNAME];
+        [mrdpViewController setStringSettingForIdentifier:23 withValue:LOGIN_DOMAIN];
+        [mrdpViewController setStringSettingForIdentifier:20 withValue:LOGIN_ADDRESS];
+        [mrdpViewController setInt32SettingForIdentifier:19 withValue:LOGIN_PORT];
+    }
 }
 
 - (BOOL)provideServerCredentials:(ServerCredential **)credentials
 {
-    *credentials = [[ServerCredential alloc] initWithHostName:@"SERVER" domain:@"DOMAIN" userName:@"USERNAME" andPassword:@"PASSWORD"];
+    if(!USE_CLI)
+    {
+        *credentials = [[ServerCredential alloc] initWithHostName:LOGIN_ADDRESS domain:LOGIN_DOMAIN userName:LOGIN_USERNAME andPassword:LOGIN_PASSWORD];
+        
+        return true;
+    }
     
-    return true;
+    return false;
 }
 
 - (BOOL)validateCertificate:(ServerCertificate *)certificate
@@ -132,13 +146,19 @@ BOOL reconnecting = false;
         mrdpViewController = [[MRDPViewController alloc] init];
         mrdpViewController.delegate = self;
         
-//        [mrdpViewController configure:[[NSProcessInfo processInfo] arguments]];
-        [mrdpViewController configure];
-        
-        [mrdpViewController setStringSettingForIdentifier:21 withValue:@"USERNAME"];
-        [mrdpViewController setStringSettingForIdentifier:23 withValue:@"DOMAIN"];
-        [mrdpViewController setStringSettingForIdentifier:20 withValue:@"SERVER"];
-        [mrdpViewController setInt32SettingForIdentifier:19 withValue:0];
+        if(USE_CLI)
+        {
+            [mrdpViewController configure:[[NSProcessInfo processInfo] arguments]];
+        }
+        else
+        {
+            [mrdpViewController configure];
+            
+            [mrdpViewController setStringSettingForIdentifier:21 withValue:LOGIN_USERNAME];
+            [mrdpViewController setStringSettingForIdentifier:23 withValue:LOGIN_DOMAIN];
+            [mrdpViewController setStringSettingForIdentifier:20 withValue:LOGIN_ADDRESS];
+            [mrdpViewController setInt32SettingForIdentifier:19 withValue:LOGIN_PORT];
+        }
         
         [mrdpViewController setBooleanSettingForIdentifier:1415 withValue:true]; // ExternalCertificateManagement
     }
@@ -158,8 +178,14 @@ BOOL reconnecting = false;
 
 - (IBAction)restart:(id)sender
 {
-//    [mrdpViewController restart:[[NSProcessInfo processInfo] arguments]];
-    [mrdpViewController restart];
+    if(USE_CLI)
+    {
+        [mrdpViewController restart:[[NSProcessInfo processInfo] arguments]];
+    }
+    else
+    {
+        [mrdpViewController restart];
+    }
 }
 
 - (void)removeView
