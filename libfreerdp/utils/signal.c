@@ -31,8 +31,9 @@
  * SIGSEGV signal, or it should chain to mono's handler and not do any processing
  * ( by itself). If mono determines that the SIGSEGV signal is not from managed code
  * (i.e. something very bad happened), it will raise a SIGABORT signal.
+ *
+ * Just define 'ANDROID' to not use this behaviour :)
  */
-
 #define ANDROID
 
 #ifdef HAVE_CONFIG_H

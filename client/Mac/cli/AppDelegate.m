@@ -21,7 +21,7 @@
 @synthesize connContainer;
 
 #define USE_CLI true
-#define LOGIN_USERNAME @""
+#define LOGIN_USERNAME @"JaneDoe"
 #define LOGIN_DOMAIN @""
 #define LOGIN_PASSWORD @""
 #define LOGIN_PORT 0
@@ -146,7 +146,7 @@ BOOL reconnecting = false;
         mrdpViewController = [[MRDPViewController alloc] init];
         mrdpViewController.delegate = self;
         
-        if(USE_CLI)
+        if(USE_CLI == true)
         {
             [mrdpViewController configure:[[NSProcessInfo processInfo] arguments]];
         }
