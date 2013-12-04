@@ -17,6 +17,24 @@
  * limitations under the License.
  */
 
+/* RM - Handling fatal signals causes a big problem when using the library in mono
+ * A null reference exception is actually a SIGSEGV signal at first. Usually the
+ * mono runtime handles this and translates it into a nullreference exception,
+ * allowing the execution to continue. The problem is that SIGSEGV signals are a
+ * very bad thing in ObjC apps (and when it occurs outside of managed code), so
+ * this handler will report it as a crash (and kill the app) -
+ * this happens before mono gets a chance to handle the SIGSEGV, so there is
+ * nothing mono can do about this.
+ 
+ * One possible solution is to allow mono to handle all SIGSEGV signals
+ * (technically speaking the library should either not handle the
+ * SIGSEGV signal, or it should chain to mono's handler and not do any processing
+ * ( by itself). If mono determines that the SIGSEGV signal is not from managed code
+ * (i.e. something very bad happened), it will raise a SIGABORT signal.
+ */
+
+#define ANDROID
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -114,33 +132,17 @@ int freerdp_handle_signals(void)
 
 	fatal_sigaction.sa_handler = fatal_handler;
 	fatal_sigaction.sa_flags  = 0;
-
-    /* RM - Handling fatal signals causes a big problem when using the library in mono
-     * A null reference exception is actually a SIGSEGV signal at first. Usually the
-     * mono runtime handles this and translates it into a nullreference exception,
-     * allowing the execution to continue. The problem is that SIGSEGV signals are a
-     * very bad thing in ObjC apps (and when it occurs outside of managed code), so
-     * this handler will report it as a crash (and kill the app) -
-     * this happens before mono gets a chance to handle the SIGSEGV, so there is
-     * nothing mono can do about this.
-     
-     * One possible solution is to allow mono to handle all SIGSEGV signals
-     * (technically speaking the library should either not handle the
-     * SIGSEGV signal, or it should chain to mono's handler and not do any processing
-     * ( by itself). If mono determines that the SIGSEGV signal is not from managed code
-     * (i.e. something very bad happened), it will raise a SIGABORT signal.
-     */
-     
-    //    for (signal_index = 0; signal_index < ARRAYSIZE(fatal_signals); signal_index++)
-    //    {
-    //        if (sigaction(fatal_signals[signal_index], NULL, &orig_sigaction) == 0)
-    //        {
-    //            if (orig_sigaction.sa_handler != SIG_IGN)
-    //            {
-    //                sigaction(fatal_signals[signal_index], &fatal_sigaction, NULL);
-    //            }
-    //        }
-    //    }
+    
+    for (signal_index = 0; signal_index < ARRAYSIZE(fatal_signals); signal_index++)
+    {
+        if (sigaction(fatal_signals[signal_index], NULL, &orig_sigaction) == 0)
+        {
+            if (orig_sigaction.sa_handler != SIG_IGN)
+            {
+                sigaction(fatal_signals[signal_index], &fatal_sigaction, NULL);
+            }
+        }
+    }
 
 	pthread_sigmask(SIG_SETMASK, &orig_set, NULL);
 
