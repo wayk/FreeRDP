@@ -20,8 +20,8 @@
 
 @synthesize connContainer;
 
-#define USE_CLI true
-#define LOGIN_USERNAME @"JaneDoe"
+#define USE_CLI false
+#define LOGIN_USERNAME @""
 #define LOGIN_DOMAIN @""
 #define LOGIN_PASSWORD @""
 #define LOGIN_PORT 0
@@ -158,6 +158,7 @@ BOOL reconnecting = false;
             [mrdpViewController setStringSettingForIdentifier:23 withValue:LOGIN_DOMAIN];
             [mrdpViewController setStringSettingForIdentifier:20 withValue:LOGIN_ADDRESS];
             [mrdpViewController setInt32SettingForIdentifier:19 withValue:LOGIN_PORT];
+            [mrdpViewController setBooleanSettingForIdentifier:4800 withValue:true]; // Clipboard
         }
         
         [mrdpViewController setBooleanSettingForIdentifier:1415 withValue:true]; // ExternalCertificateManagement
