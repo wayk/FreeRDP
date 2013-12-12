@@ -289,6 +289,8 @@ DWORD mac_client_thread(void* param)
 {
     if(self->is_connected)
     {
+        NSLog(@"Releasing meta key");
+        
         freerdp_input_send_keyboard_event(instance->input, 256 | KBD_FLAGS_RELEASE, 0x005B);
     }
 }

@@ -21,11 +21,11 @@
 @synthesize connContainer;
 
 #define USE_CLI false
-#define LOGIN_USERNAME @""
-#define LOGIN_DOMAIN @""
-#define LOGIN_PASSWORD @""
-#define LOGIN_PORT 0
-#define LOGIN_ADDRESS @""
+#define LOGIN_USERNAME @"JaneDoe"
+#define LOGIN_DOMAIN @"AWAKE"
+#define LOGIN_PASSWORD @"D0e123!"
+#define LOGIN_PORT 6003
+#define LOGIN_ADDRESS @"wayk.ns360.info"
 
 BOOL reconnecting = false;
 
