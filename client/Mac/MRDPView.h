@@ -1,3 +1,6 @@
+#ifndef MRDPVIEW_H
+#define MRDPVIEW_H
+
 /**
  * FreeRDP: A Remote Desktop Protocol Implementation
  * MacFreeRDP
@@ -106,3 +109,5 @@ BOOL mac_verify_certificate(freerdp* instance, char* subject, char* issuer, char
 int mac_verify_x509certificate(freerdp* instance, BYTE* data, int length, const char* hostname, int port, DWORD flags);
 int mac_receive_channel_data(freerdp* instance, int chan_id, BYTE* data, int size, int flags, int total_size);
 DWORD mac_client_thread(void* param);
+
+#endif // MRDPVIEW_H

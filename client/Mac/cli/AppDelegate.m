@@ -121,6 +121,7 @@ BOOL reconnecting = false;
 
 - (BOOL)validateCertificate:(ServerCertificate *)certificate
 {
+
     return true;
 }
 
