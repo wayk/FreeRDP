@@ -259,6 +259,19 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     [mrdpView resume];
 }
 
+-(void)sendCtrlAltDelete
+{
+    if(context)
+    {
+        freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_DOWN, 0x1D); /* VK_LCONTROL, DOWN */
+        freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_DOWN, 0x38); /* VK_LMENU, DOWN */
+        freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_DOWN | KBD_FLAGS_EXTENDED, 0x53); /* VK_DELETE, DOWN */
+        freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_RELEASE | KBD_FLAGS_EXTENDED, 0x53); /* VK_DELETE, RELEASE */
+        freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_RELEASE, 0x38); /* VK_LMENU, RELEASE */
+        freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_RELEASE, 0x1D); /* VK_LCONTROL, RELEASE */
+    }
+}
+
 - (void)addServerDrive:(ServerDrive *)drive
 {
     char* d[] = { "drive", (char *)[drive.name UTF8String], (char *)[drive.path UTF8String] };
