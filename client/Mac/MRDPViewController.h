@@ -47,5 +47,6 @@
 - (double)getDoubleSettingForIdentifier:(int)identifier;
 - (int)setDoubleSettingForIdentifier:(int)identifier withValue:(double)value;
 - (NSString *)getErrorInfoString:(int)code;
+- (void)sendCtrlAltDelete;
 
 @end
