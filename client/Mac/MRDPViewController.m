@@ -53,6 +53,7 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
 - (void)viewDidConnect:(NSNotification *)notification
 {
     rdpContext *ctx;
+
     [[[notification userInfo] valueForKey:@"context"] getValue:&ctx];
     
     if(ctx == self->context)
@@ -66,7 +67,7 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
         {
             if(delegate && [delegate respondsToSelector:@selector(didConnect)])
             {
-                [delegate performSelectorOnMainThread:@selector(didConnect) withObject:nil waitUntilDone:false];
+                [delegate performSelectorOnMainThread:@selector(didConnect) withObject:nil waitUntilDone:true];
             }
         }
         else
@@ -75,7 +76,7 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
             {
                 NSNumber *connectErrorCode = [[notification userInfo] valueForKey:@"connectErrorCode"];
                 
-                [delegate performSelectorOnMainThread:@selector(didFailToConnectWithError:) withObject:connectErrorCode waitUntilDone:false];
+                [delegate performSelectorOnMainThread:@selector(didFailToConnectWithError:) withObject:connectErrorCode waitUntilDone:true];
             }
         }
     }
@@ -95,7 +96,7 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
         
         if(delegate && [delegate respondsToSelector:@selector(didErrorWithCode:)])
         {
-            [delegate performSelectorOnMainThread:@selector(didErrorWithCode:) withObject:[NSNumber numberWithInt:e->code] waitUntilDone:false];
+            [delegate performSelectorOnMainThread:@selector(didErrorWithCode:) withObject:[NSNumber numberWithInt:e->code] waitUntilDone:true];
         }
     }
 }
