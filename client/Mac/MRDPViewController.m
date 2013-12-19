@@ -67,6 +67,8 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
         {
             if(delegate && [delegate respondsToSelector:@selector(didConnect)])
             {
+                // Better to replace this (and others in this class) with dispatch_async(dispatch_get_main_queue(), ^{ ... }) ?
+                // It doesn't care about run loop modes...
                 [delegate performSelectorOnMainThread:@selector(didConnect) withObject:nil waitUntilDone:true];
             }
         }
