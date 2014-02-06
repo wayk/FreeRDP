@@ -3159,13 +3159,21 @@ BOOL rdp_read_capability_sets(wStream* s, rdpSettings* settings, UINT16 numberCa
 	Stream_GetPointer(s, mark);
 	count = numberCapabilities;
 
-	while (numberCapabilities > 0)
+	while (numberCapabilities > 0 && Stream_GetRemainingLength(s) >= 4)
 	{
 		Stream_GetPointer(s, bm);
 
 		rdp_read_capability_set_header(s, &length, &type);
 
-		settings->ReceivedCapabilities[type] = TRUE;
+		if (type < 32)
+		{
+			settings->ReceivedCapabilities[type] = TRUE;
+		}
+		else
+		{
+			fprintf(stderr, "%s: not handling capability type %d yet\n", __FUNCTION__, type);
+		}
+
 		em = bm + length;
 
 		if (Stream_GetRemainingLength(s) < length - 4)
@@ -3336,6 +3344,12 @@ BOOL rdp_read_capability_sets(wStream* s, rdpSettings* settings, UINT16 numberCa
 		numberCapabilities--;
 	}
 
+	if (numberCapabilities)
+	{
+		fprintf(stderr, "%s: strange we haven't read the number of announced capacity sets, read=%d expected=%d\n",
+				__FUNCTION__, count-numberCapabilities, count);
+	}
+
 #ifdef WITH_DEBUG_CAPABILITIES
 	Stream_GetPointer(s, em);
 	Stream_SetPointer(s, mark);
@@ -3375,8 +3389,13 @@ BOOL rdp_recv_get_active_header(rdpRdp* rdp, wStream* s, UINT16* pChannelId)
 
 	if (*pChannelId != MCS_GLOBAL_CHANNEL_ID)
 	{
-		fprintf(stderr, "expected MCS_GLOBAL_CHANNEL_ID %04x, got %04x\n", MCS_GLOBAL_CHANNEL_ID, *pChannelId);
-		return FALSE;
+		UINT16 mcsMessageChannelId = rdp->mcs->message_channel_id;
+
+		if ((mcsMessageChannelId == 0) || (*pChannelId != mcsMessageChannelId))
+		{
+			fprintf(stderr, "unexpected MCS channel id %04x received\n", *pChannelId);
+			return FALSE;
+		}
 	}
 
 	return TRUE;
