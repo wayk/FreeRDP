@@ -581,14 +581,29 @@ DWORD fixKeyCode(DWORD keyCode, unichar keyChar)
 	{
 		case '0':
 		case 0x00A7: /* section sign */
+        case '@':
+        case '#':
+        case '\\':
+        case '|':
+        case '/':
 			if (keyCode == APPLE_VK_ISO_Section)
 				keyCode = APPLE_VK_ANSI_Grave;
 			break;
 			
 		case 0x00ED: /* latin small letter i with acute */
 		case 0x00CD: /* latin capital letter i with acute */
-			if (keyCode == APPLE_VK_ANSI_Grave)
+            if (keyCode == APPLE_VK_ANSI_Grave)
 				keyCode = APPLE_VK_ISO_Section;
+            break;
+            
+        case '<':
+        case '>':
+        case 0x00f9:
+        case 0x00d9:
+            if (keyCode == APPLE_VK_ANSI_Grave)
+				keyCode = APPLE_VK_ISO_Section;
+            else if (keyCode == APPLE_VK_ISO_Section)
+				keyCode = APPLE_VK_ANSI_Grave;
 			break;
 	}
 	
