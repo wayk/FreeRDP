@@ -29,6 +29,7 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 @synthesize context;
 @synthesize delegate;
 @synthesize rdpView;
+@synthesize usesAppleKeyboard;
 
 static NSString *MRDPViewDidPostErrorInfoNotification = @"MRDPViewDidPostErrorInfoNotification";
 static NSString *MRDPViewDidConnectWithResultNotification = @"MRDPViewDidConnectWithResultNotification";
@@ -195,6 +196,7 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     mfc->view = [[MRDPView alloc] initWithFrame : NSMakeRect(0, 0, context->settings->DesktopWidth, context->settings->DesktopHeight)];
     MRDPView* view = (MRDPView*)mfc->view;
     view.delegate = self;
+    view.usesAppleKeyboard = self.usesAppleKeyboard;
     
     freerdp_client_start(context);
 }

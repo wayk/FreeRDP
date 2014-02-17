@@ -74,6 +74,7 @@
 	int pasteboard_changecount;
 	int pasteboard_format;
 	int is_connected;
+    BOOL usesAppleKeyboard;
     
     NSObject<MRDPViewDelegate> *delegate;
 }
@@ -88,6 +89,7 @@
 - (void) releaseResources;
 
 @property (assign) int is_connected;
+@property (assign) BOOL usesAppleKeyboard;
 @property(nonatomic, assign) NSObject<MRDPViewDelegate> *delegate;
 
 @end
