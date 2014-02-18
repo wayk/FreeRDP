@@ -581,12 +581,15 @@ DWORD fixKeyCode(DWORD keyCode, unichar keyChar)
 	DWORD scancode;
 	unichar keyChar;
 	NSString* characters;
+    NSUInteger modifierFlags;
+    bool releaseKey = false;
 	
 	if (!is_connected)
 		return;
 	
 	keyFlags = KBD_FLAGS_DOWN;
 	keyCode = [event keyCode];
+    modifierFlags = [event modifierFlags];
 	
 	characters = [event charactersIgnoringModifiers];
 	
@@ -604,6 +607,15 @@ DWORD fixKeyCode(DWORD keyCode, unichar keyChar)
 	keyFlags |= (scancode & KBDEXT) ? KBDEXT : 0;
 	scancode &= 0xFF;
 	vkcode &= 0xFF;
+    
+    // For VK_A, VK_C, VK_V or VK_X
+    if ((vkcode == 0x43 || vkcode == 0x56 || vkcode == 0x41 || vkcode == 0x58) && modifierFlags & NSCommandKeyMask)
+    {
+        releaseKey = true;
+        freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_RELEASE, 0x5B); /* VK_LWIN, RELEASE */
+        freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_RELEASE, 0x5C); /* VK_RWIN, RELEASE */
+        freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_DOWN, 0x1D); /* VK_LCONTROL, DOWN */
+    }
 	
 #if 0
 	fprintf(stderr, "keyDown: keyCode: 0x%04X scancode: 0x%04X vkcode: 0x%04X keyFlags: %d name: %s\n",
@@ -611,6 +623,12 @@ DWORD fixKeyCode(DWORD keyCode, unichar keyChar)
 #endif
 	
 	freerdp_input_send_keyboard_event(instance->input, keyFlags, scancode);
+    
+    if (releaseKey)
+    {
+        //For some reasons, keyUp isn't called when Command is held down.
+        freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_RELEASE, 0x1D); /* VK_LCONTROL, RELEASE */
+    }
 }
 
 /** *********************************************************************
