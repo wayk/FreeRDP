@@ -35,6 +35,7 @@ BOOL reconnecting = false;
 }
 
 @synthesize window = window;
+@synthesize context = context;
 
 - (void) applicationDidFinishLaunching:(NSNotification*)aNotification
 {
@@ -138,6 +139,46 @@ BOOL reconnecting = false;
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender
 {
 	return YES;
+}
+
+- (int) ParseCommandLineArguments
+{
+	int i;
+	int length;
+	int status;
+	char* cptr;
+    
+	NSArray* args = [[NSProcessInfo processInfo] arguments];
+    
+	context->argc = (int) [args count];
+	context->argv = malloc(sizeof(char*) * context->argc);
+	
+	i = 0;
+	
+	for (NSString* str in args)
+	{
+		/* filter out some arguments added by XCode */
+		
+		if ([str isEqualToString:@"YES"])
+			continue;
+		
+		if ([str isEqualToString:@"-NSDocumentRevisionsDebugMode"])
+			continue;
+		
+		length = (int) ([str length] + 1);
+		cptr = (char*) malloc(length);
+		strcpy(cptr, [str UTF8String]);
+		context->argv[i++] = cptr;
+	}
+	
+	context->argc = i;
+	
+	status = freerdp_client_settings_parse_command_line(context->settings, context->argc, context->argv);
+	
+	status = freerdp_client_settings_command_line_status_print(context->settings, status, context->argc, context->argv);
+    
+	return status;
+    
 }
 
 - (IBAction)start:(id)sender

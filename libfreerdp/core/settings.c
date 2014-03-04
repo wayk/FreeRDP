@@ -258,8 +258,8 @@ rdpSettings* freerdp_settings_new(DWORD flags)
 
 		settings->ChannelCount = 0;
 		settings->ChannelDefArraySize = 32;
-		settings->ChannelDefArray = (rdpChannel*) malloc(sizeof(rdpChannel) * settings->ChannelDefArraySize);
-		ZeroMemory(settings->ChannelDefArray, sizeof(rdpChannel) * settings->ChannelDefArraySize);
+		settings->ChannelDefArray = (CHANNEL_DEF*) malloc(sizeof(CHANNEL_DEF) * settings->ChannelDefArraySize);
+		ZeroMemory(settings->ChannelDefArray, sizeof(CHANNEL_DEF) * settings->ChannelDefArraySize);
 
 		settings->MonitorCount = 0;
 		settings->MonitorDefArraySize = 32;
@@ -387,7 +387,7 @@ rdpSettings* freerdp_settings_new(DWORD flags)
 		settings->FrameAcknowledge = 2;
 		settings->MouseMotion = TRUE;
 
-		settings->AutoReconnectionEnabled = TRUE;
+		settings->AutoReconnectionEnabled = FALSE;
 		settings->AutoReconnectMaxRetries = 20;
 
 		settings->ClientAutoReconnectCookie = (ARC_CS_PRIVATE_PACKET*) malloc(sizeof(ARC_CS_PRIVATE_PACKET));
@@ -618,6 +618,7 @@ rdpSettings* freerdp_settings_clone(rdpSettings* settings)
 		_settings->Authentication = settings->Authentication; /* 1092 */
 		_settings->NegotiateSecurityLayer = settings->NegotiateSecurityLayer; /* 1096 */
 		_settings->RestrictedAdminModeRequired = settings->RestrictedAdminModeRequired; /* 1097 */
+		_settings->DisableCredentialsDelegation = settings->DisableCredentialsDelegation; /* 1099 */
 		_settings->MstscCookieMode = settings->MstscCookieMode; /* 1152 */
 		_settings->SendPreconnectionPdu = settings->SendPreconnectionPdu; /* 1156 */
 		_settings->IgnoreCertificate = settings->IgnoreCertificate; /* 1408 */
@@ -693,8 +694,8 @@ rdpSettings* freerdp_settings_clone(rdpSettings* settings)
 
 		_settings->ChannelCount = settings->ChannelCount;
 		_settings->ChannelDefArraySize = settings->ChannelDefArraySize;
-		_settings->ChannelDefArray = (rdpChannel*) malloc(sizeof(rdpChannel) * settings->ChannelDefArraySize);
-		CopyMemory(_settings->ChannelDefArray, settings->ChannelDefArray, sizeof(rdpChannel) * settings->ChannelDefArraySize);
+		_settings->ChannelDefArray = (CHANNEL_DEF*) malloc(sizeof(CHANNEL_DEF) * settings->ChannelDefArraySize);
+		CopyMemory(_settings->ChannelDefArray, settings->ChannelDefArray, sizeof(CHANNEL_DEF) * settings->ChannelDefArraySize);
 
 		_settings->MonitorCount = settings->MonitorCount;
 		_settings->MonitorDefArraySize = settings->MonitorDefArraySize;

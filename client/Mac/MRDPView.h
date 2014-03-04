@@ -22,23 +22,6 @@
 
 #import <Cocoa/Cocoa.h>
 
-/*
- #import "freerdp/freerdp.h"
-#import "freerdp/types.h"
-#import "freerdp/channels/channels.h"
-#import "freerdp/gdi/gdi.h"
-#import "freerdp/graphics.h"
-#import "freerdp/utils/event.h"
-#import "freerdp/client/cliprdr.h"
-#import "freerdp/client/file.h"
-#import "freerdp/client/cmdline.h"
-#import "freerdp/rail/rail.h"
-#import "freerdp/rail.h"
-#import "freerdp/utils/rail.h"
-
-#import "mf_interface.h"
-*/
-
 #import "mfreerdp.h"
 #import "mf_client.h"
 
@@ -107,9 +90,13 @@
 BOOL mac_pre_connect(freerdp* instance);
 BOOL mac_post_connect(freerdp*	instance);
 BOOL mac_authenticate(freerdp* instance, char** username, char** password, char** domain);
+<<<<<<< HEAD
 BOOL mac_verify_certificate(freerdp* instance, char* subject, char* issuer, char* fingerprint);
 int mac_verify_x509certificate(freerdp* instance, BYTE* data, int length, const char* hostname, int port, DWORD flags);
 int mac_receive_channel_data(freerdp* instance, int chan_id, BYTE* data, int size, int flags, int total_size);
+=======
+
+>>>>>>> upstream/master
 DWORD mac_client_thread(void* param);
 
 #endif // MRDPVIEW_H
