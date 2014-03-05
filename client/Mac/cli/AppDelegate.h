@@ -17,6 +17,8 @@
 	NSWindow* window;
 	MRDPViewController* mrdpViewController;
     NSBox *connContainer;
+    MRDPView* mrdpView;
+    rdpContext* context;
 }
 
 @property (assign) IBOutlet NSWindow *window;
@@ -24,5 +26,6 @@
 - (IBAction)stop:(id)sender;
 @property (assign) IBOutlet NSBox *connContainer;
 - (IBAction)restart:(id)sender;
+@property (assign) rdpContext *context;
 
 @end

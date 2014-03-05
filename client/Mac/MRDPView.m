@@ -989,18 +989,18 @@ BOOL mac_pre_connect(freerdp* instance)
 	freerdp_client_load_addins(instance->context->channels, instance->settings);
 
 	freerdp_channels_pre_connect(instance->context->channels, instance);
-	
+    
 	return TRUE;
 }
 
 BOOL mac_post_connect(freerdp* instance)
 {
 	rdpGdi* gdi;
-	UINT32 flags;
+    UINT32 flags;
 	rdpSettings* settings;
 	rdpPointer rdp_pointer;
 	mfContext* mfc = (mfContext*) instance->context;
-
+    
 	MRDPView* view = (MRDPView*) mfc->view;
 
 	ZeroMemory(&rdp_pointer, sizeof(rdpPointer));
@@ -1012,8 +1012,8 @@ BOOL mac_post_connect(freerdp* instance)
 	rdp_pointer.SetDefault = mf_Pointer_SetDefault;
 
 	settings = instance->settings;
-	
-	flags = CLRCONV_ALPHA | CLRCONV_RGB555;
+		
+    flags = CLRCONV_ALPHA | CLRCONV_RGB555;
 	
 	if (settings->ColorDepth > 16)
 		flags |= CLRBUF_32BPP;
@@ -1462,6 +1462,15 @@ static void channel_activity_cb(freerdp* instance)
 
 		freerdp_event_free(event);
 	}
+}
+
+/***********************************************************************
+   * called when channel data is available
+   ***********************************************************************/
+
+int mac_receive_channel_data(freerdp* instance, int chan_id, BYTE* data, int size, int flags, int total_size)
+{
+    return freerdp_channels_data(instance, chan_id, data, size, flags, total_size);
 }
 
 int process_plugin_args(rdpSettings* settings, const char* name, RDP_PLUGIN_DATA* plugin_data, void* user_data)
