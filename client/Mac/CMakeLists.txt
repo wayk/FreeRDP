@@ -8,9 +8,10 @@ set(MODULE_PREFIX "FREERDP_CLIENT_MAC_LIBRARY")
 find_library(FOUNDATION_LIBRARY Foundation)
 find_library(COCOA_LIBRARY Cocoa)
 find_library(APPKIT_LIBRARY AppKit)
+find_library(IOKIT_LIBRARY IOKit)
 
 mark_as_advanced(COCOA_LIBRARY FOUNDATION_LIBRARY APPKIT_LIBRARY)
-set(EXTRA_LIBS ${COCOA_LIBRARY} ${FOUNDATION_LIBRARY} ${APPKIT_LIBRARY})
+set(EXTRA_LIBS ${COCOA_LIBRARY} ${FOUNDATION_LIBRARY} ${APPKIT_LIBRARY} ${IOKIT_LIBRARY})
 
 set(MACOSX_BUNDLE_INFO_STRING "${MODULE_OUTPUT_NAME}")
 set(MACOSX_BUNDLE_GUI_IDENTIFIER "com.freerdp.mac")
@@ -36,7 +37,8 @@ set(${MODULE_PREFIX}_OBJECTIVE_SOURCES
        MRDPViewController.m
        PasswordDialog.m
        MRDPCenteringClipView.m
-       X509Certificate.m)
+       X509Certificate.m
+       Keyboard.m)
 
 list(APPEND ${MODULE_PREFIX}_SOURCES ${${MODULE_PREFIX}_OBJECTIVE_SOURCES})
 
@@ -53,7 +55,8 @@ set(${MODULE_PREFIX}_HEADERS
        MRDPViewDelegate.h
        PasswordDialog.h
        MRDPCenteringClipView.h
-       X509Certificate.h)
+       X509Certificate.h
+       Keyboard.h)
 
 set(${MODULE_PREFIX}_RESOURCES "en.lproj/InfoPlist.strings")
 
