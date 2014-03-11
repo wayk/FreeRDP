@@ -207,6 +207,8 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     
     [[NSNotificationCenter defaultCenter] removeObserver:self];
     
+    [mrdpView pause];
+    
     freerdp_client_stop(context);
     
     PubSub_UnsubscribeConnectionResult(context->pubSub, ConnectionResultEventHandler);

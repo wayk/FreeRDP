@@ -849,8 +849,6 @@ DWORD fixKeyCode(DWORD keyCode, unichar keyChar, enum APPLE_KEYBOARD_TYPE type)
 			free(argv[i]);
 	}
     
-    [self pause]; // Remove tracking areas and invalidate pasteboard timer
-	
     [[NSNotificationCenter defaultCenter] removeObserver:self name:@"NSApplicationDidBecomeActiveNotification" object:nil];
     
 	if (!is_connected)
@@ -901,6 +899,7 @@ DWORD fixKeyCode(DWORD keyCode, unichar keyChar, enum APPLE_KEYBOARD_TYPE type)
 	
 	if (i != pasteboard_changecount)
 	{
+        //pasteboard_changecount = i;
         types = [NSArray arrayWithObject:NSStringPboardType];
         NSString *str = [pasteboard_rd availableTypeFromArray:types];
         if (str != nil)
@@ -916,8 +915,9 @@ DWORD fixKeyCode(DWORD keyCode, unichar keyChar, enum APPLE_KEYBOARD_TYPE type)
 {
     // Invalidate the timer on the thread it was created on
     dispatch_async(dispatch_get_main_queue(), ^{
-        [self->pasteboard_timer invalidate];
+    [self->pasteboard_timer invalidate];
     });
+    
     
     // Temporarily remove tracking areas, else we will crash if the mouse
     // enters the view while restarting
@@ -931,7 +931,7 @@ DWORD fixKeyCode(DWORD keyCode, unichar keyChar, enum APPLE_KEYBOARD_TYPE type)
 - (void)resume
 {
     dispatch_async(dispatch_get_main_queue(), ^{
-        self->pasteboard_timer = [NSTimer scheduledTimerWithTimeInterval:0.5 target:self selector:@selector(onPasteboardTimerFired:) userInfo:nil repeats:YES];
+    self->pasteboard_timer = [NSTimer scheduledTimerWithTimeInterval:0.5 target:self selector:@selector(onPasteboardTimerFired:) userInfo:nil repeats:YES];
     });
     
     NSTrackingArea * trackingArea = [[NSTrackingArea alloc] initWithRect:[self visibleRect] options:NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved | NSTrackingCursorUpdate | NSTrackingEnabledDuringMouseDrag | NSTrackingActiveWhenFirstResponder owner:self userInfo:nil];
@@ -1042,9 +1042,18 @@ BOOL mac_post_connect(freerdp* instance)
 	view->pasteboard_wr = [NSPasteboard generalPasteboard];
 	
 	/* setup pasteboard for read operations */
+    dispatch_async(dispatch_get_main_queue(), ^{
 	view->pasteboard_rd = [NSPasteboard generalPasteboard];
 	view->pasteboard_changecount = (int) [view->pasteboard_rd changeCount];
 	view->pasteboard_timer = [NSTimer scheduledTimerWithTimeInterval:0.5 target:mfc->view selector:@selector(onPasteboardTimerFired:) userInfo:nil repeats:YES];
+    });
+    
+//    /* setup pasteboard for read operations */
+//    dispatch_async(dispatch_get_main_queue(), ^{
+//    	view->pasteboard_rd = [NSPasteboard generalPasteboard];
+//        view->pasteboard_changecount = (int) [view->pasteboard_rd changeCount];
+//        view->pasteboard_timer = [NSTimer scheduledTimerWithTimeInterval:0.5 target:view selector:@selector(onPasteboardTimerFired:) userInfo:nil repeats:YES];
+//    });
 	
 	mfc->appleKeyboardType = mac_detect_keyboard_type();
 
