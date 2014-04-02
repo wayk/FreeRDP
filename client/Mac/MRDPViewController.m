@@ -77,7 +77,7 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
         {
             if(delegate && [delegate respondsToSelector:@selector(didFailToConnectWithError:)])
             {
-                NSNumber *connectErrorCode = freerdp_get_last_error(ctx);
+                NSNumber *connectErrorCode =  [NSNumber numberWithUnsignedInt:freerdp_get_last_error(ctx)];
                 
                 [delegate performSelectorOnMainThread:@selector(didFailToConnectWithError:) withObject:connectErrorCode waitUntilDone:true];
             }
