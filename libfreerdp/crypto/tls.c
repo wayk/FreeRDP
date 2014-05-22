@@ -31,6 +31,10 @@
 
 #include <freerdp/crypto/tls.h>
 
+#ifdef HAVE_VALGRIND_MEMCHECK_H
+#include <valgrind/memcheck.h>
+#endif
+
 static CryptoCert tls_get_certificate(rdpTls* tls, BOOL peer)
 {
 	CryptoCert cert;
@@ -219,13 +223,11 @@ int tls_connect(rdpTls* tls)
 	{
 		fprintf(stderr, "tls_connect: certificate not trusted, aborting.\n");
 		tls_disconnect(tls);
-		tls_free_certificate(cert);
-		return verify_status;
 	}
 
 	tls_free_certificate(cert);
 
-	return (verify_status == 0) ? 0 : 1;
+	return verify_status;
 }
 
 BOOL tls_accept(rdpTls* tls, const char* cert_file, const char* privatekey_file)
@@ -433,23 +435,43 @@ int tls_read(rdpTls* tls, BYTE* data, int length)
 				break;
 
 			case SSL_ERROR_SYSCALL:
+#ifdef _WIN32
+				if (WSAGetLastError() == WSAEWOULDBLOCK)
+#else
 				if ((errno == EAGAIN) || (errno == 0))
+#endif
 				{
 					status = 0;
 				}
 				else
 				{
-					tls_print_error("SSL_read", tls->ssl, status);
-					status = -1;
+					if (tls_print_error("SSL_read", tls->ssl, status))
+					{
+						status = -1;
+					}
+					else
+					{
+						status = 0;
+					}
 				}
 				break;
 
 			default:
-				tls_print_error("SSL_read", tls->ssl, status);
-				status = -1;
+				if (tls_print_error("SSL_read", tls->ssl, status))
+				{
+					status = -1;
+				}
+				else
+				{
+					status = 0;
+				}
 				break;
 		}
 	}
+
+#ifdef HAVE_VALGRIND_MEMCHECK_H
+	VALGRIND_MAKE_MEM_DEFINED(data, status);
+#endif
 
 	return status;
 }
@@ -570,7 +592,11 @@ BOOL tls_print_error(char* func, SSL* connection, int value)
 			return FALSE;
 
 		case SSL_ERROR_SYSCALL:
+#ifdef _WIN32
+			fprintf(stderr, "%s: I/O error: %d\n", func, WSAGetLastError());
+#else
 			fprintf(stderr, "%s: I/O error: %s (%d)\n", func, strerror(errno), errno);
+#endif
 			tls_errors(func);
 			return TRUE;
 

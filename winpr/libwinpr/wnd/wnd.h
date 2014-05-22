@@ -1,8 +1,8 @@
 /**
  * WinPR: Windows Portable Runtime
- * Synchronization Functions
+ * Window Notification System
  *
- * Copyright 2012 Marc-Andre Moreau <marcandre.moreau@gmail.com>
+ * Copyright 2014 Marc-Andre Moreau <marcandre.moreau@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,25 @@
  * limitations under the License.
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#ifndef WINPR_WND_PRIVATE_H
+#define WINPR_WND_PRIVATE_H
 
-#include <winpr/synch.h>
+#include <winpr/wnd.h>
 
+struct _WINPR_WND
+{
+	int X;
+	int Y;
+	int nWidth;
+	int nHeight;
+	HMENU hMenu;
+	LPVOID lpParam;
+	HWND hWndParent;
+	LPSTR lpClassName;
+	LPSTR lpWindowName;
+	HINSTANCE hInstance;
+	WNDCLASSEXA* lpwcx;
+};
+typedef struct _WINPR_WND WINPR_WND;
+
+#endif /* WINPR_WND_PRIVATE_H */
