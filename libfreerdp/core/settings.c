@@ -209,6 +209,7 @@ rdpSettings* freerdp_settings_new(DWORD flags)
 		ZeroMemory(settings, sizeof(rdpSettings));
 
 		settings->ServerMode = (flags & FREERDP_SETTINGS_SERVER_MODE) ? TRUE : FALSE;
+		settings->WaitForOutputBufferFlush = TRUE;
 
 		settings->DesktopWidth = 1024;
 		settings->DesktopHeight = 768;
@@ -256,9 +257,9 @@ rdpSettings* freerdp_settings_new(DWORD flags)
 		settings->CompressionEnabled = TRUE;
 
 		if (settings->ServerMode)
-			settings->CompressionLevel = PACKET_COMPR_TYPE_64K;
+			settings->CompressionLevel = PACKET_COMPR_TYPE_RDP61;
 		else
-			settings->CompressionLevel = PACKET_COMPR_TYPE_RDP6;
+			settings->CompressionLevel = PACKET_COMPR_TYPE_RDP61;
 
 		settings->Authentication = TRUE;
 		settings->AuthenticationOnly = FALSE;
@@ -582,6 +583,7 @@ rdpSettings* freerdp_settings_clone(rdpSettings* settings)
 		/* BOOL values */
 
 		_settings->ServerMode = settings->ServerMode; /* 16 */
+		_settings->WaitForOutputBufferFlush = settings->WaitForOutputBufferFlush; /* 25 */
 		_settings->NetworkAutoDetect = settings->NetworkAutoDetect; /* 137 */
 		_settings->SupportAsymetricKeys = settings->SupportAsymetricKeys; /* 138 */
 		_settings->SupportErrorInfoPdu = settings->SupportErrorInfoPdu; /* 139 */
