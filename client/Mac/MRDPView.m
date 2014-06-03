@@ -1044,7 +1044,7 @@ BOOL mac_post_connect(freerdp* instance)
 	/* setup pasteboard for read operations */
     dispatch_async(dispatch_get_main_queue(), ^{
 	view->pasteboard_rd = [NSPasteboard generalPasteboard];
-	view->pasteboard_changecount = (int) [view->pasteboard_rd changeCount];
+    view->pasteboard_changecount = -1;
 	view->pasteboard_timer = [NSTimer scheduledTimerWithTimeInterval:0.5 target:mfc->view selector:@selector(onPasteboardTimerFired:) userInfo:nil repeats:YES];
     });
     
