@@ -27,6 +27,8 @@
 
 #include <winpr/crt.h>
 #include <winpr/print.h>
+#include <winpr/sysinfo.h>
+#include <winpr/environment.h>
 
 #include <winpr/wlog.h>
 
@@ -152,6 +154,8 @@ void WLog_Layout_GetMessagePrefix(wLog* log, wLogLayout* layout, wLogMessage* me
 				{
 					args[argc++] = (void*) (size_t) localTime.wMonth;
 					format[index++] = '%';
+					format[index++] = '0';
+					format[index++] = '2';
 					format[index++] = 'd';
 					p++;
 				}
@@ -159,6 +163,8 @@ void WLog_Layout_GetMessagePrefix(wLog* log, wLogLayout* layout, wLogMessage* me
 				{
 					args[argc++] = (void*) (size_t) localTime.wDayOfWeek;
 					format[index++] = '%';
+					format[index++] = '0';
+					format[index++] = '2';
 					format[index++] = 'd';
 					p++;
 				}
@@ -166,6 +172,8 @@ void WLog_Layout_GetMessagePrefix(wLog* log, wLogLayout* layout, wLogMessage* me
 				{
 					args[argc++] = (void*) (size_t) localTime.wDay;
 					format[index++] = '%';
+					format[index++] = '0';
+					format[index++] = '2';
 					format[index++] = 'd';
 					p++;
 				}
@@ -173,6 +181,8 @@ void WLog_Layout_GetMessagePrefix(wLog* log, wLogLayout* layout, wLogMessage* me
 				{
 					args[argc++] = (void*) (size_t) localTime.wHour;
 					format[index++] = '%';
+					format[index++] = '0';
+					format[index++] = '2';
 					format[index++] = 'd';
 					p++;
 				}
@@ -180,6 +190,8 @@ void WLog_Layout_GetMessagePrefix(wLog* log, wLogLayout* layout, wLogMessage* me
 				{
 					args[argc++] = (void*) (size_t) localTime.wMinute;
 					format[index++] = '%';
+					format[index++] = '0';
+					format[index++] = '2';
 					format[index++] = 'd';
 					p++;
 				}
@@ -187,6 +199,8 @@ void WLog_Layout_GetMessagePrefix(wLog* log, wLogLayout* layout, wLogMessage* me
 				{
 					args[argc++] = (void*) (size_t) localTime.wSecond;
 					format[index++] = '%';
+					format[index++] = '0';
+					format[index++] = '2';
 					format[index++] = 'd';
 					p++;
 				}
@@ -194,6 +208,8 @@ void WLog_Layout_GetMessagePrefix(wLog* log, wLogLayout* layout, wLogMessage* me
 				{
 					args[argc++] = (void*) (size_t) localTime.wMilliseconds;
 					format[index++] = '%';
+					format[index++] = '0';
+					format[index++] = '3';
 					format[index++] = 'd';
 					p++;
 				}
@@ -321,13 +337,26 @@ void WLog_Layout_SetPrefixFormat(wLog* log, wLogLayout* layout, const char* form
 
 wLogLayout* WLog_Layout_New(wLog* log)
 {
+	DWORD nSize;
+	char* env = NULL;
 	wLogLayout* layout;
 
 	layout = (wLogLayout*) calloc(1, sizeof(wLogLayout));
 
 	if (layout)
 	{
-		layout->FormatString = _strdup("[%lv][%mn] - ");
+		nSize = GetEnvironmentVariableA("WLOG_PREFIX", NULL, 0);
+
+		if (nSize)
+		{
+			env = (LPSTR) malloc(nSize);
+			nSize = GetEnvironmentVariableA("WLOG_PREFIX", env, nSize);
+		}
+
+		if (env)
+			layout->FormatString = env;
+		else
+			layout->FormatString = _strdup("[%hr:%mi:%se:%ml] [%pid:%tid] [%lv][%mn] - ");
 	}
 
 	return layout;

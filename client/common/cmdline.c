@@ -73,6 +73,7 @@ COMMAND_LINE_ARGUMENT_A args[] =
 	{ "gu", COMMAND_LINE_VALUE_REQUIRED, "[<domain>\\]<user> or <user>[@<domain>]", NULL, NULL, -1, NULL, "Gateway username" },
 	{ "gp", COMMAND_LINE_VALUE_REQUIRED, "<password>", NULL, NULL, -1, NULL, "Gateway password" },
 	{ "gd", COMMAND_LINE_VALUE_REQUIRED, "<domain>", NULL, NULL, -1, NULL, "Gateway domain" },
+	{ "gateway-usage-method", COMMAND_LINE_VALUE_REQUIRED, "<direct|detect>", NULL, NULL, -1, NULL, "Gateway usage method" },
 	{ "load-balance-info", COMMAND_LINE_VALUE_REQUIRED, "<info string>", NULL, NULL, -1, NULL, "Load balance info" },
 	{ "app", COMMAND_LINE_VALUE_REQUIRED, "<executable path> or <||alias>", NULL, NULL, -1, NULL, "Remote application program" },
 	{ "app-name", COMMAND_LINE_VALUE_REQUIRED, "<app name>", NULL, NULL, -1, NULL, "Remote application name for user interface" },
@@ -813,6 +814,38 @@ int freerdp_parse_username(char* username, char** user, char** domain)
 	return 0;
 }
 
+int freerdp_parse_hostname(char* hostname, char** host, int* port)
+{
+	char* p;
+	int length;
+
+	p = strrchr(hostname, ':');
+
+	if (p)
+	{
+		length = (p - hostname);
+		*host = (char*) malloc(length + 1);
+
+		if (!(*host))
+			return -1;
+
+		CopyMemory(*host, hostname, length);
+		(*host)[length] = '\0';
+		*port = atoi(p + 1);
+	}
+	else
+	{
+		*host = _strdup(hostname);
+
+		if (!(*host))
+			return -1;
+
+		*port = -1;
+	}
+
+	return 0;
+}
+
 int freerdp_set_connection_type(rdpSettings* settings, int type)
 {
 	settings->ConnectionType = type;
@@ -1384,11 +1417,10 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings, 
 				settings->GatewayHostname = _strdup(settings->ServerHostname);
 			}
 
+			settings->GatewayEnabled = TRUE;
 			settings->GatewayUseSameCredentials = TRUE;
 
-			settings->GatewayUsageMethod = TSC_PROXY_MODE_DETECT;
-			settings->GatewayEnabled = TRUE;
-			settings->GatewayBypassLocal = TRUE;
+			freerdp_set_gateway_usage_method(settings, TSC_PROXY_MODE_DETECT);
 		}
 		CommandLineSwitchCase(arg, "gu")
 		{
@@ -1411,6 +1443,27 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings, 
 		{
 			settings->GatewayPassword = _strdup(arg->Value);
 			settings->GatewayUseSameCredentials = FALSE;
+		}
+		CommandLineSwitchCase(arg, "gateway-usage-method")
+		{
+			int type;
+			char* pEnd;
+
+			type = strtol(arg->Value, &pEnd, 10);
+
+			if (type == 0)
+			{
+				if (_stricmp(arg->Value, "none") == 0)
+					type = TSC_PROXY_MODE_NONE_DIRECT;
+				else if (_stricmp(arg->Value, "direct") == 0)
+					type = TSC_PROXY_MODE_DIRECT;
+				else if (_stricmp(arg->Value, "detect") == 0)
+					type = TSC_PROXY_MODE_DETECT;
+				else if (_stricmp(arg->Value, "default") == 0)
+					type = TSC_PROXY_MODE_DEFAULT;
+			}
+
+			freerdp_set_gateway_usage_method(settings, (UINT32) type);
 		}
 		CommandLineSwitchCase(arg, "app")
 		{
