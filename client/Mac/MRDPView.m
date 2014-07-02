@@ -899,7 +899,7 @@ DWORD fixKeyCode(DWORD keyCode, unichar keyChar, enum APPLE_KEYBOARD_TYPE type)
 	
 	if (i != pasteboard_changecount)
 	{
-        //pasteboard_changecount = i;
+        pasteboard_changecount = i;
         types = [NSArray arrayWithObject:NSStringPboardType];
         NSString *str = [pasteboard_rd availableTypeFromArray:types];
         if (str != nil)
@@ -908,7 +908,7 @@ DWORD fixKeyCode(DWORD keyCode, unichar keyChar, enum APPLE_KEYBOARD_TYPE type)
         }
 	}
     
-    pasteboard_changecount = (int) [pasteboard_rd changeCount];
+    //pasteboard_changecount = (int) [pasteboard_rd changeCount];
 }
 
 - (void) pause
@@ -1045,15 +1045,8 @@ BOOL mac_post_connect(freerdp* instance)
     dispatch_async(dispatch_get_main_queue(), ^{
 	view->pasteboard_rd = [NSPasteboard generalPasteboard];
     view->pasteboard_changecount = -1;
-	view->pasteboard_timer = [NSTimer scheduledTimerWithTimeInterval:0.5 target:mfc->view selector:@selector(onPasteboardTimerFired:) userInfo:nil repeats:YES];
     });
     
-//    /* setup pasteboard for read operations */
-//    dispatch_async(dispatch_get_main_queue(), ^{
-//    	view->pasteboard_rd = [NSPasteboard generalPasteboard];
-//        view->pasteboard_changecount = (int) [view->pasteboard_rd changeCount];
-//        view->pasteboard_timer = [NSTimer scheduledTimerWithTimeInterval:0.5 target:view selector:@selector(onPasteboardTimerFired:) userInfo:nil repeats:YES];
-//    });
 	
 	mfc->appleKeyboardType = mac_detect_keyboard_type();
 
@@ -1649,6 +1642,25 @@ void cliprdr_process_cb_format_list_event(freerdp* instance, RDP_CB_FORMAT_LIST_
 void process_cliprdr_event(freerdp* instance, wMessage* event)
 {
     NSLog(@"process_cliprdr_event");
+    
+    int i;
+    NSArray* types;
+    mfContext* mfc = (mfContext*) instance->context;
+    
+	MRDPView* view = (MRDPView*) mfc->view;
+    NSPasteboard* pasteboard_rd = (NSPasteboard*)view->pasteboard_rd;
+    
+	i = (int) [pasteboard_rd changeCount];
+	if (i != view->pasteboard_changecount)
+	{
+        view->pasteboard_changecount = i;
+        types = [NSArray arrayWithObject:NSStringPboardType];
+        NSString *str = [pasteboard_rd availableTypeFromArray:types];
+        if (str != nil)
+        {
+            cliprdr_send_supported_format_list(instance);
+        }
+	}
     
 	if (event)
 	{
