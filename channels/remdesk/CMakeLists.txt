@@ -15,9 +15,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-define_channel("sample")
+define_channel("remdesk")
 
 if(WITH_CLIENT_CHANNELS)
 	add_channel_client(${MODULE_PREFIX} ${CHANNEL_NAME})
 endif()
 
+if(WITH_SERVER_CHANNELS)
+	add_channel_server(${MODULE_PREFIX} ${CHANNEL_NAME})
+endif()

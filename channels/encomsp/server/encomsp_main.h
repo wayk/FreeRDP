@@ -1,9 +1,8 @@
 /**
  * FreeRDP: A Remote Desktop Protocol Implementation
- * Sample Virtual Channel
+ * Multiparty Virtual Channel
  *
- * Copyright 2012 Jay Sorg
- * Copyright 2010-2012 Vic Lee
+ * Copyright 2014 Marc-Andre Moreau <marcandre.moreau@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +17,20 @@
  * limitations under the License.
  */
 
-#ifndef __SAMPLE_MAIN_H
-#define __SAMPLE_MAIN_H
+#ifndef FREERDP_CHANNEL_SERVER_ENCOMSP_MAIN_H
+#define FREERDP_CHANNEL_SERVER_ENCOMSP_MAIN_H
 
-typedef struct sample_plugin samplePlugin;
+#include <winpr/crt.h>
+#include <winpr/synch.h>
+#include <winpr/thread.h>
 
-#endif /* __SAMPLE_MAIN_H */
+#include <freerdp/server/encomsp.h>
+
+struct _encomsp_server_private
+{
+	HANDLE Thread;
+	HANDLE StopEvent;
+	void* ChannelHandle;
+};
+
+#endif /* FREERDP_CHANNEL_SERVER_ENCOMSP_MAIN_H */

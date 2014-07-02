@@ -221,13 +221,8 @@ void *dvcman_get_channel_interface_by_name(IWTSVirtualChannelManager *pChannelMg
 IWTSVirtualChannelManager *dvcman_new(drdynvcPlugin *plugin)
 {
 	DVCMAN *dvcman;
-	dvcman = (DVCMAN *) calloc(1,sizeof(DVCMAN));
 
-	if (!dvcman)
-	{
-		DEBUG_WARN("calloc failed %s (%d)!", strerror(errno), errno);
-		return NULL;
-	}
+	dvcman = (DVCMAN*) calloc(1, sizeof(DVCMAN));
 
 	dvcman->iface.CreateListener = dvcman_create_listener;
 	dvcman->iface.PushEvent = dvcman_push_event;
@@ -235,7 +230,9 @@ IWTSVirtualChannelManager *dvcman_new(drdynvcPlugin *plugin)
 	dvcman->iface.GetChannelId = dvcman_get_channel_id;
 	dvcman->drdynvc = plugin;
 	dvcman->channels = ArrayList_New(TRUE);
-	return (IWTSVirtualChannelManager *) dvcman;
+	dvcman->pool = StreamPool_New(TRUE, 10);
+
+	return (IWTSVirtualChannelManager*) dvcman;
 }
 
 int dvcman_load_addin(IWTSVirtualChannelManager *pChannelMgr, ADDIN_ARGV *args)
@@ -267,8 +264,7 @@ static void dvcman_channel_free(DVCMAN_CHANNEL *channel)
 	if (channel->channel_callback)
 		channel->channel_callback->OnClose(channel->channel_callback);
 
-	if (channel->channel_name)
-		free(channel->channel_name);
+	DeleteCriticalSection(&(channel->lock));
 
 	free(channel);
 }
@@ -309,6 +305,7 @@ void dvcman_free(IWTSVirtualChannelManager *pChannelMgr)
 			pPlugin->Terminated(pPlugin);
 	}
 
+	StreamPool_Free(dvcman->pool);
 	free(dvcman);
 }
 
@@ -333,11 +330,15 @@ int dvcman_init(IWTSVirtualChannelManager *pChannelMgr)
 static int dvcman_write_channel(IWTSVirtualChannel *pChannel, UINT32 cbSize, BYTE *pBuffer, void *pReserved)
 {
 	int status;
-	DVCMAN_CHANNEL *channel = (DVCMAN_CHANNEL *) pChannel;
-	assert(channel);
-	WaitForSingleObject(channel->dvc_chan_mutex, INFINITE);
+
+	DVCMAN_CHANNEL* channel = (DVCMAN_CHANNEL*) pChannel;
+
+	EnterCriticalSection(&(channel->lock));
+
 	status = drdynvc_write_data(channel->dvcman->drdynvc, channel->channel_id, pBuffer, cbSize);
-	ReleaseMutex(channel->dvc_chan_mutex);
+
+	LeaveCriticalSection(&(channel->lock));
+
 	return status;
 }
 
@@ -362,13 +363,11 @@ int dvcman_create_channel(IWTSVirtualChannelManager *pChannelMgr, UINT32 Channel
 	DrdynvcClientContext *context;
 	IWTSVirtualChannelCallback *pCallback;
 	DVCMAN *dvcman = (DVCMAN *) pChannelMgr;
-	channel = (DVCMAN_CHANNEL *) calloc(1, sizeof(DVCMAN_CHANNEL));
+	
+	channel = (DVCMAN_CHANNEL*) calloc(1, sizeof(DVCMAN_CHANNEL));
 
 	if (!channel)
-	{
-		DEBUG_WARN("calloc failed %s (%d)!", strerror(errno), errno);
 		return -1;
-	}
 
 	ZeroMemory(channel, sizeof(DVCMAN_CHANNEL));
 	channel->dvcman = dvcman;
@@ -384,7 +383,9 @@ int dvcman_create_channel(IWTSVirtualChannelManager *pChannelMgr, UINT32 Channel
 		{
 			channel->iface.Write = dvcman_write_channel;
 			channel->iface.Close = dvcman_close_channel_iface;
-			channel->dvc_chan_mutex = CreateMutex(NULL, FALSE, NULL);
+
+			InitializeCriticalSection(&(channel->lock));
+
 			bAccept = 1;
 			pCallback = NULL;
 			assert(listener->listener_callback);
@@ -417,7 +418,30 @@ int dvcman_create_channel(IWTSVirtualChannelManager *pChannelMgr, UINT32 Channel
 	return 1;
 }
 
-int dvcman_close_channel(IWTSVirtualChannelManager *pChannelMgr, UINT32 ChannelId)
+int dvcman_open_channel(IWTSVirtualChannelManager* pChannelMgr, UINT32 ChannelId)
+{
+	DVCMAN_CHANNEL* channel;
+	IWTSVirtualChannelCallback* pCallback;
+
+	channel = (DVCMAN_CHANNEL*) dvcman_find_channel_by_id(pChannelMgr, ChannelId);
+
+	if (!channel)
+	{
+		DEBUG_WARN("ChannelId %d not found!", ChannelId);
+		return 1;
+	}
+
+	if (channel->status == 0)
+	{
+		pCallback = channel->channel_callback;
+		if (pCallback->OnOpen)
+			pCallback->OnOpen(pCallback);
+	}
+
+	return 0;
+}
+
+int dvcman_close_channel(IWTSVirtualChannelManager* pChannelMgr, UINT32 ChannelId)
 {
 	DVCMAN_CHANNEL *channel;
 	IWTSVirtualChannel *ichannel;
@@ -434,7 +458,7 @@ int dvcman_close_channel(IWTSVirtualChannelManager *pChannelMgr, UINT32 ChannelI
 
 	if (channel->dvc_data)
 	{
-		Stream_Free(channel->dvc_data, TRUE);
+		Stream_Release(channel->dvc_data);
 		channel->dvc_data = NULL;
 	}
 
@@ -463,17 +487,21 @@ int dvcman_receive_channel_data_first(IWTSVirtualChannelManager *pChannelMgr, UI
 	}
 
 	if (channel->dvc_data)
-		Stream_Free(channel->dvc_data, TRUE);
+		Stream_Release(channel->dvc_data);
 
-	channel->dvc_data = Stream_New(NULL, length);
+	channel->dvc_data = StreamPool_Take(channel->dvcman->pool, length);
+	Stream_AddRef(channel->dvc_data);
+
 	return 0;
 }
 
-int dvcman_receive_channel_data(IWTSVirtualChannelManager *pChannelMgr, UINT32 ChannelId, BYTE *data, UINT32 data_size)
+int dvcman_receive_channel_data(IWTSVirtualChannelManager* pChannelMgr, UINT32 ChannelId, wStream* data)
 {
-	int error = 0;
-	DVCMAN_CHANNEL *channel;
-	channel = (DVCMAN_CHANNEL *) dvcman_find_channel_by_id(pChannelMgr, ChannelId);
+	int status = 0;
+	DVCMAN_CHANNEL* channel;
+	UINT32 dataSize = Stream_GetRemainingLength(data);
+
+	channel = (DVCMAN_CHANNEL*) dvcman_find_channel_by_id(pChannelMgr, ChannelId);
 
 	if (!channel)
 	{
@@ -484,135 +512,29 @@ int dvcman_receive_channel_data(IWTSVirtualChannelManager *pChannelMgr, UINT32 C
 	if (channel->dvc_data)
 	{
 		/* Fragmented data */
-		if (Stream_GetPosition(channel->dvc_data) + data_size > (UINT32) Stream_Capacity(channel->dvc_data))
+		if (Stream_GetPosition(channel->dvc_data) + dataSize > (UINT32) Stream_Capacity(channel->dvc_data))
 		{
 			DEBUG_WARN("data exceeding declared length!");
-			Stream_Free(channel->dvc_data, TRUE);
+			Stream_Release(channel->dvc_data);
 			channel->dvc_data = NULL;
 			return 1;
 		}
 
-		Stream_Write(channel->dvc_data, data, data_size);
+		Stream_Write(channel->dvc_data, Stream_Pointer(data), dataSize);
 
 		if (((size_t) Stream_GetPosition(channel->dvc_data)) >= Stream_Capacity(channel->dvc_data))
 		{
-			error = channel->channel_callback->OnDataReceived(channel->channel_callback,
-					Stream_Capacity(channel->dvc_data), Stream_Buffer(channel->dvc_data));
-			Stream_Free(channel->dvc_data, TRUE);
+			Stream_SealLength(channel->dvc_data);
+			Stream_SetPosition(channel->dvc_data, 0);
+			status = channel->channel_callback->OnDataReceived(channel->channel_callback, channel->dvc_data);
+			Stream_Release(channel->dvc_data);
 			channel->dvc_data = NULL;
 		}
 	}
 	else
 	{
-		assert(channel->channel_callback);
-		assert(channel->channel_callback->OnDataReceived);
-		error = channel->channel_callback->OnDataReceived(channel->channel_callback, data_size, data);
+		status = channel->channel_callback->OnDataReceived(channel->channel_callback, data);
 	}
 
-	return error;
-}
-
-static void dump_callbacks(void)
-{
-	wListDictionaryItem *cur;
-	DEBUG_DVC("Dumping all currently registered callbacks");
-
-	if (!cb_dict)
-	{
-		DEBUG_DVC("cb_dict=NULL");
-		return;
-	}
-
-	cur = cb_dict->head;
-
-	while (cur)
-	{
-		DEBUG_DVC("cb_dict %s:%p", cur->key, cur->value);
-		cur = cur->next;
-	}
-}
-
-void *get_callback_by_name(const char *name, void **context)
-{
-	struct cb_value *rc;
-
-	if (!cb_dict)
-	{
-		DEBUG_WARN("'%s' not found, function list does not exist.",
-				   name);
-		return NULL;
-	}
-
-	if (!ListDictionary_Contains(cb_dict, (void *)name))
-	{
-		DEBUG_WARN("'%s' not found", name);
-		return NULL;
-	}
-
-	rc = ListDictionary_GetItemValue(cb_dict, (void *)name);
-	DEBUG_DVC("'%s'=%p found", name, rc);
-
-	if (context)
-		*context = rc->context;
-
-	return rc->fkt;
-}
-
-static BOOL callback_key_cmp(void *a, void *b)
-{
-	return strcmp(a, b) ? FALSE : TRUE;
-}
-
-void add_callback_by_name(const char *name, void *fkt, void *context)
-{
-	struct cb_value *value = calloc(1, sizeof(struct cb_value));
-
-	if (!value)
-	{
-		DEBUG_WARN("calloc failed %s (%d)!", strerror(errno), errno);
-		assert(FALSE);
-		return;
-	}
-
-	if (!cb_dict)
-	{
-		DEBUG_DVC("Function list is empty, allocating new.");
-		cb_dict = ListDictionary_New(TRUE);
-		ListDictionary_KeyObject(cb_dict)->fnObjectEquals = callback_key_cmp;
-	}
-
-	value->fkt = fkt;
-	value->context = context;
-	DEBUG_DVC("Adding '%s'=%p to function list.", name, fkt);
-	ListDictionary_Add(cb_dict, (void *)name, value);
-	dump_callbacks();
-}
-
-void remove_callback_by_name(const char *name, void *context)
-{
-	if (!cb_dict)
-	{
-		DEBUG_WARN("trying to remove '%s', but function list does not exist.",
-				   name);
-		return;
-	}
-
-	if (!ListDictionary_Contains(cb_dict, (void *)name))
-	{
-		DEBUG_WARN("trying to remove '%s', which is not in function list.",
-				   name);
-		return;
-	}
-
-	DEBUG_DVC("Removing '%s' from function list.", name);
-	ListDictionary_Remove(cb_dict, (void *)name);
-
-	if (ListDictionary_Count(cb_dict) < 1)
-	{
-		DEBUG_DVC("Function list is empty, freeing resources.");
-		ListDictionary_Free(cb_dict);
-		cb_dict = NULL;
-	}
-
-	dump_callbacks();
+	return status;
 }

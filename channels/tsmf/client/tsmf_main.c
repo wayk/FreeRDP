@@ -114,9 +114,7 @@ BOOL tsmf_push_event(IWTSVirtualChannelCallback *pChannelCallback, wMessage *eve
 	return TRUE;
 }
 
-static int tsmf_on_data_received(IWTSVirtualChannelCallback *pChannelCallback,
-								 UINT32 cbSize,
-								 BYTE *pBuffer)
+static int tsmf_on_data_received(IWTSVirtualChannelCallback* pChannelCallback, wStream *data)
 {
 	int length;
 	wStream *input;
@@ -126,14 +124,17 @@ static int tsmf_on_data_received(IWTSVirtualChannelCallback *pChannelCallback,
 	UINT32 MessageId;
 	UINT32 FunctionId;
 	UINT32 InterfaceId;
-	TSMF_CHANNEL_CALLBACK *callback = (TSMF_CHANNEL_CALLBACK *) pChannelCallback;
+	TSMF_CHANNEL_CALLBACK* callback = (TSMF_CHANNEL_CALLBACK*) pChannelCallback;
+	UINT32 cbSize = Stream_GetRemainingLength(data);
+
 	/* 2.2.1 Shared Message Header (SHARED_MSG_HEADER) */
 	if(cbSize < 12)
 	{
 		DEBUG_WARN("invalid size. cbSize=%d", cbSize);
 		return 1;
 	}
-	input = Stream_New((BYTE *) pBuffer, cbSize);
+
+	input = data;
 	output = Stream_New(NULL, 256);
 	Stream_Seek(output, 8);
 	Stream_Read_UINT32(input, InterfaceId);
@@ -250,7 +251,7 @@ static int tsmf_on_data_received(IWTSVirtualChannelCallback *pChannelCallback,
 		default:
 			break;
 	}
-	Stream_Free(input, FALSE);
+
 	input = NULL;
 	ifman.input = NULL;
 	if(status == -1)
@@ -328,6 +329,7 @@ static int tsmf_on_new_channel_connection(IWTSListenerCallback *pListenerCallbac
 	ZeroMemory(callback, sizeof(TSMF_CHANNEL_CALLBACK));
 	callback->iface.OnDataReceived = tsmf_on_data_received;
 	callback->iface.OnClose = tsmf_on_close;
+	callback->iface.OnOpen = NULL;
 	callback->plugin = listener_callback->plugin;
 	callback->channel_mgr = listener_callback->channel_mgr;
 	callback->channel = pChannel;

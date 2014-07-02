@@ -299,13 +299,13 @@ static const char *get_shm_id()
 	return shm_id;
 }
 
-xfWindow *xf_CreateDesktopWindow(xfContext *xfc, char *name, int width, int height, BOOL decorations)
+xfWindow* xf_CreateDesktopWindow(xfContext *xfc, char *name, int width, int height, BOOL decorations)
 {
-	xfWindow *window;
+	xfWindow* window;
 	XEvent xevent;
-	rdpSettings *settings;
-	window = (xfWindow *) malloc(sizeof(xfWindow));
-	ZeroMemory(window, sizeof(xfWindow));
+	rdpSettings* settings;
+	window = (xfWindow*) calloc(1, sizeof(xfWindow));
+
 	settings = xfc->instance->settings;
 	if(window)
 	{
@@ -322,21 +322,28 @@ xfWindow *xf_CreateDesktopWindow(xfContext *xfc, char *name, int width, int heig
 									   xfc->workArea.x, xfc->workArea.y, xfc->workArea.width, xfc->workArea.height, 0, xfc->depth, InputOutput, xfc->visual,
 									   CWBackPixel | CWBackingStore | CWOverrideRedirect | CWColormap |
 									   CWBorderPixel | CWWinGravity | CWBitGravity, &xfc->attribs);
+
 		window->shmid = shm_open(get_shm_id(), O_CREAT | O_EXCL | O_RDWR, S_IREAD | S_IWRITE);
-		if(window->shmid < 0)
+
+		if (window->shmid < 0)
 		{
 			DEBUG_X11("xf_CreateDesktopWindow: failed to get access to shared memory - shmget()\n");
 		}
 		else
 		{
+			void* mem;
+
 			ftruncate(window->shmid, sizeof(window->handle));
-			window->xfwin = mmap(0, sizeof(window->handle), PROT_READ | PROT_WRITE, MAP_SHARED, window->shmid, 0);
-			if(window->xfwin == (int *) -1)
+
+			mem = mmap(0, sizeof(window->handle), PROT_READ | PROT_WRITE, MAP_SHARED, window->shmid, 0);
+
+			if (mem == ((int*) -1))
 			{
 				DEBUG_X11("xf_CreateDesktopWindow: failed to assign pointer to the memory address - shmat()\n");
 			}
 			else
 			{
+				window->xfwin = mem;
 				*window->xfwin = window->handle;
 			}
 		}
@@ -362,8 +369,10 @@ xfWindow *xf_CreateDesktopWindow(xfContext *xfc, char *name, int width, int heig
 			input_mask |= EnterWindowMask | LeaveWindowMask;
 		XChangeProperty(xfc->display, window->handle, xfc->_NET_WM_ICON, XA_CARDINAL, 32,
 						PropModeReplace, (BYTE *) xf_icon_prop, ARRAYSIZE(xf_icon_prop));
-		if(xfc->settings->ParentWindowId)
+
+		if (xfc->settings->ParentWindowId)
 			XReparentWindow(xfc->display, window->handle, (Window) xfc->settings->ParentWindowId, 0, 0);
+
 		XSelectInput(xfc->display, window->handle, input_mask);
 		XClearWindow(xfc->display, window->handle);
 		XMapWindow(xfc->display, window->handle);
@@ -382,7 +391,11 @@ xfWindow *xf_CreateDesktopWindow(xfContext *xfc, char *name, int width, int heig
 		 * monitor instead of the upper-left monitor for remote app mode(which uses all monitors).
 		 * This extra call after the window is mapped will position the login window correctly
 		 */
-		if(xfc->instance->settings->RemoteApplicationMode)
+		if (xfc->instance->settings->RemoteApplicationMode)
+		{
+			XMoveWindow(xfc->display, window->handle, 0, 0);
+		}
+		else if(settings->DesktopPosX || settings->DesktopPosY)
 		{
 			XMoveWindow(xfc->display, window->handle, 0, 0);
 		}
@@ -822,7 +835,7 @@ BOOL xf_IsWindowBorder(xfContext *xfc, xfWindow *xfw, int x, int y)
 
 void xf_DestroyWindow(xfContext *xfc, xfWindow *window)
 {
-	if(window == NULL)
+	if (!window)
 		return;
 	if(xfc->window == window)
 		xfc->window = NULL;
@@ -833,6 +846,18 @@ void xf_DestroyWindow(xfContext *xfc, xfWindow *window)
 		XUnmapWindow(xfc->display, window->handle);
 		XDestroyWindow(xfc->display, window->handle);
 	}
+
+	if (window->xfwin)
+		munmap(0, sizeof(*window->xfwin));
+
+	if (window->shmid >= 0)
+		close(window->shmid);
+
+	shm_unlink(get_shm_id());
+
+	window->xfwin = (Window*) -1;
+	window->shmid = -1;
+
 	free(window);
 	if(window->xfwin)
 		munmap(0, sizeof(*window->xfwin));
