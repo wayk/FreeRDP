@@ -59,6 +59,7 @@ include(GNUInstallDirsWrapper)
 include(CMakePackageConfigHelpers)
 
 # Soname versioning
+set(WITH_LIBRARY_VERSIONING "ON")
 set(FREERDP_VERSION_MAJOR "1")
 set(FREERDP_VERSION_MINOR "2")
 set(FREERDP_VERSION_REVISION "0")
@@ -301,6 +302,8 @@ endif(APPLE)
 
 # Android
 if(ANDROID)
+  set(WITH_LIBRARY_VERSIONING "OFF")
+
 	if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
 		add_definitions(-DNDK_DEBUG=1)
 
@@ -369,6 +372,7 @@ if(UNIX OR CYGWIN)
 	check_include_files(sys/eventfd.h HAVE_AIO_H)
 	check_include_files(sys/eventfd.h HAVE_EVENTFD_H)
 	check_include_files(sys/timerfd.h HAVE_TIMERFD_H)
+	check_include_files(poll.h HAVE_POLL_H)
 	set(X11_FEATURE_TYPE "RECOMMENDED")
 else()
 	set(X11_FEATURE_TYPE "DISABLED")
@@ -432,6 +436,10 @@ set(IPP_FEATURE_DESCRIPTION "Intel Integrated Performance Primitives library")
 set(JPEG_FEATURE_TYPE "OPTIONAL")
 set(JPEG_FEATURE_PURPOSE "codec")
 set(JPEG_FEATURE_DESCRIPTION "use JPEG library")
+
+set(OPENH264_FEATURE_TYPE "OPTIONAL")
+set(OPENH264_FEATURE_PURPOSE "codec")
+set(OPENH264_FEATURE_DESCRIPTION "use OpenH264 library")
 
 set(GSM_FEATURE_TYPE "OPTIONAL")
 set(GSM_FEATURE_PURPOSE "codec")
@@ -504,6 +512,7 @@ find_feature(GStreamer_0_10 ${GSTREAMER_0_10_FEATURE_TYPE} ${GSTREAMER_0_10_FEAT
 find_feature(GStreamer_1_0 ${GSTREAMER_1_0_FEATURE_TYPE} ${GSTREAMER_1_0_FEATURE_PURPOSE} ${GSTREAMER_1_0_FEATURE_DESCRIPTION})
 
 find_feature(JPEG ${JPEG_FEATURE_TYPE} ${JPEG_FEATURE_PURPOSE} ${JPEG_FEATURE_DESCRIPTION})
+find_feature(OpenH264 ${OPENH264_FEATURE_TYPE} ${OPENH264_FEATURE_PURPOSE} ${OPENH264_FEATURE_DESCRIPTION})
 find_feature(GSM ${GSM_FEATURE_TYPE} ${GSM_FEATURE_PURPOSE} ${GSM_FEATURE_DESCRIPTION})
 
 if(TARGET_ARCH MATCHES "x86|x64")
@@ -676,6 +685,7 @@ else(MONOLITHIC_BUILD)
 	foreach(EXPORT_MODULE ${MEXPORTS})
 			list(APPEND WINPR_PC_LIBS "-lwinpr-${EXPORT_MODULE}")
 	endforeach()
+	list(APPEND WINPR_PC_LIBS "-lwinpr")
 	string(REPLACE ";" " " WINPR_PC_LIBS "${WINPR_PC_LIBS}")
 endif(MONOLITHIC_BUILD)
 
