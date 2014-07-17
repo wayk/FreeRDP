@@ -97,6 +97,12 @@ void android_desktop_resize(rdpContext* context)
 			context->settings->DesktopHeight, context->settings->ColorDepth);
 }
 
+void android_error_info(void* ctx, ErrorInfoEventArgs* e)
+{
+	rdpContext* context = (rdpContext*) ctx;
+	freerdp_callback("OnErrorInfo", "(I)V", context);
+}
+
 
 BOOL android_pre_connect(freerdp* instance)
 {
@@ -154,7 +160,7 @@ static BOOL android_post_connect(freerdp* instance)
 
 	instance->context->cache = cache_new(settings);
 
-	gdi_init(instance, CLRCONV_ALPHA | CLRCONV_INVERT |
+	gdi_init(instance, CLRCONV_ALPHA |
 			((instance->settings->ColorDepth > 16) ? CLRBUF_32BPP : CLRBUF_16BPP),
 			NULL);
 
@@ -636,6 +642,8 @@ JNIEXPORT jint JNICALL jni_freerdp_new(JNIEnv *env, jclass cls)
 	instance->ContextNew = android_context_new;
 	instance->ContextFree = android_context_free;
 	freerdp_context_new(instance);
+
+	PubSub_SubscribeErrorInfo(instance->context->pubSub, android_error_info);
 
 	return (jint) instance;
 }
