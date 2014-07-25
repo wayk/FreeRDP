@@ -100,9 +100,8 @@ void android_desktop_resize(rdpContext* context)
 void android_error_info(void* ctx, ErrorInfoEventArgs* e)
 {
 	rdpContext* context = (rdpContext*) ctx;
-	freerdp_callback("OnErrorInfo", "(I)V", context);
+	freerdp_callback("OnErrorInfo", "(II)V", e->code, context->instance);
 }
-
 
 BOOL android_pre_connect(freerdp* instance)
 {
@@ -1151,5 +1150,10 @@ JNIEXPORT void JNICALL jni_freerdp_send_clipboard_data(JNIEnv *env, jclass cls, 
 JNIEXPORT jstring JNICALL jni_freerdp_get_version(JNIEnv *env, jclass cls)
 {
 	return (*env)->NewStringUTF(env, GIT_REVISION);
+}
+
+JNIEXPORT jstring JNICALL jni_freerdp_get_error_info_string(JNIEnv *env, jclass cls, jint code)
+{
+	return (*env)->NewStringUTF(env, freerdp_get_error_info_string(code));
 }
 
