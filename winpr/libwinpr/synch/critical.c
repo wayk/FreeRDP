@@ -101,7 +101,7 @@ DWORD SetCriticalSectionSpinCount(LPCRITICAL_SECTION lpCriticalSection, DWORD dw
 #endif
 }
 
-VOID _WaitForCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
+static VOID _WaitForCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
 {
 #if defined(__APPLE__)
 	semaphore_wait(*((winpr_sem_t*) lpCriticalSection->LockSemaphore));
@@ -110,7 +110,7 @@ VOID _WaitForCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
 #endif
 }
 
-VOID _UnWaitCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
+static VOID _UnWaitCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
 {
 #if defined __APPLE__
 	semaphore_signal(*((winpr_sem_t*) lpCriticalSection->LockSemaphore));
@@ -235,7 +235,7 @@ VOID DeleteCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
 
 #endif
 
-#if ((_WIN32) && (_WIN32_WINNT < 0x0403))
+#if (defined(_WIN32) && (_WIN32_WINNT < 0x0600))
 
 typedef BOOL (WINAPI * PINITIALIZE_CRITICAL_SECTION_EX_FN)(LPCRITICAL_SECTION lpCriticalSection, DWORD dwSpinCount, DWORD Flags);
 
