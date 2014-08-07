@@ -79,11 +79,22 @@ public class LibFreeRDP
 		void OnRemoteClipboardChanged(String data);
 	}
 
+	public static interface ErrorListener
+	{
+		void OnErrorInfo(int context);
+	}
+
+	private static ErrorListener errorListener;
 	private static EventListener listener;
 
 	public static void setEventListener(EventListener l)
 	{
 		listener = l;		
+	}
+
+	public static void setErrorListener(ErrorListener l)
+	{
+		errorListener = l;
 	}
 	
 	public static int newInstance()
@@ -247,6 +258,13 @@ public class LibFreeRDP
 		UIEventListener uiEventListener = s.getUIEventListener();
 		if (uiEventListener != null)
 			uiEventListener.OnSettingsChanged(width, height, bpp);
+	}
+
+	private static void OnErrorInfo(int context)
+	{
+		if(errorListener != null) {
+			errorListener.OnErrorInfo(context);
+		}
 	}
 
 	private static boolean OnAuthenticate(int inst, StringBuilder username, StringBuilder domain, StringBuilder password)

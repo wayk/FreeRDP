@@ -97,6 +97,11 @@ void android_desktop_resize(rdpContext* context)
 			context->settings->DesktopHeight, context->settings->ColorDepth);
 }
 
+void android_error_info(void* ctx, ErrorInfoEventArgs* e)
+{
+	rdpContext* context = (rdpContext*) ctx;
+	freerdp_callback("OnErrorInfo", "(II)V", e->code, context->instance);
+}
 
 BOOL android_pre_connect(freerdp* instance)
 {
@@ -154,7 +159,7 @@ static BOOL android_post_connect(freerdp* instance)
 
 	instance->context->cache = cache_new(settings);
 
-	gdi_init(instance, CLRCONV_ALPHA | CLRCONV_INVERT |
+	gdi_init(instance, CLRCONV_ALPHA |
 			((instance->settings->ColorDepth > 16) ? CLRBUF_32BPP : CLRBUF_16BPP),
 			NULL);
 
@@ -636,6 +641,8 @@ JNIEXPORT jint JNICALL jni_freerdp_new(JNIEnv *env, jclass cls)
 	instance->ContextNew = android_context_new;
 	instance->ContextFree = android_context_free;
 	freerdp_context_new(instance);
+
+	PubSub_SubscribeErrorInfo(instance->context->pubSub, android_error_info);
 
 	return (jint) instance;
 }
@@ -1143,5 +1150,10 @@ JNIEXPORT void JNICALL jni_freerdp_send_clipboard_data(JNIEnv *env, jclass cls, 
 JNIEXPORT jstring JNICALL jni_freerdp_get_version(JNIEnv *env, jclass cls)
 {
 	return (*env)->NewStringUTF(env, GIT_REVISION);
+}
+
+JNIEXPORT jstring JNICALL jni_freerdp_get_error_info_string(JNIEnv *env, jclass cls, jint code)
+{
+	return (*env)->NewStringUTF(env, freerdp_get_error_info_string(code));
 }
 
