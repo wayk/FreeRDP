@@ -1168,7 +1168,7 @@ int mac_verify_x509certificate(freerdp* instance, BYTE* data, int length, const 
         [x509 release];
     }
     
-    return result ? 0 : -1;
+    return result ? 1 : -1;
 }
 
 void mf_Pointer_New(rdpContext* context, rdpPointer* pointer)
