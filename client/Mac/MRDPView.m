@@ -701,7 +701,7 @@ DWORD fixKeyCode(DWORD keyCode, unichar keyChar, enum APPLE_KEYBOARD_TYPE type)
     }
 	
 #if 0
-	fprintf(stderr, "keyDown: keyCode: 0x%04X scancode: 0x%04X vkcode: 0x%04X keyFlags: %d name: %s\n",
+	DEBUG_WARN( "keyDown: keyCode: 0x%04X scancode: 0x%04X vkcode: 0x%04X keyFlags: %d name: %s\n",
 	       keyCode, scancode, vkcode, keyFlags, GetVirtualKeyName(vkcode));
 #endif
 	
@@ -744,7 +744,7 @@ DWORD fixKeyCode(DWORD keyCode, unichar keyChar, enum APPLE_KEYBOARD_TYPE type)
 	vkcode &= 0xFF;
 
 #if 0
-	fprintf(stderr, "keyUp: key: 0x%04X scancode: 0x%04X vkcode: 0x%04X keyFlags: %d name: %s\n",
+	DEBUG_WARN( "keyUp: key: 0x%04X scancode: 0x%04X vkcode: 0x%04X keyFlags: %d name: %s\n",
 	       keyCode, scancode, vkcode, keyFlags, GetVirtualKeyName(vkcode));
 #endif
 
@@ -773,29 +773,28 @@ DWORD fixKeyCode(DWORD keyCode, unichar keyChar, enum APPLE_KEYBOARD_TYPE type)
 	vkcode &= 0xFF;
 
 #if 0
-	fprintf(stderr, "flagsChanged: key: 0x%04X scancode: 0x%04lX vkcode: 0x%04lX extended: %lu name: %s modFlags: 0x%04lX\n",
-	       key - 8, scancode, vkcode, keyFlags, GetVirtualKeyName(vkcode), modFlags);
+	fprintf(stderr, "flagsChanged: key: 0x%04X scancode: 0x%04lX vkcode: 0x%04lX extended: %lu name: %s modFlags: 0x%04lX\n", key - 8, scancode, vkcode, keyFlags, GetVirtualKeyName(vkcode), modFlags);
 
 	if (modFlags & NSAlphaShiftKeyMask)
-		fprintf(stderr, "NSAlphaShiftKeyMask\n");
+		fprintf( "NSAlphaShiftKeyMask\n");
 
 	if (modFlags & NSShiftKeyMask)
-		fprintf(stderr, "NSShiftKeyMask\n");
+		fprintf( "NSShiftKeyMask\n");
 
 	if (modFlags & NSControlKeyMask)
-		fprintf(stderr, "NSControlKeyMask\n");
+		fprintf( "NSControlKeyMask\n");
 
 	if (modFlags & NSAlternateKeyMask)
-		fprintf(stderr, "NSAlternateKeyMask\n");
+		fprintf( "NSAlternateKeyMask\n");
 
 	if (modFlags & NSCommandKeyMask)
-		fprintf(stderr, "NSCommandKeyMask\n");
+		fprintf( "NSCommandKeyMask\n");
 
 	if (modFlags & NSNumericPadKeyMask)
-		fprintf(stderr, "NSNumericPadKeyMask\n");
+		fprintf( "NSNumericPadKeyMask\n");
 
 	if (modFlags & NSHelpKeyMask)
-		fprintf(stderr, "NSHelpKeyMask\n");
+		fprintf( "NSHelpKeyMask\n");
 #endif
 
 	if ((modFlags & NSAlphaShiftKeyMask) && !(kbdModFlags & NSAlphaShiftKeyMask))
@@ -1421,7 +1420,7 @@ static void update_activity_cb(freerdp* instance)
 	}
 	else
 	{
-		fprintf(stderr, "update_activity_cb: No queue!\n");
+		DEBUG_WARN( "update_activity_cb: No queue!\n");
 	}
 }
 
@@ -1446,7 +1445,7 @@ static void input_activity_cb(freerdp* instance)
 	}
 	else
 	{
-		fprintf(stderr, "input_activity_cb: No queue!\n");
+		DEBUG_WARN( "input_activity_cb: No queue!\n");
 	}
 }
 
@@ -1459,7 +1458,7 @@ static void channel_activity_cb(freerdp* instance)
 
 	if (event)
 	{
-		fprintf(stderr, "channel_activity_cb: message %d\n", event->id);
+		DEBUG_WARN( "channel_activity_cb: message %d\n", event->id);
 
 		switch (GetMessageClass(event->id))
 		{

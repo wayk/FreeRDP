@@ -92,7 +92,7 @@ static int dvcman_create_listener(IWTSVirtualChannelManager *pChannelMgr,
 	}
 	else
 	{
-		DEBUG_WARN("Maximum DVC listener number reached.");
+		CLOG_ERR("Maximum DVC listener number reached.");
 		return 1;
 	}
 }
@@ -110,7 +110,7 @@ static int dvcman_push_event(IWTSVirtualChannelManager *pChannelMgr, wMessage *p
 	}
 	else
 	{
-		DEBUG_WARN("event_type %d push failed.", GetMessageType(pEvent->id));
+		CLOG_ERR("event_type %d push failed.", GetMessageType(pEvent->id));
 	}
 
 	return status;
@@ -131,7 +131,7 @@ static int dvcman_register_plugin(IDRDYNVC_ENTRY_POINTS *pEntryPoints, const cha
 	}
 	else
 	{
-		DEBUG_WARN("Maximum DVC plugin number reached.");
+		CLOG_ERR("Maximum DVC plugin number reached.");
 		return 1;
 	}
 }
@@ -435,7 +435,7 @@ int dvcman_open_channel(IWTSVirtualChannelManager* pChannelMgr, UINT32 ChannelId
 
 	if (!channel)
 	{
-		DEBUG_WARN("ChannelId %d not found!", ChannelId);
+		CLOG_ERR("ChannelId %d not found!", ChannelId);
 		return 1;
 	}
 
@@ -460,7 +460,7 @@ int dvcman_close_channel(IWTSVirtualChannelManager* pChannelMgr, UINT32 ChannelI
 
 	if (!channel)
 	{
-		DEBUG_WARN("ChannelId %d not found!", ChannelId);
+		CLOG_ERR("ChannelId %d not found!", ChannelId);
 		return 1;
 	}
 
@@ -490,7 +490,7 @@ int dvcman_receive_channel_data_first(IWTSVirtualChannelManager *pChannelMgr, UI
 
 	if (!channel)
 	{
-		DEBUG_WARN("ChannelId %d not found!", ChannelId);
+		CLOG_ERR("ChannelId %d not found!", ChannelId);
 		return 1;
 	}
 
@@ -513,7 +513,7 @@ int dvcman_receive_channel_data(IWTSVirtualChannelManager* pChannelMgr, UINT32 C
 
 	if (!channel)
 	{
-		DEBUG_WARN("ChannelId %d not found!", ChannelId);
+		CLOG_ERR("ChannelId %d not found!", ChannelId);
 		return 1;
 	}
 
@@ -522,7 +522,7 @@ int dvcman_receive_channel_data(IWTSVirtualChannelManager* pChannelMgr, UINT32 C
 		/* Fragmented data */
 		if (Stream_GetPosition(channel->dvc_data) + dataSize > (UINT32) Stream_Capacity(channel->dvc_data))
 		{
-			DEBUG_WARN("data exceeding declared length!");
+			CLOG_ERR("data exceeding declared length!");
 			Stream_Release(channel->dvc_data);
 			channel->dvc_data = NULL;
 			return 1;

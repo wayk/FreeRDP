@@ -32,6 +32,7 @@
 #include <freerdp/crypto/crypto.h>
 #include <freerdp/locale/keyboard.h>
 
+#include <freerdp/utils/debug.h>
 #include <freerdp/client/cmdline.h>
 #include <freerdp/version.h>
 
@@ -43,7 +44,7 @@ COMMAND_LINE_ARGUMENT_A args[] =
 	{ "port", COMMAND_LINE_VALUE_REQUIRED, "<number>", NULL, NULL, -1, NULL, "Server port" },
 	{ "w", COMMAND_LINE_VALUE_REQUIRED, "<width>", "1024", NULL, -1, NULL, "Width" },
 	{ "h", COMMAND_LINE_VALUE_REQUIRED, "<height>", "768", NULL, -1, NULL, "Height" },
-	{ "size", COMMAND_LINE_VALUE_REQUIRED, "<width>x<height>", "1024x768", NULL, -1, NULL, "Screen size" },
+	{ "size", COMMAND_LINE_VALUE_REQUIRED, "<width>x<height> or <percent>%", "1024x768", NULL, -1, NULL, "Screen size" },
 	{ "f", COMMAND_LINE_VALUE_FLAG, NULL, NULL, NULL, -1, NULL, "Fullscreen mode" },
 	{ "bpp", COMMAND_LINE_VALUE_REQUIRED, "<depth>", "16", NULL, -1, NULL, "Session bpp (color depth)" },
 	{ "kbd", COMMAND_LINE_VALUE_REQUIRED, "0x<layout id> or <layout name>", NULL, NULL, -1, NULL, "Keyboard layout" },
@@ -1190,7 +1191,7 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings, 
 
 	if (compatibility)
 	{
-		fprintf(stderr, "WARNING: Using deprecated command-line interface!\n");
+		DEBUG_WARN( "WARNING: Using deprecated command-line interface!\n");
 		return freerdp_client_parse_old_command_line_arguments(argc, argv, settings);
 	}
 	else
@@ -1270,6 +1271,14 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings, 
 				*p = '\0';
 				settings->DesktopWidth = atoi(str);
 				settings->DesktopHeight = atoi(&p[1]);
+			}
+			else
+			{
+				p = strchr(str, '%');
+				if(p)
+				{
+					settings->PercentScreen = atoi(str);
+				}
 			}
 
 			free(str);
@@ -1360,25 +1369,25 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings, 
 		}
 		CommandLineSwitchCase(arg, "kbd")
 		{
-			int id;
+			unsigned long int id;
 			char* pEnd;
 
-			id = strtol(arg->Value, &pEnd, 16);
+			id = strtoul(arg->Value, &pEnd, 16);
 
 			if (pEnd != (arg->Value + strlen(arg->Value)))
 				id = 0;
 
 			if (id == 0)
 			{
-				id = freerdp_map_keyboard_layout_name_to_id(arg->Value);
+				id = (unsigned long int) freerdp_map_keyboard_layout_name_to_id(arg->Value);
 
 				if (!id)
 				{
-					fprintf(stderr, "Could not identify keyboard layout: %s\n", arg->Value);
+					DEBUG_WARN( "Could not identify keyboard layout: %s\n", arg->Value);
 				}
 			}
 
-			settings->KeyboardLayout = id;
+			settings->KeyboardLayout = (UINT32) id;
 		}
 		CommandLineSwitchCase(arg, "kbd-type")
 		{
@@ -1640,6 +1649,7 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings, 
 		CommandLineSwitchCase(arg, "gfx-progressive")
 		{
 			settings->GfxProgressive = arg->Value ? TRUE : FALSE;
+			settings->GfxThinClient = settings->GfxProgressive ? FALSE : TRUE;
 			settings->SupportGraphicsPipeline = TRUE;
 		}
 		CommandLineSwitchCase(arg, "gfx-h264")
@@ -1732,7 +1742,7 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings, 
 			}
 			else
 			{
-				fprintf(stderr, "unknown protocol security: %s\n", arg->Value);
+				DEBUG_WARN( "unknown protocol security: %s\n", arg->Value);
 			}
 		}
 		CommandLineSwitchCase(arg, "sec-rdp")
@@ -1878,7 +1888,7 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings, 
 			}
 			else
 			{
-				fprintf(stderr, "reconnect-cookie:  invalid base64 '%s'\n",
+				DEBUG_WARN( "reconnect-cookie:  invalid base64 '%s'\n",
 					arg->Value);
 			}
 		}
@@ -1943,7 +1953,7 @@ int freerdp_client_load_static_channel_addin(rdpChannels* channels, rdpSettings*
 	{
 		if (freerdp_channels_client_load(channels, settings, entry, data) == 0)
 		{
-			fprintf(stderr, "loading channel %s\n", name);
+			DEBUG_WARN( "loading channel %s\n", name);
 			return 0;
 		}
 	}
@@ -2091,6 +2101,9 @@ int freerdp_client_load_addins(rdpChannels* channels, rdpSettings* settings)
 	}
 
 	if (settings->DynamicChannelCount)
+		settings->SupportDynamicChannels = TRUE;
+
+	if (settings->SupportDynamicChannels)
 	{
 		freerdp_client_load_static_channel_addin(channels, settings, "drdynvc", settings);
 	}
