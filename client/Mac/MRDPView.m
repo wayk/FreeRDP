@@ -130,34 +130,6 @@ struct rgba_data
 	return 0;
 }
 
-DWORD mac_client_update_thread(void* param)
-{
-	int status;
-	wMessage message;
-	wMessageQueue* queue;
-	rdpContext* context = (rdpContext*) param;
-	
-	status = 1;
-	queue = freerdp_get_message_queue(context->instance, FREERDP_UPDATE_MESSAGE_QUEUE);
-	
-	while (MessageQueue_Wait(queue))
-	{
-		while (MessageQueue_Peek(queue, &message, TRUE))
-		{
-			status = freerdp_message_queue_process_message(context->instance, FREERDP_UPDATE_MESSAGE_QUEUE, &message);
-			
-			if (!status)
-				break;
-		}
-		
-		if (!status)
-			break;
-	}
-	
-	ExitThread(0);
-	return 0;
-}
-
 DWORD mac_client_input_thread(void* param)
 {
 	int status;
@@ -254,11 +226,7 @@ DWORD mac_client_thread(void* param)
 		
 		events[nCount++] = mfc->stopEvent;
 		
-		if (settings->AsyncUpdate)
-		{
-			updateThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE) mac_client_update_thread, context, 0, NULL);
-		}
-		else
+		if (!settings->AsyncUpdate)
 		{
 			events[nCount++] = updateEvent = freerdp_get_message_queue_event_handle(instance, FREERDP_UPDATE_MESSAGE_QUEUE);
 		}
