@@ -190,6 +190,7 @@ BOOL wf_pre_connect(freerdp* instance)
 	context = instance->context;
 	wfc = (wfContext*) instance->context;
 	wfc->instance = instance;
+	wfc->codecs = instance->context->codecs;
 
 	settings = instance->settings;
 
@@ -346,10 +347,12 @@ BOOL wf_post_connect(freerdp* instance)
 
 	if (wfc->sw_gdi)
 	{
-		gdi_init(instance, CLRCONV_ALPHA | CLRCONV_INVERT | CLRBUF_32BPP, NULL);
+		wfc->primary = wf_image_new(wfc, wfc->width, wfc->height, wfc->dstBpp, NULL);
+
+		gdi_init(instance, CLRCONV_ALPHA | CLRBUF_32BPP, wfc->primary->pdata);
+
 		gdi = instance->context->gdi;
 		wfc->hdc = gdi->primary->hdc;
-		wfc->primary = wf_image_new(wfc, wfc->width, wfc->height, wfc->dstBpp, gdi->primary_buffer);
 	}
 	else
 	{
@@ -375,12 +378,6 @@ BOOL wf_post_connect(freerdp* instance)
 		if (settings->RemoteFxCodec)
 		{
 			wfc->tile = wf_image_new(wfc, 64, 64, 32, NULL);
-			wfc->rfx_context = rfx_context_new(FALSE);
-		}
-
-		if (settings->NSCodec)
-		{
-			wfc->nsc_context = nsc_context_new();
 		}
 	}
 
@@ -394,10 +391,12 @@ BOOL wf_post_connect(freerdp* instance)
 	if (settings->EmbeddedWindow)
 		settings->Decorations = FALSE;
 	
-	if (!settings->Decorations)
+	if (wfc->fullscreen)
+		dwStyle = WS_POPUP;
+	else if (!settings->Decorations)
 		dwStyle = WS_CHILD | WS_BORDER;
 	else
-		dwStyle = 0;
+		dwStyle = WS_CAPTION | WS_OVERLAPPED | WS_SYSMENU | WS_MINIMIZEBOX | WS_SIZEBOX | WS_MAXIMIZEBOX;
 
 	if (!wfc->hwnd)
 	{

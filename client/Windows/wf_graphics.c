@@ -23,7 +23,7 @@
 
 #include <winpr/crt.h>
 
-#include <freerdp/codec/bitmap.h>
+#include <freerdp/codecs.h>
 
 #include "wf_gdi.h"
 #include "wf_graphics.h"
@@ -142,8 +142,9 @@ void wf_Bitmap_Paint(wfContext* wfc, rdpBitmap* bitmap)
 }
 
 void wf_Bitmap_Decompress(wfContext* wfc, rdpBitmap* bitmap,
-		BYTE* data, int width, int height, int bpp, int length, BOOL compressed, int codec_id)
+		BYTE* data, int width, int height, int bpp, int length, BOOL compressed, int codecId)
 {
+	int status;
 	UINT16 size;
 
 	size = width * height * (bpp / 8);
@@ -155,13 +156,35 @@ void wf_Bitmap_Decompress(wfContext* wfc, rdpBitmap* bitmap,
 
 	if (compressed)
 	{
-		BOOL status;
+		BYTE* pDstData;
+		UINT32 SrcSize;
 
-		status = bitmap_decompress(data, bitmap->data, width, height, length, bpp, bpp);
+		SrcSize = (UINT32) length;
+		pDstData = bitmap->data;
 
-		if (status != TRUE)
+		if (bpp < 32)
 		{
-			DEBUG_WARN( "Bitmap Decompression Failed\n");
+			freerdp_client_codecs_prepare(wfc->codecs, FREERDP_CODEC_INTERLEAVED);
+
+			status = interleaved_decompress(wfc->codecs->interleaved, data, SrcSize, bpp,
+					&pDstData, PIXEL_FORMAT_XRGB32_VF, width * 4, 0, 0, width, height);
+
+			if (status < 0)
+			{
+				DEBUG_WARN("wf_Bitmap_Decompress: Bitmap Decompression Failed\n");
+			}
+		}
+		else
+		{
+			freerdp_client_codecs_prepare(wfc->codecs, FREERDP_CODEC_PLANAR);
+
+			status = planar_decompress(wfc->codecs->planar, data, SrcSize, &pDstData,
+					PIXEL_FORMAT_XRGB32_VF, width * 4, 0, 0, width, height);
+
+			if (status < 0)
+			{
+				DEBUG_WARN("wf_Bitmap_Decompress: Bitmap Decompression Failed\n");
+			}
 		}
 	}
 	else
@@ -258,16 +281,25 @@ void wf_Pointer_SetDefault(wfContext* wfc)
 
 void wf_register_graphics(rdpGraphics* graphics)
 {
-	rdpBitmap bitmap;
+	wfContext* wfc;
 	rdpPointer pointer;
 
-	ZeroMemory(&bitmap, sizeof(rdpBitmap));
-	bitmap.size = sizeof(wfBitmap);
-	bitmap.New = (pBitmap_New) wf_Bitmap_New;
-	bitmap.Free = (pBitmap_Free) wf_Bitmap_Free;
-	bitmap.Paint = (pBitmap_Paint) wf_Bitmap_Paint;
-	bitmap.Decompress = (pBitmap_Decompress) wf_Bitmap_Decompress;
-	bitmap.SetSurface = (pBitmap_SetSurface) wf_Bitmap_SetSurface;
+	wfc = (wfContext*) graphics->context;
+
+	if (wfc->sw_gdi == FALSE)
+	{
+		rdpBitmap bitmap;
+
+		ZeroMemory(&bitmap, sizeof(rdpBitmap));
+		bitmap.size = sizeof(wfBitmap);
+		bitmap.New = (pBitmap_New) wf_Bitmap_New;
+		bitmap.Free = (pBitmap_Free) wf_Bitmap_Free;
+		bitmap.Paint = (pBitmap_Paint) wf_Bitmap_Paint;
+		bitmap.Decompress = (pBitmap_Decompress) wf_Bitmap_Decompress;
+		bitmap.SetSurface = (pBitmap_SetSurface) wf_Bitmap_SetSurface;
+
+		graphics_register_bitmap(graphics, &bitmap);
+	}
 
 	ZeroMemory(&pointer, sizeof(rdpPointer));
 	pointer.size = sizeof(wfPointer);
@@ -277,6 +309,5 @@ void wf_register_graphics(rdpGraphics* graphics)
 	pointer.SetNull = (pPointer_SetNull) wf_Pointer_SetNull;
 	pointer.SetDefault = (pPointer_SetDefault) wf_Pointer_SetDefault;
 
-	graphics_register_bitmap(graphics, &bitmap);
 	graphics_register_pointer(graphics, &pointer);
 }

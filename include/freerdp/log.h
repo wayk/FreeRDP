@@ -1,8 +1,8 @@
 /**
  * FreeRDP: A Remote Desktop Protocol Implementation
- * Bitmap File Format Utils
+ * FreeRDP log defines
  *
- * Copyright 2011 Marc-Andre Moreau <marcandre.moreau@gmail.com>
+ * Copyright 2014 Armin Novak <armin.novak@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,19 +17,13 @@
  * limitations under the License.
  */
 
-#ifndef FREERDP_UTILS_BITMAP_H
-#define FREERDP_UTILS_BITMAP_H
+#ifndef FREERDP_LOG_H
+#define FREERDP_LOG_H
 
-#include <freerdp/api.h>
+#include <winpr/wlog.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#define FREERDP_TAG(tag) "com.freerdp." tag
+#define SERVER_TAG(tag) FREERDP_TAG("server.") tag
+#define CLIENT_TAG(tag) FREERDP_TAG("client.") tag
 
-FREERDP_API void freerdp_bitmap_write(char* filename, void* data, int width, int height, int bpp);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* FREERDP_UTILS_BITMAP_H */
+#endif /* FREERDP_UTILS_DEBUG_H */
