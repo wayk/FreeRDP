@@ -31,7 +31,7 @@
 #include <freerdp/gdi/region.h>
 #include <freerdp/cache/cache.h>
 #include <freerdp/codec/color.h>
-#include <freerdp/utils/debug.h>
+
 #include <freerdp/channels/channels.h>
 #include <freerdp/codec/rfx.h>
 #include <freerdp/codec/nsc.h>
@@ -82,6 +82,8 @@ struct wf_context
 	int client_y;
 	int client_width;
 	int client_height;
+	UINT32 bitmap_size;
+	BYTE* bitmap_buffer;
 
 	HANDLE keyboardThread;
 
@@ -112,7 +114,7 @@ struct wf_context
 	DWORD mainThreadId;
 	DWORD keyboardThreadId;
 
-	BOOL sw_gdi;
+	//BOOL sw_gdi;
 
 	rdpFile* connectionRdpFile;
 

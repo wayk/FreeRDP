@@ -92,6 +92,9 @@ struct _BITMAP_PLANAR_CONTEXT
 
 	BYTE* rlePlanes[4];
 	BYTE* rlePlanesBuffer;
+
+	UINT32 TempSize;
+	BYTE* TempBuffer;
 };
 
 FREERDP_API int freerdp_split_color_planes(BYTE* data, UINT32 format, int width, int height, int scanline, BYTE* planes[4]);
@@ -102,11 +105,13 @@ FREERDP_API int freerdp_bitmap_planar_delta_encode_planes(BYTE* inPlanes[4], int
 FREERDP_API BYTE* freerdp_bitmap_compress_planar(BITMAP_PLANAR_CONTEXT* context, BYTE* data, UINT32 format,
 		int width, int height, int scanline, BYTE* dstData, int* dstSize);
 
+FREERDP_API int freerdp_bitmap_planar_context_reset(BITMAP_PLANAR_CONTEXT* context);
+
 FREERDP_API BITMAP_PLANAR_CONTEXT* freerdp_bitmap_planar_context_new(DWORD flags, int maxWidth, int maxHeight);
 FREERDP_API void freerdp_bitmap_planar_context_free(BITMAP_PLANAR_CONTEXT* context);
 
 FREERDP_API int planar_decompress(BITMAP_PLANAR_CONTEXT* planar, BYTE* pSrcData, UINT32 SrcSize,
-		BYTE** ppDstData, DWORD DstFormat, int nDstStep, int nXDst, int nYDst, int nWidth, int nHeight);
+		BYTE** ppDstData, DWORD DstFormat, int nDstStep, int nXDst, int nYDst, int nWidth, int nHeight, BOOL vFlip);
 
 #endif /* FREERDP_CODEC_PLANAR_H */
 

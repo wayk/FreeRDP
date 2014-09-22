@@ -31,8 +31,11 @@
 #include "surface.h"
 #include "message.h"
 
+#include <freerdp/log.h>
 #include <freerdp/peer.h>
 #include <freerdp/codec/bitmap.h>
+
+#define TAG FREERDP_TAG("core.update")
 
 const char* const UPDATE_TYPE_STRINGS[] =
 {
@@ -348,9 +351,9 @@ BOOL update_read_pointer_color(wStream* s, POINTER_COLOR_UPDATE* pointer_color, 
 		scanlineSize = ((scanlineSize + 1) / 2) * 2;
 		if (scanlineSize * pointer_color->height != pointer_color->lengthXorMask)
 		{
-			DEBUG_WARN( "%s: invalid lengthXorMask: width=%d height=%d, %d instead of %d\n", __FUNCTION__,
-					pointer_color->width, pointer_color->height,
-					pointer_color->lengthXorMask, scanlineSize * pointer_color->height);
+			WLog_ERR(TAG,  "invalid lengthXorMask: width=%d height=%d, %d instead of %d",
+					 pointer_color->width, pointer_color->height,
+					 pointer_color->lengthXorMask, scanlineSize * pointer_color->height);
 			return FALSE;
 		}
 
@@ -379,8 +382,8 @@ BOOL update_read_pointer_color(wStream* s, POINTER_COLOR_UPDATE* pointer_color, 
 		scanlineSize = ((1 + scanlineSize) / 2) * 2;
 		if (scanlineSize * pointer_color->height != pointer_color->lengthAndMask)
 		{
-			DEBUG_WARN( "%s: invalid lengthAndMask: %d instead of %d\n", __FUNCTION__,
-					pointer_color->lengthAndMask, scanlineSize * pointer_color->height);
+			WLog_ERR(TAG,  "invalid lengthAndMask: %d instead of %d",
+					 pointer_color->lengthAndMask, scanlineSize * pointer_color->height);
 			return FALSE;
 		}
 
@@ -407,7 +410,7 @@ BOOL update_read_pointer_new(wStream* s, POINTER_NEW_UPDATE* pointer_new)
 	Stream_Read_UINT16(s, pointer_new->xorBpp); /* xorBpp (2 bytes) */
 	if ((pointer_new->xorBpp < 1) || (pointer_new->xorBpp > 32))
 	{
-		DEBUG_WARN( "%s: invalid xorBpp %d\n", __FUNCTION__, pointer_new->xorBpp);
+		WLog_ERR(TAG,  "invalid xorBpp %d", pointer_new->xorBpp);
 		return FALSE;
 	}
 	return update_read_pointer_color(s, &pointer_new->colorPtrAttr, pointer_new->xorBpp); /* colorPtrAttr */
@@ -481,8 +484,7 @@ BOOL update_recv(rdpUpdate* update, wStream* s)
 		return FALSE;
 
 	Stream_Read_UINT16(s, updateType); /* updateType (2 bytes) */
-
-	//DEBUG_MSG("%s Update Data PDU\n", UPDATE_TYPE_STRINGS[updateType]);
+	//WLog_DBG(TAG, "%s Update Data PDU", UPDATE_TYPE_STRINGS[updateType]);
 
 	IFCALL(update->BeginPaint, context);
 
@@ -614,7 +616,7 @@ static void update_end_paint(rdpContext* context)
 
 	if (update->numberOrders > 0)
 	{
-		DEBUG_WARN( "%s: sending %d orders\n", __FUNCTION__, update->numberOrders);
+		WLog_ERR(TAG,  "sending %d orders", update->numberOrders);
 		fastpath_send_update_pdu(context->rdp->fastpath, FASTPATH_UPDATETYPE_ORDERS, s);
 	}
 
@@ -865,7 +867,7 @@ static void update_send_surface_command(rdpContext* context, wStream* s)
 	Stream_Release(update);
 }
 
-static void update_send_surface_bits(rdpContext* context, SURFACE_BITS_COMMAND* surface_bits_command)
+static void update_send_surface_bits(rdpContext* context, SURFACE_BITS_COMMAND* surfaceBitsCommand)
 {
 	wStream* s;
 	rdpRdp* rdp = context->rdp;
@@ -873,9 +875,9 @@ static void update_send_surface_bits(rdpContext* context, SURFACE_BITS_COMMAND* 
 	update_force_flush(context);
 
 	s = fastpath_update_pdu_init(rdp->fastpath);
-	Stream_EnsureRemainingCapacity(s, SURFCMD_SURFACE_BITS_HEADER_LENGTH + (int) surface_bits_command->bitmapDataLength);
-	update_write_surfcmd_surface_bits_header(s, surface_bits_command);
-	Stream_Write(s, surface_bits_command->bitmapData, surface_bits_command->bitmapDataLength);
+	Stream_EnsureRemainingCapacity(s, SURFCMD_SURFACE_BITS_HEADER_LENGTH + (int) surfaceBitsCommand->bitmapDataLength);
+	update_write_surfcmd_surface_bits_header(s, surfaceBitsCommand);
+	Stream_Write(s, surfaceBitsCommand->bitmapData, surfaceBitsCommand->bitmapDataLength);
 	fastpath_send_update_pdu(rdp->fastpath, FASTPATH_UPDATETYPE_SURFCMDS, s);
 
 	update_force_flush(context);
@@ -883,7 +885,7 @@ static void update_send_surface_bits(rdpContext* context, SURFACE_BITS_COMMAND* 
 	Stream_Release(s);
 }
 
-static void update_send_surface_frame_marker(rdpContext* context, SURFACE_FRAME_MARKER* surface_frame_marker)
+static void update_send_surface_frame_marker(rdpContext* context, SURFACE_FRAME_MARKER* surfaceFrameMarker)
 {
 	wStream* s;
 	rdpRdp* rdp = context->rdp;
@@ -891,7 +893,34 @@ static void update_send_surface_frame_marker(rdpContext* context, SURFACE_FRAME_
 	update_force_flush(context);
 
 	s = fastpath_update_pdu_init(rdp->fastpath);
-	update_write_surfcmd_frame_marker(s, surface_frame_marker->frameAction, surface_frame_marker->frameId);
+	update_write_surfcmd_frame_marker(s, surfaceFrameMarker->frameAction, surfaceFrameMarker->frameId);
+	fastpath_send_update_pdu(rdp->fastpath, FASTPATH_UPDATETYPE_SURFCMDS, s);
+
+	update_force_flush(context);
+
+	Stream_Release(s);
+}
+
+static void update_send_surface_frame_bits(rdpContext* context, SURFACE_BITS_COMMAND* cmd, BOOL first, BOOL last, UINT32 frameId)
+{
+	wStream* s;
+	rdpRdp* rdp = context->rdp;
+
+	update_force_flush(context);
+
+	s = fastpath_update_pdu_init(rdp->fastpath);
+	Stream_EnsureRemainingCapacity(s, SURFCMD_SURFACE_BITS_HEADER_LENGTH + (int) cmd->bitmapDataLength + 16);
+
+	if (first)
+		update_write_surfcmd_frame_marker(s, SURFACECMD_FRAMEACTION_BEGIN, frameId);
+
+	update_write_surfcmd_surface_bits_header(s, cmd);
+	Stream_Write(s, cmd->bitmapData, cmd->bitmapDataLength);
+
+
+	if (last)
+		update_write_surfcmd_frame_marker(s, SURFACECMD_FRAMEACTION_END, frameId);
+
 	fastpath_send_update_pdu(rdp->fastpath, FASTPATH_UPDATETYPE_SURFCMDS, s);
 
 	update_force_flush(context);
@@ -1594,6 +1623,7 @@ void update_register_server_callbacks(rdpUpdate* update)
 	update->SurfaceBits = update_send_surface_bits;
 	update->SurfaceFrameMarker = update_send_surface_frame_marker;
 	update->SurfaceCommand = update_send_surface_command;
+	update->SurfaceFrameBits = update_send_surface_frame_bits;
 	update->PlaySound = update_send_play_sound;
 	update->primary->DstBlt = update_send_dstblt;
 	update->primary->PatBlt = update_send_patblt;

@@ -46,6 +46,9 @@
 #import "freerdp/client/cliprdr.h"
 #import "freerdp/client/file.h"
 #import "freerdp/client/cmdline.h"
+#import "freerdp/log.h"
+
+#define TAG CLIENT_TAG("mac")
 
 void mf_Pointer_New(rdpContext* context, rdpPointer* pointer);
 void mf_Pointer_Free(rdpContext* context, rdpPointer* pointer);
@@ -669,7 +672,7 @@ DWORD fixKeyCode(DWORD keyCode, unichar keyChar, enum APPLE_KEYBOARD_TYPE type)
     }
 	
 #if 0
-	DEBUG_WARN( "keyDown: keyCode: 0x%04X scancode: 0x%04X vkcode: 0x%04X keyFlags: %d name: %s\n",
+	WLog_ERR(TAG,  "keyDown: keyCode: 0x%04X scancode: 0x%04X vkcode: 0x%04X keyFlags: %d name: %s",
 	       keyCode, scancode, vkcode, keyFlags, GetVirtualKeyName(vkcode));
 #endif
 	
@@ -712,7 +715,7 @@ DWORD fixKeyCode(DWORD keyCode, unichar keyChar, enum APPLE_KEYBOARD_TYPE type)
 	vkcode &= 0xFF;
 
 #if 0
-	DEBUG_WARN( "keyUp: key: 0x%04X scancode: 0x%04X vkcode: 0x%04X keyFlags: %d name: %s\n",
+	WLog_DBG(TAG,  "keyUp: key: 0x%04X scancode: 0x%04X vkcode: 0x%04X keyFlags: %d name: %s",
 	       keyCode, scancode, vkcode, keyFlags, GetVirtualKeyName(vkcode));
 #endif
 
@@ -912,6 +915,44 @@ DWORD fixKeyCode(DWORD keyCode, unichar keyChar, enum APPLE_KEYBOARD_TYPE type)
 	mfc->client_width = width;
 }
 
+void mac_OnChannelConnectedEventHandler(rdpContext* context, ChannelConnectedEventArgs* e)
+{
+	rdpSettings* settings = context->settings;
+	
+	if (strcmp(e->name, RDPEI_DVC_CHANNEL_NAME) == 0)
+	{
+		
+	}
+	else if (strcmp(e->name, RDPGFX_DVC_CHANNEL_NAME) == 0)
+	{
+		if (settings->SoftwareGdi)
+			gdi_graphics_pipeline_init(context->gdi, (RdpgfxClientContext*) e->pInterface);
+	}
+	else if (strcmp(e->name, ENCOMSP_SVC_CHANNEL_NAME) == 0)
+	{
+		
+	}
+}
+
+void mac_OnChannelDisconnectedEventHandler(rdpContext* context, ChannelDisconnectedEventArgs* e)
+{
+	rdpSettings* settings = context->settings;
+	
+	if (strcmp(e->name, RDPEI_DVC_CHANNEL_NAME) == 0)
+	{
+		
+	}
+	else if (strcmp(e->name, RDPGFX_DVC_CHANNEL_NAME) == 0)
+	{
+		if (settings->SoftwareGdi)
+			gdi_graphics_pipeline_uninit(context->gdi, (RdpgfxClientContext*) e->pInterface);
+	}
+	else if (strcmp(e->name, ENCOMSP_SVC_CHANNEL_NAME) == 0)
+	{
+		
+	}
+}
+
 BOOL mac_pre_connect(freerdp* instance)
 {
 	rdpSettings* settings;
@@ -924,7 +965,12 @@ BOOL mac_pre_connect(freerdp* instance)
 
 	if (!settings->ServerHostname)
 	{
+<<<<<<< HEAD
 		fprintf(stderr, "error: server hostname was not specified with /v:<server>[:port]\n");
+=======
+		WLog_ERR(TAG,  "error: server hostname was not specified with /v:<server>[:port]");
+		[NSApp terminate:nil];
+>>>>>>> upstream/master
 		return -1;
 	}
 
@@ -958,6 +1004,12 @@ BOOL mac_pre_connect(freerdp* instance)
 	settings->OrderSupport[NEG_POLYGON_CB_INDEX] = FALSE;
 	settings->OrderSupport[NEG_ELLIPSE_SC_INDEX] = FALSE;
 	settings->OrderSupport[NEG_ELLIPSE_CB_INDEX] = FALSE;
+	
+	PubSub_SubscribeChannelConnected(instance->context->pubSub,
+					 (pChannelConnectedEventHandler) mac_OnChannelConnectedEventHandler);
+	
+	PubSub_SubscribeChannelDisconnected(instance->context->pubSub,
+					    (pChannelDisconnectedEventHandler) mac_OnChannelDisconnectedEventHandler);
 
 	freerdp_client_load_addins(instance->context->channels, instance->settings);
 
@@ -1388,7 +1440,7 @@ static void update_activity_cb(freerdp* instance)
 	}
 	else
 	{
-		DEBUG_WARN( "update_activity_cb: No queue!\n");
+		WLog_ERR(TAG,  "update_activity_cb: No queue!");
 	}
 }
 
@@ -1413,7 +1465,7 @@ static void input_activity_cb(freerdp* instance)
 	}
 	else
 	{
-		DEBUG_WARN( "input_activity_cb: No queue!\n");
+		WLog_ERR(TAG,  "input_activity_cb: No queue!");
 	}
 }
 
@@ -1426,7 +1478,7 @@ static void channel_activity_cb(freerdp* instance)
 
 	if (event)
 	{
-		DEBUG_WARN( "channel_activity_cb: message %d\n", event->id);
+		WLog_DBG(TAG,  "channel_activity_cb: message %d", event->id);
 
 		switch (GetMessageClass(event->id))
 		{
@@ -1571,7 +1623,7 @@ void cliprdr_process_cb_format_list_event(freerdp* instance, RDP_CB_FORMAT_LIST_
 		switch (event->formats[i])
 		{
 		case CB_FORMAT_RAW:
-			printf("CB_FORMAT_RAW: not yet supported\n");
+			WLog_ERR(TAG, "CB_FORMAT_RAW: not yet supported");
 			break;
 
 		case CB_FORMAT_TEXT:
@@ -1582,23 +1634,23 @@ void cliprdr_process_cb_format_list_event(freerdp* instance, RDP_CB_FORMAT_LIST_
 			break;
 
 		case CB_FORMAT_DIB:
-			printf("CB_FORMAT_DIB: not yet supported\n");
+			WLog_ERR(TAG, "CB_FORMAT_DIB: not yet supported");
 			break;
 
 		case CB_FORMAT_HTML:
-			printf("CB_FORMAT_HTML\n");
+			WLog_ERR(TAG, "CB_FORMAT_HTML");
 			break;
 
 		case CB_FORMAT_PNG:
-			printf("CB_FORMAT_PNG: not yet supported\n");
+			WLog_ERR(TAG, "CB_FORMAT_PNG: not yet supported");
 			break;
 
 		case CB_FORMAT_JPEG:
-			printf("CB_FORMAT_JPEG: not yet supported\n");
+			WLog_ERR(TAG, "CB_FORMAT_JPEG: not yet supported");
 			break;
 
 		case CB_FORMAT_GIF:
-			printf("CB_FORMAT_GIF: not yet supported\n");
+			WLog_ERR(TAG, "CB_FORMAT_GIF: not yet supported");
 			break;
 		}
 	}
@@ -1670,7 +1722,7 @@ void process_cliprdr_event(freerdp* instance, wMessage* event)
 			break;
 
 		default:
-			printf("process_cliprdr_event: unknown event type %d\n", GetMessageType(event->id));
+			WLog_ERR(TAG, "process_cliprdr_event: unknown event type %d", GetMessageType(event->id));
 			break;
 		}
 	}

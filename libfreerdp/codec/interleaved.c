@@ -236,11 +236,13 @@ static INLINE UINT32 ExtractRunLength(UINT32 code, BYTE* pbOrderHdr, UINT32* adv
 #include "include/bitmap.c"
 
 int interleaved_decompress(BITMAP_INTERLEAVED_CONTEXT* interleaved, BYTE* pSrcData, UINT32 SrcSize, int bpp,
-		BYTE** ppDstData, DWORD DstFormat, int nDstStep, int nXDst, int nYDst, int nWidth, int nHeight)
+		BYTE** ppDstData, DWORD DstFormat, int nDstStep, int nXDst, int nYDst, int nWidth, int nHeight, BYTE* palette)
 {
+	int status;
 	BOOL vFlip;
 	int scanline;
 	BYTE* pDstData;
+	UINT32 SrcFormat;
 	UINT32 BufferSize;
 	int dstBitsPerPixel;
 	int dstBytesPerPixel;
@@ -253,62 +255,100 @@ int interleaved_decompress(BITMAP_INTERLEAVED_CONTEXT* interleaved, BYTE* pSrcDa
 	if (!interleaved)
 		return -1;
 
+	if (nDstStep < 0)
+		nDstStep = nWidth * dstBytesPerPixel;
+
 	if (bpp == 24)
 	{
 		scanline = nWidth * 3;
 		BufferSize = scanline * nHeight;
 
-		if (BufferSize > interleaved->FlipSize)
+		SrcFormat = PIXEL_FORMAT_RGB24_VF;
+
+		if ((SrcFormat == DstFormat) && !nXDst && !nYDst && (scanline == nDstStep))
 		{
-			interleaved->FlipBuffer = _aligned_realloc(interleaved->FlipBuffer, BufferSize, 16);
-			interleaved->FlipSize = BufferSize;
+			RleDecompress24to24(pSrcData, SrcSize, pDstData, scanline, nWidth, nHeight);
+			return 1;
 		}
 
-		if (!interleaved->FlipBuffer)
+		if (BufferSize > interleaved->TempSize)
+		{
+			interleaved->TempBuffer = _aligned_realloc(interleaved->TempBuffer, BufferSize, 16);
+			interleaved->TempSize = BufferSize;
+		}
+
+		if (!interleaved->TempBuffer)
 			return -1;
 
-		RleDecompress24to24(pSrcData, SrcSize, interleaved->FlipBuffer, scanline, nWidth, nHeight);
-		freerdp_bitmap_flip(interleaved->FlipBuffer, pDstData, scanline, nHeight);
+		RleDecompress24to24(pSrcData, SrcSize, interleaved->TempBuffer, scanline, nWidth, nHeight);
+
+		status = freerdp_image_copy(pDstData, DstFormat, nDstStep, nXDst, nYDst,
+				nWidth, nHeight, interleaved->TempBuffer, SrcFormat, scanline, 0, 0, palette);
 	}
 	else if ((bpp == 16) || (bpp == 15))
 	{
 		scanline = nWidth * 2;
 		BufferSize = scanline * nHeight;
 
-		if (BufferSize > interleaved->FlipSize)
+		SrcFormat = (bpp == 16) ? PIXEL_FORMAT_RGB16_VF : PIXEL_FORMAT_RGB15_VF;
+
+		if ((SrcFormat == DstFormat) && !nXDst && !nYDst && (scanline == nDstStep))
 		{
-			interleaved->FlipBuffer = _aligned_realloc(interleaved->FlipBuffer, BufferSize, 16);
-			interleaved->FlipSize = BufferSize;
+			RleDecompress16to16(pSrcData, SrcSize, pDstData, scanline, nWidth, nHeight);
+			return 1;
 		}
 
-		if (!interleaved->FlipBuffer)
+		if (BufferSize > interleaved->TempSize)
+		{
+			interleaved->TempBuffer = _aligned_realloc(interleaved->TempBuffer, BufferSize, 16);
+			interleaved->TempSize = BufferSize;
+		}
+
+		if (!interleaved->TempBuffer)
 			return -1;
 
-		RleDecompress16to16(pSrcData, SrcSize, interleaved->FlipBuffer, scanline, nWidth, nHeight);
-		freerdp_bitmap_flip(interleaved->FlipBuffer, pDstData, scanline, nHeight);
+		RleDecompress16to16(pSrcData, SrcSize, interleaved->TempBuffer, scanline, nWidth, nHeight);
+
+		status = freerdp_image_copy(pDstData, DstFormat, nDstStep, nXDst, nYDst,
+				nWidth, nHeight, interleaved->TempBuffer, SrcFormat, scanline, 0, 0, palette);
 	}
 	else if (bpp == 8)
 	{
 		scanline = nWidth;
 		BufferSize = scanline * nHeight;
 
-		if (BufferSize > interleaved->FlipSize)
+		SrcFormat = PIXEL_FORMAT_RGB8_VF;
+
+		if ((SrcFormat == DstFormat) && !nXDst && !nYDst && (scanline == nDstStep))
 		{
-			interleaved->FlipBuffer = _aligned_realloc(interleaved->FlipBuffer, BufferSize, 16);
-			interleaved->FlipSize = BufferSize;
+			RleDecompress8to8(pSrcData, SrcSize, pDstData, scanline, nWidth, nHeight);
+			return 1;
 		}
 
-		if (!interleaved->FlipBuffer)
+		if (BufferSize > interleaved->TempSize)
+		{
+			interleaved->TempBuffer = _aligned_realloc(interleaved->TempBuffer, BufferSize, 16);
+			interleaved->TempSize = BufferSize;
+		}
+
+		if (!interleaved->TempBuffer)
 			return -1;
 
-		RleDecompress8to8(pSrcData, SrcSize, interleaved->FlipBuffer, scanline, nWidth, nHeight);
-		freerdp_bitmap_flip(interleaved->FlipBuffer, pDstData, scanline, nHeight);
+		RleDecompress8to8(pSrcData, SrcSize, interleaved->TempBuffer, scanline, nWidth, nHeight);
+
+		status = freerdp_image_copy(pDstData, DstFormat, nDstStep, nXDst, nYDst,
+				nWidth, nHeight, interleaved->TempBuffer, SrcFormat, scanline, 0, 0, palette);
 	}
 	else
 	{
 		return -1;
 	}
 
+	return 1;
+}
+
+int bitmap_interleaved_context_reset(BITMAP_INTERLEAVED_CONTEXT* interleaved)
+{
 	return 1;
 }
 
@@ -320,8 +360,8 @@ BITMAP_INTERLEAVED_CONTEXT* bitmap_interleaved_context_new(BOOL Compressor)
 
 	if (interleaved)
 	{
-		interleaved->FlipSize = 64 * 64 * 3;
-		interleaved->FlipBuffer = _aligned_malloc(interleaved->FlipSize, 16);
+		interleaved->TempSize = 64 * 64 * 3;
+		interleaved->TempBuffer = _aligned_malloc(interleaved->TempSize, 16);
 	}
 
 	return interleaved;
@@ -332,7 +372,7 @@ void bitmap_interleaved_context_free(BITMAP_INTERLEAVED_CONTEXT* interleaved)
 	if (!interleaved)
 		return;
 
-	_aligned_free(interleaved->FlipBuffer);
+	_aligned_free(interleaved->TempBuffer);
 
 	free(interleaved);
 }

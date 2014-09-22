@@ -85,6 +85,8 @@ struct xf_context
 	int height;
 	int srcBpp;
 	GC gc_mono;
+	BOOL invert;
+	UINT32 format;
 	Screen* screen;
 	XImage* image;
 	Pixmap primary;
@@ -111,8 +113,11 @@ struct xf_context
 	HANDLE mutex;
 	BOOL UseXThreads;
 	BOOL cursorHidden;
+	BYTE palette[256 * 4];
 
 	HGDI_DC hdc;
+	UINT32 bitmap_size;
+	BYTE* bitmap_buffer;
 	BYTE* primary_buffer;
 	REGION16 invalidRegion;
 	BOOL inGfxFrame;
@@ -151,8 +156,6 @@ struct xf_context
 	XSetWindowAttributes attribs;
 	BOOL complex_regions;
 	VIRTUAL_SCREEN vscreen;
-	BYTE* bmp_codec_none;
-	BYTE* bmp_codec_nsc;
 	void* xv_context;
 	void* clipboard_context;
 

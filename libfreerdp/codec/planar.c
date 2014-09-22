@@ -25,9 +25,11 @@
 #include <winpr/print.h>
 
 #include <freerdp/primitives.h>
-#include <freerdp/utils/debug.h>
+#include <freerdp/log.h>
 #include <freerdp/codec/bitmap.h>
 #include <freerdp/codec/planar.h>
+
+#define TAG FREERDP_TAG("codec")
 
 static int planar_skip_plane_rle(const BYTE* pSrcData, UINT32 SrcSize, int nWidth, int nHeight)
 {
@@ -124,7 +126,7 @@ static int planar_decompress_plane_rle(const BYTE* pSrcData, UINT32 SrcSize, BYT
 
 			if ((srcp - pSrcData) > SrcSize)
 			{
-				DEBUG_WARN( "planar_decompress_plane_rle: error reading input buffer\n");
+				WLog_ERR(TAG,  "error reading input buffer");
 				return -1;
 			}
 
@@ -144,7 +146,7 @@ static int planar_decompress_plane_rle(const BYTE* pSrcData, UINT32 SrcSize, BYT
 
 			if (((dstp + (cRawBytes + nRunLength)) - currentScanline) > nWidth * 4)
 			{
-				DEBUG_WARN( "planar_decompress_plane_rle: too many pixels in scanline\n");
+				WLog_ERR(TAG,  "too many pixels in scanline");
 				return -1;
 			}
 
@@ -275,7 +277,7 @@ static int planar_decompress_planes_raw(const BYTE* pSrcData[4], int nSrcStep, B
 }
 
 int planar_decompress(BITMAP_PLANAR_CONTEXT* planar, BYTE* pSrcData, UINT32 SrcSize,
-		BYTE** ppDstData, DWORD DstFormat, int nDstStep, int nXDst, int nYDst, int nWidth, int nHeight)
+		BYTE** ppDstData, DWORD DstFormat, int nDstStep, int nXDst, int nYDst, int nWidth, int nHeight, BOOL vFlip)
 {
 	BOOL cs;
 	BOOL rle;
@@ -283,7 +285,6 @@ int planar_decompress(BITMAP_PLANAR_CONTEXT* planar, BYTE* pSrcData, UINT32 SrcS
 	BOOL alpha;
 	int status;
 	BYTE* srcp;
-	BOOL vFlip;
 	int subSize;
 	int subWidth;
 	int subHeight;
@@ -294,14 +295,21 @@ int planar_decompress(BITMAP_PLANAR_CONTEXT* planar, BYTE* pSrcData, UINT32 SrcS
 	int rawWidths[4];
 	int rawHeights[4];
 	BYTE FormatHeader;
+	BOOL useTempBuffer;
+	int dstBitsPerPixel;
+	int dstBytesPerPixel;
 	const BYTE* planes[4];
 	UINT32 UncompressedSize;
 	const primitives_t* prims = primitives_get();
 
-	if ((nWidth * nHeight) <= 0)
+	if ((nWidth < 0) || (nHeight < 0))
 		return -1;
 
-	vFlip = FREERDP_PIXEL_FORMAT_FLIP(DstFormat) ? TRUE : FALSE;
+	dstBitsPerPixel = FREERDP_PIXEL_FORMAT_DEPTH(DstFormat);
+	dstBytesPerPixel = (FREERDP_PIXEL_FORMAT_BPP(DstFormat) / 8);
+
+	if (nDstStep < 0)
+		nDstStep = nWidth * 4;
 
 	srcp = pSrcData;
 	UncompressedSize = nWidth * nHeight * 4;
@@ -310,12 +318,28 @@ int planar_decompress(BITMAP_PLANAR_CONTEXT* planar, BYTE* pSrcData, UINT32 SrcS
 
 	if (!pDstData)
 	{
-		pDstData = (BYTE*) malloc(UncompressedSize);
+		pDstData = (BYTE*) _aligned_malloc(UncompressedSize, 16);
 
 		if (!pDstData)
 			return -1;
 
 		*ppDstData = pDstData;
+	}
+
+	useTempBuffer = (dstBytesPerPixel != 4) ? TRUE : FALSE;
+
+	if (useTempBuffer)
+	{
+		if (UncompressedSize > planar->TempSize)
+		{
+			planar->TempBuffer = _aligned_realloc(planar->TempBuffer, UncompressedSize, 16);
+			planar->TempSize = UncompressedSize;
+		}
+
+		if (!planar->TempBuffer)
+			return -1;
+
+		pDstData = planar->TempBuffer;
 	}
 
 	FormatHeader = *srcp++;
@@ -325,7 +349,7 @@ int planar_decompress(BITMAP_PLANAR_CONTEXT* planar, BYTE* pSrcData, UINT32 SrcS
 	rle = (FormatHeader & PLANAR_FORMAT_HEADER_RLE) ? TRUE : FALSE;
 	alpha = (FormatHeader & PLANAR_FORMAT_HEADER_NA) ? FALSE : TRUE;
 
-	//printf("CLL: %d CS: %d RLE: %d ALPHA: %d\n", cll, cs, rle, alpha);
+	//WLog_INFO(TAG, "CLL: %d CS: %d RLE: %d ALPHA: %d", cll, cs, rle, alpha);
 
 	if (!cll && cs)
 		return -1; /* Chroma subsampling requires YCoCg */
@@ -514,7 +538,7 @@ int planar_decompress(BITMAP_PLANAR_CONTEXT* planar, BYTE* pSrcData, UINT32 SrcS
 	{
 		if (cs)
 		{
-			fprintf(stderr, "Chroma subsampling unimplemented\n");
+			WLog_ERR(TAG, "Chroma subsampling unimplemented");
 			return -1;
 		}
 
@@ -575,6 +599,17 @@ int planar_decompress(BITMAP_PLANAR_CONTEXT* planar, BYTE* pSrcData, UINT32 SrcS
 	}
 
 	status = (SrcSize == (srcp - pSrcData)) ? 1 : -1;
+
+	if (status < 0)
+		return status;
+
+	if (useTempBuffer)
+	{
+		pDstData = *ppDstData;
+
+		status = freerdp_image_copy(pDstData, DstFormat, -1, 0, 0, nWidth, nHeight,
+				planar->TempBuffer, PIXEL_FORMAT_XRGB32, -1, 0, 0, NULL);
+	}
 
 	return status;
 }
@@ -1003,8 +1038,7 @@ BYTE* freerdp_bitmap_compress_planar(BITMAP_PLANAR_CONTEXT* context, BYTE* data,
 
 			context->rlePlanes[3] = &context->rlePlanesBuffer[offset];
 			offset += dstSizes[3];
-
-			//DEBUG_MSG("R: [%d/%d] G: [%d/%d] B: [%d/%d]\n",
+			//WLog_DBG(TAG, "R: [%d/%d] G: [%d/%d] B: [%d/%d]\n",
 			//		dstSizes[1], planeSize, dstSizes[2], planeSize, dstSizes[3], planeSize);
 		}
 	}
@@ -1105,6 +1139,11 @@ BYTE* freerdp_bitmap_compress_planar(BITMAP_PLANAR_CONTEXT* context, BYTE* data,
 	*dstSize = size;
 
 	return dstData;
+}
+
+int freerdp_bitmap_planar_context_reset(BITMAP_PLANAR_CONTEXT* context)
+{
+	return 1;
 }
 
 BITMAP_PLANAR_CONTEXT* freerdp_bitmap_planar_context_new(DWORD flags, int maxWidth, int maxHeight)
