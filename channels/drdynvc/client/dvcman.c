@@ -50,7 +50,7 @@ static int dvcman_get_configuration(IWTSListener *pListener, void **ppPropertyBa
 {
 	if (!ppPropertyBag)
 	{
-		DEBUG_WARN("ppPropertyBag=%p", ppPropertyBag);
+		WLog_WARN(TAG, "ppPropertyBag=%p", ppPropertyBag);
 		return 0;
 	}
 
@@ -73,7 +73,7 @@ static int dvcman_create_listener(IWTSVirtualChannelManager *pChannelMgr,
 
 		if (!listener)
 		{
-			DEBUG_WARN("calloc failed %s (%d)!", strerror(errno), errno);
+			WLog_WARN(TAG, "calloc failed %s (%d)!", strerror(errno), errno);
 			return 2;
 		}
 
@@ -415,7 +415,7 @@ int dvcman_create_channel(IWTSVirtualChannelManager *pChannelMgr, UINT32 Channel
 			}
 			else
 			{
-				DEBUG_WARN("channel rejected by plugin");
+				WLog_WARN(TAG,"channel rejected by plugin");
 				free(channel);
 				return 1;
 			}

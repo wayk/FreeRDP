@@ -965,12 +965,7 @@ BOOL mac_pre_connect(freerdp* instance)
 
 	if (!settings->ServerHostname)
 	{
-<<<<<<< HEAD
 		fprintf(stderr, "error: server hostname was not specified with /v:<server>[:port]\n");
-=======
-		WLog_ERR(TAG,  "error: server hostname was not specified with /v:<server>[:port]");
-		[NSApp terminate:nil];
->>>>>>> upstream/master
 		return -1;
 	}
 
