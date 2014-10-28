@@ -29,6 +29,7 @@
 #include "shadow_capture.h"
 #include "shadow_channels.h"
 #include "shadow_subsystem.h"
+#include "shadow_lobby.h"
 
 #ifdef __cplusplus
 extern "C" {

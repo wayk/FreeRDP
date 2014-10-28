@@ -256,8 +256,8 @@ int freerdp_client_print_command_line_help(int argc, char** argv)
 
 	printf("Drive Redirection: /drive:home,/home/user\n");
 	printf("Smartcard Redirection: /smartcard:<device>\n");
-	printf("Printer Redirection: /printer:<device>,<driver>\n");
-	printf("Serial Port Redirection: /serial:<device>\n");
+	printf("Serial Port Redirection: /serial:<name>,<device>,[SerCx2|SerCx|Serial],[permissive]\n");
+	printf("Serial Port Redirection: /serial:COM1,/dev/ttyS0\n");
 	printf("Parallel Port Redirection: /parallel:<device>\n");
 	printf("Printer Redirection: /printer:<device>,<driver>\n");
 	printf("\n");
@@ -424,6 +424,9 @@ int freerdp_client_add_device_channel(rdpSettings* settings, int count, char** p
 
 		if (count > 3)
 			serial->Driver = _strdup(params[3]);
+
+		if (count > 4)
+			serial->Permissive = _strdup(params[4]);
 
 		freerdp_device_collection_add(settings, (RDPDR_DEVICE*) serial);
 
@@ -679,38 +682,19 @@ int freerdp_client_command_line_post_filter(void* context, COMMAND_LINE_ARGUMENT
 	}
 	CommandLineSwitchCase(arg, "multitouch")
 	{
-		char* p[1];
-		int count = 1;
-
 		settings->MultiTouchInput = TRUE;
-
-		p[0] = "rdpei";
-		freerdp_client_add_dynamic_channel(settings, count, p);
 	}
 	CommandLineSwitchCase(arg, "gestures")
 	{
-		printf("gestures\n");
 		settings->MultiTouchGestures = TRUE;
 	}
 	CommandLineSwitchCase(arg, "echo")
 	{
-		char* p[1];
-		int count;
-
-		count = 1;
-		p[0] = "echo";
-
-		freerdp_client_add_dynamic_channel(settings, count, p);
+		settings->SupportEchoChannel = TRUE;
 	}
 	CommandLineSwitchCase(arg, "disp")
 	{
-		char* p[1];
-		int count;
-
-		count = 1;
-		p[0] = "disp";
-
-		freerdp_client_add_dynamic_channel(settings, count, p);
+		settings->SupportDisplayControl = TRUE;
 	}
 	CommandLineSwitchCase(arg, "sound")
 	{
@@ -865,6 +849,7 @@ int freerdp_parse_hostname(char* hostname, char** host, int* port)
 int freerdp_set_connection_type(rdpSettings* settings, int type)
 {
 	settings->ConnectionType = type;
+
 	if (type == CONNECTION_TYPE_MODEM)
 	{
 		settings->DisableWallpaper = TRUE;
@@ -1215,19 +1200,39 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings, 
 
 		CommandLineSwitchCase(arg, "v")
 		{
-			p = strchr(arg->Value, ':');
-
-			if (p)
+			p = strchr(arg->Value, '[');
+			/* ipv4 */
+			if (!p)
 			{
-				length = (int) (p - arg->Value);
-				settings->ServerPort = atoi(&p[1]);
-				settings->ServerHostname = (char*) malloc(length + 1);
-				strncpy(settings->ServerHostname, arg->Value, length);
-				settings->ServerHostname[length] = '\0';
+				p = strchr(arg->Value, ':');
+				if (p)
+				{
+					length = (int) (p - arg->Value);
+					settings->ServerPort = atoi(&p[1]);
+					settings->ServerHostname = (char*) malloc(length + 1);
+					strncpy(settings->ServerHostname, arg->Value, length);
+					settings->ServerHostname[length] = '\0';
+				}
+				else
+				{
+					settings->ServerHostname = _strdup(arg->Value);
+				}
 			}
-			else
+			else /* ipv6 */
 			{
-				settings->ServerHostname = _strdup(arg->Value);
+				char *p2 = strchr(arg->Value, ']');
+				/* not a valid [] ipv6 addr found */
+				if (!p2)
+					continue;
+
+				length = p2 - p;
+				settings->ServerHostname = (char*) malloc(length);
+				strncpy(settings->ServerHostname, p+1, length-1);
+				if (*(p2 + 1) == ':')
+				{
+					settings->ServerPort = atoi(&p2[2]);
+				}
+				printf("hostname %s port %d\n", settings->ServerHostname, settings->ServerPort);
 			}
 		}
 		CommandLineSwitchCase(arg, "spn-class")
@@ -1592,8 +1597,12 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings, 
 					type = CONNECTION_TYPE_WAN;
 				else if (_stricmp(arg->Value, "lan") == 0)
 					type = CONNECTION_TYPE_LAN;
-				else if (_stricmp(arg->Value, "auto") == 0)
+				else if ((_stricmp(arg->Value, "autodetect") == 0) ||
+						(_stricmp(arg->Value, "auto") == 0) ||
+						(_stricmp(arg->Value, "detect") == 0))
+				{
 					type = CONNECTION_TYPE_AUTODETECT;
+				}
 			}
 
 			freerdp_set_connection_type(settings, type);
@@ -2085,6 +2094,17 @@ int freerdp_client_load_addins(rdpChannels* channels, rdpSettings* settings)
 		freerdp_client_load_static_channel_addin(channels, settings, "rail", settings);
 	}
 
+	if (settings->MultiTouchInput)
+	{
+		char* p[1];
+		int count;
+
+		count = 1;
+		p[0] = "rdpei";
+
+		freerdp_client_add_dynamic_channel(settings, count, p);
+	}
+
 	if (settings->SupportGraphicsPipeline)
 	{
 		char* p[1];
@@ -2092,6 +2112,28 @@ int freerdp_client_load_addins(rdpChannels* channels, rdpSettings* settings)
 
 		count = 1;
 		p[0] = "rdpgfx";
+
+		freerdp_client_add_dynamic_channel(settings, count, p);
+	}
+
+	if (settings->SupportEchoChannel)
+	{
+		char* p[1];
+		int count;
+
+		count = 1;
+		p[0] = "echo";
+
+		freerdp_client_add_dynamic_channel(settings, count, p);
+	}
+
+	if (settings->SupportDisplayControl)
+	{
+		char* p[1];
+		int count;
+
+		count = 1;
+		p[0] = "disp";
 
 		freerdp_client_add_dynamic_channel(settings, count, p);
 	}

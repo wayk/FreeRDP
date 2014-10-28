@@ -471,7 +471,8 @@ struct _RDPDR_SERIAL
 	UINT32 Type;
 	char* Name;
 	char* Path;
-	char* Driver; 
+	char* Driver;
+	char* Permissive;
 };
 typedef struct _RDPDR_SERIAL RDPDR_SERIAL;
 
@@ -759,6 +760,9 @@ typedef struct _RDPDR_PARALLEL RDPDR_PARALLEL;
 #define FreeRDP_NSCodec						3712
 #define FreeRDP_NSCodecId					3713
 #define FreeRDP_FrameAcknowledge				3714
+#define FreeRDP_NSCodecColorLossLevel				3715
+#define FreeRDP_NSCodecAllowSubsampling				3716
+#define FreeRDP_NSCodecAllowDynamicColorFidelity		3717
 #define FreeRDP_JpegCodec					3776
 #define FreeRDP_JpegCodecId					3777
 #define FreeRDP_JpegQuality					3778
@@ -791,6 +795,10 @@ typedef struct _RDPDR_PARALLEL RDPDR_PARALLEL;
 #define FreeRDP_DynamicChannelCount				5056
 #define FreeRDP_DynamicChannelArraySize				5057
 #define FreeRDP_DynamicChannelArray				5058
+#define FreeRDP_SupportDynamicChannels				5059
+#define FreeRDP_SupportEchoChannel				5184
+#define FreeRDP_SupportDisplayControl				5185
+#define FreeRDP_SupportGeometryTracking				5186
 
 /**
  * FreeRDP Settings Data Structure
@@ -1271,7 +1279,10 @@ struct rdp_settings
 	ALIGN64 BOOL NSCodec; /* 3712 */
 	ALIGN64 UINT32 NSCodecId; /* 3713 */
 	ALIGN64 UINT32 FrameAcknowledge; /* 3714 */
-	UINT64 padding3776[3776 - 3715]; /* 3715 */
+	ALIGN64 UINT32 NSCodecColorLossLevel; /* 3715 */
+	ALIGN64 BOOL NSCodecAllowSubsampling; /* 3716 */
+	ALIGN64 BOOL NSCodecAllowDynamicColorFidelity; /* 3717 */
+	UINT64 padding3776[3776 - 3718]; /* 3718 */
 
 	/* JPEG */
 	ALIGN64 BOOL JpegCodec; /* 3776 */
@@ -1361,6 +1372,11 @@ struct rdp_settings
 	ALIGN64 ADDIN_ARGV** DynamicChannelArray; /* 5058 */
 	ALIGN64 BOOL SupportDynamicChannels; /* 5059 */
 	UINT64 padding5184[5184 - 5060]; /* 5060 */
+
+	ALIGN64 BOOL SupportEchoChannel; /* 5184 */
+	ALIGN64 BOOL SupportDisplayControl; /* 5185 */
+	ALIGN64 BOOL SupportGeometryTracking; /* 5186 */
+	UINT64 padding5312[5312 - 5187]; /* 5187 */
 
 	/**
 	 * WARNING: End of ABI stable zone!

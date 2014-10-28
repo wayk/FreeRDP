@@ -276,17 +276,44 @@ wStream* rdp_message_channel_pdu_init(rdpRdp* rdp)
 
 BOOL rdp_read_header(rdpRdp* rdp, wStream* s, UINT16* length, UINT16* channelId)
 {
+	BYTE li;
 	BYTE byte;
+	BYTE code;
+	BYTE choice;
 	UINT16 initiator;
 	enum DomainMCSPDU MCSPDU;
+	enum DomainMCSPDU domainMCSPDU;
 
 	MCSPDU = (rdp->settings->ServerMode) ? DomainMCSPDU_SendDataRequest : DomainMCSPDU_SendDataIndication;
 
-	if (!mcs_read_domain_mcspdu_header(s, &MCSPDU, length))
+	*length = tpkt_read_header(s);
+
+	if (!tpdu_read_header(s, &code, &li))
+		return FALSE;
+
+	if (code != X224_TPDU_DATA)
 	{
-		if (MCSPDU != DomainMCSPDU_DisconnectProviderUltimatum)
+		if (code == X224_TPDU_DISCONNECT_REQUEST)
+		{
+			rdp->disconnect = TRUE;
+			return TRUE;
+		}
+
+		return FALSE;
+	}
+
+	if (!per_read_choice(s, &choice))
+		return FALSE;
+
+	domainMCSPDU = (enum DomainMCSPDU) (choice >> 2);
+
+	if (domainMCSPDU != MCSPDU)
+	{
+		if (domainMCSPDU != DomainMCSPDU_DisconnectProviderUltimatum)
 			return FALSE;
 	}
+
+	MCSPDU = domainMCSPDU;
 
 	if ((size_t) (*length - 8) > Stream_GetRemainingLength(s))
 		return FALSE;
@@ -300,7 +327,7 @@ BOOL rdp_read_header(rdpRdp* rdp, wStream* s, UINT16* length, UINT16* channelId)
 		if (!mcs_recv_disconnect_provider_ultimatum(rdp->mcs, s, &reason))
 			return FALSE;
 
-		if (rdp->instance == NULL)
+		if (!rdp->instance)
 		{
 			rdp->disconnect = TRUE;
 			return FALSE;
@@ -569,12 +596,16 @@ BOOL rdp_recv_server_set_keyboard_indicators_pdu(rdpRdp* rdp, wStream* s)
 {
 	UINT16 unitId;
 	UINT16 ledFlags;
+	rdpContext* context = rdp->instance->context;
 
 	if (Stream_GetRemainingLength(s) < 4)
 		return FALSE;
 
 	Stream_Read_UINT16(s, unitId); /* unitId (2 bytes) */
 	Stream_Read_UINT16(s, ledFlags); /* ledFlags (2 bytes) */
+
+	IFCALL(context->update->SetKeyboardIndicators, context, ledFlags);
+
 	return TRUE;
 }
 
@@ -642,8 +673,10 @@ BOOL rdp_recv_monitor_layout_pdu(rdpRdp* rdp, wStream* s)
 	if (Stream_GetRemainingLength(s) < (monitorCount * 20))
 		return FALSE;
 
-	monitorDefArray = (MONITOR_DEF*) malloc(sizeof(MONITOR_DEF) * monitorCount);
-	ZeroMemory(monitorDefArray, sizeof(MONITOR_DEF) * monitorCount);
+	monitorDefArray = (MONITOR_DEF*) calloc(monitorCount, sizeof(MONITOR_DEF));
+
+	if (!monitorDefArray)
+		return FALSE;
 
 	for (index = 0; index < monitorCount; index++)
 	{
@@ -656,6 +689,7 @@ BOOL rdp_recv_monitor_layout_pdu(rdpRdp* rdp, wStream* s)
 	}
 
 	free(monitorDefArray);
+
 	return TRUE;
 }
 

@@ -936,12 +936,17 @@ BOOL rdp_read_pointer_capability_set(wStream* s, UINT16 length, rdpSettings* set
 	UINT16 colorPointerCacheSize;
 	UINT16 pointerCacheSize;
 
-	if (length < 10)
+	if (length < 8)
 		return FALSE;
 
 	Stream_Read_UINT16(s, colorPointerFlag); /* colorPointerFlag (2 bytes) */
 	Stream_Read_UINT16(s, colorPointerCacheSize); /* colorPointerCacheSize (2 bytes) */
-	Stream_Read_UINT16(s, pointerCacheSize); /* pointerCacheSize (2 bytes) */
+
+	/* pointerCacheSize is optional */
+	if (length >= 10)
+		Stream_Read_UINT16(s, pointerCacheSize); /* pointerCacheSize (2 bytes) */
+	else
+		pointerCacheSize = 0;
 
 	if (colorPointerFlag == FALSE)
 		settings->ColorPointerFlag = FALSE;
@@ -2420,6 +2425,7 @@ BOOL rdp_print_large_pointer_capability_set(wStream* s, UINT16 length)
 BOOL rdp_read_surface_commands_capability_set(wStream* s, UINT16 length, rdpSettings* settings)
 {
 	UINT32 cmdFlags;
+
 	if (length < 12)
 		return FALSE;
 
@@ -2448,8 +2454,8 @@ void rdp_write_surface_commands_capability_set(wStream* s, rdpSettings* settings
 
 	header = rdp_capability_set_start(s);
 
-	cmdFlags = SURFCMDS_SET_SURFACE_BITS |
-			SURFCMDS_STREAM_SURFACE_BITS;
+	cmdFlags = SURFCMDS_SET_SURFACE_BITS | SURFCMDS_STREAM_SURFACE_BITS;
+
 	if (settings->SurfaceFrameMarkerEnabled)
 		cmdFlags |= SURFCMDS_FRAME_MARKER;
 
@@ -2474,6 +2480,33 @@ BOOL rdp_print_surface_commands_capability_set(wStream* s, UINT16 length)
 	WLog_INFO(TAG,  "\treserved: 0x%08X", reserved);
 	return TRUE;
 }
+
+void rdp_print_bitmap_codec_guid(GUID* guid)
+{
+	WLog_INFO(TAG,  "%08X%04X%04X%02X%02X%02X%02X%02X%02X%02X%02X",
+			  guid->Data1, guid->Data2, guid->Data3,
+			  guid->Data4[0], guid->Data4[1], guid->Data4[2], guid->Data4[3],
+			  guid->Data4[4], guid->Data4[5], guid->Data4[6], guid->Data4[7]);
+}
+
+char* rdp_get_bitmap_codec_guid_name(GUID* guid)
+{
+	RPC_STATUS rpc_status;
+
+	if (UuidEqual(guid, &CODEC_GUID_REMOTEFX, &rpc_status))
+		return "CODEC_GUID_REMOTEFX";
+	else if (UuidEqual(guid, &CODEC_GUID_NSCODEC, &rpc_status))
+		return "CODEC_GUID_NSCODEC";
+	else if (UuidEqual(guid, &CODEC_GUID_IGNORE, &rpc_status))
+		return "CODEC_GUID_IGNORE";
+	else if (UuidEqual(guid, &CODEC_GUID_IMAGE_REMOTEFX, &rpc_status))
+		return "CODEC_GUID_IMAGE_REMOTEFX";
+	else if (UuidEqual(guid, &CODEC_GUID_JPEG, &rpc_status))
+		return "CODEC_GUID_JPEG";
+
+	return "CODEC_GUID_UNKNOWN";
+}
+
 
 void rdp_read_bitmap_codec_guid(wStream* s, GUID* guid)
 {
@@ -2518,32 +2551,6 @@ void rdp_write_bitmap_codec_guid(wStream* s, GUID* guid)
 	Stream_Write(s, g, 16);
 }
 
-void rdp_print_bitmap_codec_guid(GUID* guid)
-{
-	WLog_INFO(TAG,  "%08X%04X%04X%02X%02X%02X%02X%02X%02X%02X%02X",
-			  guid->Data1, guid->Data2, guid->Data3,
-			  guid->Data4[0], guid->Data4[1], guid->Data4[2], guid->Data4[3],
-			  guid->Data4[4], guid->Data4[5], guid->Data4[6], guid->Data4[7]);
-}
-
-char* rdp_get_bitmap_codec_guid_name(GUID* guid)
-{
-	RPC_STATUS rpc_status;
-
-	if (UuidEqual(guid, &CODEC_GUID_REMOTEFX, &rpc_status))
-		return "CODEC_GUID_REMOTEFX";
-	else if (UuidEqual(guid, &CODEC_GUID_NSCODEC, &rpc_status))
-		return "CODEC_GUID_NSCODEC";
-	else if (UuidEqual(guid, &CODEC_GUID_IGNORE, &rpc_status))
-		return "CODEC_GUID_IGNORE";
-	else if (UuidEqual(guid, &CODEC_GUID_IMAGE_REMOTEFX, &rpc_status))
-		return "CODEC_GUID_IMAGE_REMOTEFX";
-	else if (UuidEqual(guid, &CODEC_GUID_JPEG, &rpc_status))
-		return "CODEC_GUID_JPEG";
-
-	return "CODEC_GUID_UNKNOWN";
-}
-
 /**
  * Read bitmap codecs capability set.\n
  * @msdn{dd891377}
@@ -2554,13 +2561,15 @@ char* rdp_get_bitmap_codec_guid_name(GUID* guid)
 
 BOOL rdp_read_bitmap_codecs_capability_set(wStream* s, UINT16 length, rdpSettings* settings)
 {
+	BYTE codecId;
 	GUID codecGuid;
 	RPC_STATUS rpc_status;
 	BYTE bitmapCodecCount;
 	UINT16 codecPropertiesLength;
 	UINT16 remainingLength;
-	BOOL receivedRemoteFxCodec = FALSE;
-	BOOL receivedNSCodec = FALSE;
+	BOOL guidNSCodec = FALSE;
+	BOOL guidRemoteFx = FALSE;
+	BOOL guidRemoteFxImage = FALSE;
 
 	if (length < 5)
 		return FALSE;
@@ -2575,28 +2584,7 @@ BOOL rdp_read_bitmap_codecs_capability_set(wStream* s, UINT16 length, rdpSetting
 
 		rdp_read_bitmap_codec_guid(s, &codecGuid); /* codecGuid (16 bytes) */
 
-		if (settings->ServerMode)
-		{
-			if (UuidEqual(&codecGuid, &CODEC_GUID_REMOTEFX, &rpc_status))
-			{
-				Stream_Read_UINT8(s, settings->RemoteFxCodecId);
-				receivedRemoteFxCodec = TRUE;
-			}
-			else if (UuidEqual(&codecGuid, &CODEC_GUID_NSCODEC, &rpc_status))
-			{
-				Stream_Read_UINT8(s, settings->NSCodecId);
-				receivedNSCodec = TRUE;
-			}
-			else
-			{
-				Stream_Seek_UINT8(s); /* codecID (1 byte) */
-			}
-		}
-		else
-		{
-			Stream_Seek_UINT8(s); /* codecID (1 byte) */
-		}
-
+		Stream_Read_UINT8(s, codecId); /* codecId (1 byte) */
 		Stream_Read_UINT16(s, codecPropertiesLength); /* codecPropertiesLength (2 bytes) */
 		remainingLength -= 19;
 
@@ -2605,21 +2593,156 @@ BOOL rdp_read_bitmap_codecs_capability_set(wStream* s, UINT16 length, rdpSetting
 
 		if (settings->ServerMode)
 		{
+			UINT32 beg;
+			UINT32 end;
+
+			beg = (UINT32) Stream_GetPosition(s);
+			end = beg + codecPropertiesLength;
+
 			if (UuidEqual(&codecGuid, &CODEC_GUID_REMOTEFX, &rpc_status))
 			{
-				Stream_Seek_UINT32(s); /* length */
-				Stream_Read_UINT32(s, settings->RemoteFxCaptureFlags); /* captureFlags */
-				Stream_Rewind(s, 8);
+				UINT32 rfxCapsLength;
+				UINT32 rfxPropsLength;
+				UINT32 captureFlags;
 
-				if (settings->RemoteFxCaptureFlags & CARDP_CAPS_CAPTURE_NON_CAC)
+				guidRemoteFx = TRUE;
+				settings->RemoteFxCodecId = codecId;
+
+				Stream_Read_UINT32(s, rfxPropsLength); /* length (4 bytes) */
+				Stream_Read_UINT32(s, captureFlags); /* captureFlags (4 bytes) */
+				Stream_Read_UINT32(s, rfxCapsLength); /* capsLength (4 bytes) */
+
+				settings->RemoteFxCaptureFlags = captureFlags;
+				settings->RemoteFxOnly = (captureFlags & CARDP_CAPS_CAPTURE_NON_CAC) ? TRUE : FALSE;
+
+				if (rfxCapsLength)
 				{
-					settings->RemoteFxOnly = TRUE;
+					UINT16 blockType;
+					UINT32 blockLen;
+					UINT16 numCapsets;
+					BYTE rfxCodecId;
+					UINT16 capsetType;
+					UINT16 numIcaps;
+					UINT16 icapLen;
+
+					/* TS_RFX_CAPS */
+
+					Stream_Read_UINT16(s, blockType); /* blockType (2 bytes) */
+					Stream_Read_UINT32(s, blockLen); /* blockLen (4 bytes) */
+					Stream_Read_UINT16(s, numCapsets); /* numCapsets (2 bytes) */
+
+					if (blockType != 0xCBC0)
+						return FALSE;
+
+					if (blockLen != 8)
+						return FALSE;
+
+					if (numCapsets != 1)
+						return FALSE;
+
+					/* TS_RFX_CAPSET */
+
+					Stream_Read_UINT16(s, blockType); /* blockType (2 bytes) */
+					Stream_Read_UINT32(s, blockLen); /* blockLen (4 bytes) */
+					Stream_Read_UINT8(s, rfxCodecId); /* codecId (1 byte) */
+					Stream_Read_UINT16(s, capsetType); /* capsetType (2 bytes) */
+					Stream_Read_UINT16(s, numIcaps); /* numIcaps (2 bytes) */
+					Stream_Read_UINT16(s, icapLen); /* icapLen (2 bytes) */
+
+					if (blockType != 0xCBC1)
+						return FALSE;
+
+					if (rfxCodecId != 1)
+						return FALSE;
+
+					if (capsetType != 0xCFC0)
+						return FALSE;
+
+					while (numIcaps--)
+					{
+						UINT16 version;
+						UINT16 tileSize;
+						BYTE codecFlags;
+						BYTE colConvBits;
+						BYTE transformBits;
+						BYTE entropyBits;
+
+						/* TS_RFX_ICAP */
+
+						Stream_Read_UINT16(s, version); /* version (2 bytes) */
+						Stream_Read_UINT16(s, tileSize); /* tileSize (2 bytes) */
+						Stream_Read_UINT8(s, codecFlags); /* flags (1 byte) */
+						Stream_Read_UINT8(s, colConvBits); /* colConvBits (1 byte) */
+						Stream_Read_UINT8(s, transformBits); /* transformBits (1 byte) */
+						Stream_Read_UINT8(s, entropyBits); /* entropyBits (1 byte) */
+
+						if (version != 0x0100)
+							return FALSE;
+
+						if (tileSize != 0x0040)
+							return FALSE;
+
+						if (colConvBits != 1)
+							return FALSE;
+
+						if (transformBits != 1)
+							return FALSE;
+					}
 				}
 			}
-		}
+			else if (UuidEqual(&codecGuid, &CODEC_GUID_IMAGE_REMOTEFX, &rpc_status))
+			{
+				/* Microsoft RDP servers ignore CODEC_GUID_IMAGE_REMOTEFX codec properties */
 
-		Stream_Seek(s, codecPropertiesLength); /* codecProperties */
-		remainingLength -= codecPropertiesLength;
+				guidRemoteFxImage = TRUE;
+				Stream_Seek(s, codecPropertiesLength); /* codecProperties */
+			}
+			else if (UuidEqual(&codecGuid, &CODEC_GUID_NSCODEC, &rpc_status))
+			{
+				BYTE colorLossLevel;
+				BYTE fAllowSubsampling;
+				BYTE fAllowDynamicFidelity;
+
+				guidNSCodec = TRUE;
+				settings->NSCodecId = codecId;
+
+				Stream_Read_UINT8(s, fAllowDynamicFidelity); /* fAllowDynamicFidelity (1 byte) */
+				Stream_Read_UINT8(s, fAllowSubsampling); /* fAllowSubsampling (1 byte) */
+				Stream_Read_UINT8(s, colorLossLevel); /* colorLossLevel (1 byte) */
+
+				if (colorLossLevel < 1)
+					colorLossLevel = 1;
+
+				if (colorLossLevel > 7)
+					colorLossLevel = 7;
+
+				settings->NSCodecAllowDynamicColorFidelity = fAllowDynamicFidelity;
+				settings->NSCodecAllowSubsampling = fAllowSubsampling;
+				settings->NSCodecColorLossLevel = colorLossLevel;
+			}
+			else if (UuidEqual(&codecGuid, &CODEC_GUID_IGNORE, &rpc_status))
+			{
+				Stream_Seek(s, codecPropertiesLength); /* codecProperties */
+			}
+			else
+			{
+				Stream_Seek(s, codecPropertiesLength); /* codecProperties */
+			}
+
+			if (Stream_GetPosition(s) != end)
+			{
+				fprintf(stderr, "error while reading codec properties: actual offset: %d expected offset: %d\n",
+						(int) Stream_GetPosition(s), end);
+				Stream_SetPosition(s, end);
+			}
+
+			remainingLength -= codecPropertiesLength;
+		}
+		else
+		{
+			Stream_Seek(s, codecPropertiesLength); /* codecProperties */
+			remainingLength -= codecPropertiesLength;
+		}
 
 		bitmapCodecCount--;
 	}
@@ -2627,8 +2750,9 @@ BOOL rdp_read_bitmap_codecs_capability_set(wStream* s, UINT16 length, rdpSetting
 	if (settings->ServerMode)
 	{
 		/* only enable a codec if we've announced/enabled it before */
-		settings->RemoteFxCodec = settings->RemoteFxCodec && receivedRemoteFxCodec;
-		settings->NSCodec = settings->NSCodec && receivedNSCodec;
+		settings->RemoteFxCodec = settings->RemoteFxCodec && guidRemoteFx;
+		settings->RemoteFxImageCodec = settings->RemoteFxImageCodec && guidRemoteFxImage;
+		settings->NSCodec = settings->NSCodec && guidNSCodec;
 		settings->JpegCodec = FALSE;
 	}
 
@@ -2699,9 +2823,9 @@ void rdp_write_nsc_client_capability_container(wStream* s, rdpSettings* settings
 	Stream_Write_UINT16(s, 3); /* codecPropertiesLength */
 
 	/* TS_NSCODEC_CAPABILITYSET */
-	Stream_Write_UINT8(s, 1);  /* fAllowDynamicFidelity */
-	Stream_Write_UINT8(s, 1);  /* fAllowSubsampling */
-	Stream_Write_UINT8(s, 3);  /* colorLossLevel */
+	Stream_Write_UINT8(s, settings->NSCodecAllowDynamicColorFidelity);  /* fAllowDynamicFidelity */
+	Stream_Write_UINT8(s, settings->NSCodecAllowSubsampling);  /* fAllowSubsampling */
+	Stream_Write_UINT8(s, settings->NSCodecColorLossLevel);  /* colorLossLevel */
 }
 
 void rdp_write_jpeg_client_capability_container(wStream* s, rdpSettings* settings)
@@ -2763,9 +2887,6 @@ void rdp_write_bitmap_codecs_capability_set(wStream* s, rdpSettings* settings)
 	header = rdp_capability_set_start(s);
 
 	bitmapCodecCount = 0;
-
-	if (settings->RemoteFxCodec)
-		settings->RemoteFxImageCodec = TRUE;
 
 	if (settings->RemoteFxCodec)
 		bitmapCodecCount++;
@@ -3174,6 +3295,8 @@ BOOL rdp_read_capability_sets(wStream* s, rdpSettings* settings, UINT16 numberCa
 	UINT16 length;
 	BYTE *bm, *em;
 
+	BOOL foundMultifragmentUpdate = FALSE;
+
 	Stream_GetPointer(s, mark);
 	count = numberCapabilities;
 
@@ -3320,6 +3443,7 @@ BOOL rdp_read_capability_sets(wStream* s, rdpSettings* settings, UINT16 numberCa
 			case CAPSET_TYPE_MULTI_FRAGMENT_UPDATE:
 				if (!rdp_read_multifragment_update_capability_set(s, length, settings))
 					return FALSE;
+				foundMultifragmentUpdate = TRUE;
 				break;
 
 			case CAPSET_TYPE_LARGE_POINTER:
@@ -3366,6 +3490,15 @@ BOOL rdp_read_capability_sets(wStream* s, rdpSettings* settings, UINT16 numberCa
 	{
 		WLog_ERR(TAG,  "strange we haven't read the number of announced capacity sets, read=%d expected=%d",
 				 count-numberCapabilities, count);
+	}
+
+	/**
+	 * If we never received a multifragment update capability set,
+	 * then the peer doesn't support fragmentation.
+	 */
+	if (!foundMultifragmentUpdate)
+	{
+		settings->MultifragMaxRequestSize = 0;
 	}
 
 #ifdef WITH_DEBUG_CAPABILITIES
