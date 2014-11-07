@@ -186,3 +186,4 @@ add_custom_command(TARGET ${MODULE_NAME} POST_BUILD
 	COMMENT Copying FreeRDP header files to ${MODULE_NAME})
 
 add_subdirectory(cli)
+add_subdirectory(headless)
