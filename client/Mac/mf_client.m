@@ -42,18 +42,16 @@ void mfreerdp_client_global_uninit()
 
 int mfreerdp_client_start(rdpContext* context)
 {
-	MRDPView* view;
+	MRDPClient* client;
 	mfContext* mfc = (mfContext*) context;
 
-	if (mfc->view == NULL)
+	if (mfc->client == NULL)
 	{
-		// view not specified beforehand. Create view dynamically
-		mfc->view = [[MRDPView alloc] initWithFrame : NSMakeRect(0, 0, context->settings->DesktopWidth, context->settings->DesktopHeight)];
-		mfc->view_ownership = TRUE;
+		mfc->client = [[MRDPClient alloc] init];
 	}
 
-	view = (MRDPView*) mfc->view;
-	[view rdpStart:context];
+	client = (MRDPClient*) mfc->client;
+	[client rdpStart:context];
 
 	return 0;
 }
@@ -70,13 +68,10 @@ int mfreerdp_client_stop(rdpContext* context)
 		mfc->thread = NULL;
 	}
 	
-	if (mfc->view_ownership)
-	{
-		MRDPView* view = (MRDPView*) mfc->view;
-		[view releaseResources];
-		[view release];
-		mfc->view = nil;
-	}
+    MRDPClient* client = (MRDPClient*) mfc->client;
+    [client releaseResources];
+    [client release];
+    mfc->client = nil;
 
 	return 0;
 }
@@ -138,7 +133,8 @@ void freerdp_client_mouse_event(rdpContext* cfc, DWORD flags, int x, int y)
 void mf_scale_mouse_event(void* context, rdpInput* input, UINT16 flags, UINT16 x, UINT16 y)
 {
 	mfContext* mfc = (mfContext*) context;
-	MRDPView* view = (MRDPView*) mfc->view;
+    MRDPClient *client = (MRDPClient *)mfc->client;
+	id<MRDPClientDelegate> view = (id<MRDPClientDelegate>)client->delegate;
 
     int ww, wh, dw, dh;
 

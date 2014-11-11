@@ -28,7 +28,7 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 
 @synthesize context;
 @synthesize delegate;
-@synthesize rdpView;
+@synthesize mrdpClient;
 @synthesize usesAppleKeyboard;
 
 static NSString *MRDPViewDidPostErrorInfoNotification = @"MRDPViewDidPostErrorInfoNotification";
@@ -48,7 +48,12 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
 
 - (BOOL)isConnected
 {
-    return self->mrdpView.is_connected;
+    return self->mrdpClient.delegate.is_connected;
+}
+
+- (NSView *)rdpView
+{
+    return (NSView *)self->mrdpClient->delegate;
 }
 
 - (void)viewDidConnect:(NSNotification *)notification
@@ -112,9 +117,7 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     if(ctx == self->context)
     {
         mfContext* mfc = (mfContext*)context;
-        
-        self->mrdpView = mfc->view;
-        self.rdpView = mfc->view;
+        self->mrdpClient = mfc->client;
     }
 }
 
@@ -124,17 +127,18 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
 
     [[NSNotificationCenter defaultCenter] removeObserver:self];
     
-    self->mrdpView.delegate = nil;
+    MRDPView *view = (MRDPView *)self.mrdpClient.delegate;
+    view.delegate = nil;
     self.delegate = nil;
     
     freerdp_client_stop(context);
     
-    mfContext* mfc = (mfContext*)context;
+    mfContext* mfc = (mfContext *)context;
     
-    MRDPView* view = (MRDPView*)mfc->view;
-    [view releaseResources];
-    [view release];
-    mfc->view = nil;
+    MRDPClient* client = (MRDPClient *)mfc->client;
+    [client releaseResources];
+    [client release];
+    mfc->client = nil;
     
     [self releaseContext];
     
@@ -168,7 +172,7 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     }
     
     mfc = (mfContext*)context;
-    mfc->view = (void*)mrdpView;
+    mfc->client = (void*)mrdpClient;
     
     if (status < 0)
     {
@@ -192,11 +196,15 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidConnect:) name:MRDPViewDidConnectWithResultNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidEmbed:) name:MRDPViewDidPostEmbedNotification object:nil];
     
-    mfContext* mfc = (mfContext*)context;
-    mfc->view = [[MRDPView alloc] initWithFrame : NSMakeRect(0, 0, context->settings->DesktopWidth, context->settings->DesktopHeight)];
-    MRDPView* view = (MRDPView*)mfc->view;
+    MRDPView *view = [[MRDPView alloc] initWithFrame : NSMakeRect(0, 0, context->settings->DesktopWidth, context->settings->DesktopHeight)];
     view.delegate = self;
     view.usesAppleKeyboard = self.usesAppleKeyboard;
+    
+    MRDPClient *client = [[MRDPClient alloc] init];
+    client.delegate = view;
+    
+    mfContext* mfc = (mfContext*)context;
+    mfc->client = client;
     
     freerdp_client_start(context);
 }
@@ -207,7 +215,7 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     
     [[NSNotificationCenter defaultCenter] removeObserver:self];
     
-    [mrdpView pause];
+    [mrdpClient pause];
     
     freerdp_client_stop(context);
     
@@ -230,7 +238,7 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     [[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPViewDidConnectWithResultNotification object:nil];
     [[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPViewDidPostEmbedNotification object:nil];
     
-    [mrdpView pause];
+    [mrdpClient pause];
     
     // Tear down the context
     freerdp_client_stop(context);
@@ -259,11 +267,11 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     
     // Reassign the view back to the context
     mfContext* mfc = (mfContext*)context;
-    mfc->view = mrdpView;
+    mfc->client = mrdpClient;
     
     freerdp_client_start(context);
 
-    [mrdpView resume];
+    [mrdpClient resume];
 }
 
 -(void)sendCtrlAltDelete

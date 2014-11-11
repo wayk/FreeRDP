@@ -19,7 +19,7 @@
     
     @public
 	rdpContext* context;
-	MRDPView* mrdpView;
+    MRDPClient* mrdpClient;
     BOOL usesAppleKeyboard;
 }
 
@@ -27,7 +27,8 @@
 @property (assign) rdpContext *context;
 @property (nonatomic, readonly) BOOL isConnected;
 @property (assign) BOOL usesAppleKeyboard;
-@property (nonatomic, assign) NSView *rdpView;
+@property (nonatomic, assign) MRDPClient *mrdpClient;
+@property (nonatomic, readonly) NSView *rdpView;
 
 - (BOOL)configure;
 - (BOOL)configure:(NSArray *)arguments;
