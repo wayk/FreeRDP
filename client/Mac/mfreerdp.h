@@ -26,7 +26,7 @@ typedef struct mf_context mfContext;
 #include <winpr/thread.h>
 #include <winpr/clipboard.h>
 
-#include "MRDPView.h"
+#include "MRDPClient.h"
 #include "Keyboard.h"
 #include <AppKit/NSView.h>
 
@@ -35,8 +35,7 @@ struct mf_context
 	rdpContext context;
 	DEFINE_RDP_CLIENT_COMMON();
 
-	void* view;
-	BOOL view_ownership;
+	void* client;
 
 	int width;
 	int height;

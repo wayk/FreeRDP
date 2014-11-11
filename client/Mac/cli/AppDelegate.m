@@ -142,7 +142,7 @@ BOOL reconnecting = false;
 	NSLog(@"Stopping...\n");
 	freerdp_client_stop(context);
 
-	[mrdpView releaseResources];
+	[mrdpClient releaseResources];
 	_singleDelegate = nil;
 
 	NSLog(@"Stopped.\n");
@@ -209,14 +209,14 @@ BOOL reconnecting = false;
 - (void) ReleaseContext
 {
 	mfContext* mfc;
-	MRDPView* view;
+	MRDPClient* client;
     
-	mfc = (mfContext*) context;
-	view = (MRDPView*) mfc->view;
+	mfc = (mfContext *) context;
+	client = (MRDPClient *) mfc->client;
     
-	[view releaseResources];
-	[view release];
-    mfc->view = nil;
+	[client releaseResources];
+	[client release];
+    mfc->client = nil;
     
 	freerdp_client_context_free(context);
 	context = nil;
@@ -256,14 +256,14 @@ void AppDelegate_EmbedWindowEventHandler(void* ctx, EmbedWindowEventArgs* e)
 	if (_singleDelegate)
 	{
 		mfContext* mfc = (mfContext*) context;
-		_singleDelegate->mrdpView = mfc->view;
+		_singleDelegate->mrdpClient = mfc->client;
         
 		if (_singleDelegate->window)
 		{
-			[[_singleDelegate->window contentView] addSubview:mfc->view];
+			[[_singleDelegate->window contentView] addSubview:mfc->client];
 		}
         
-		mac_set_view_size(context, mfc->view);
+		mac_set_view_size(context, mfc->client);
 	}
 }
 

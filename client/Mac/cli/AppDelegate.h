@@ -17,7 +17,7 @@
 	NSWindow* window;
 	MRDPViewController* mrdpViewController;
     NSBox *connContainer;
-    MRDPView* mrdpView;
+    MRDPClient* mrdpClient;
     rdpContext* context;
 }
 

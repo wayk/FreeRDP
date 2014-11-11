@@ -33,6 +33,7 @@ set(${MODULE_PREFIX}_OBJECTIVE_SOURCES
        ServerCredential.m
        ServerCertificate.m
        ServerDrive.m
+       MRDPClient.m
        MRDPView.m
        MRDPViewController.m
        PasswordDialog.m
@@ -50,6 +51,7 @@ set(${MODULE_PREFIX}_HEADERS
        ServerCredential.h
        ServerCertificate.h
        ServerDrive.h
+       MRDPClient.h
        MRDPView.h
        MRDPViewController.h
        MRDPViewControllerDelegate.h
@@ -58,7 +60,8 @@ set(${MODULE_PREFIX}_HEADERS
        MRDPCenteringClipView.h
        X509Certificate.h
        Keyboard.h
-       Clipboard.h)
+       Clipboard.h
+       MRDPClientDelegate.h)
 
 set(${MODULE_PREFIX}_RESOURCES "en.lproj/InfoPlist.strings")
 
