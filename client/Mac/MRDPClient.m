@@ -466,11 +466,11 @@ DWORD mac_client_thread(void* param)
         
         if (!status)
         {
-            [view setIs_connected:0];
+            [client->delegate setIs_connected:0];
             return 0;
         }
         
-        [view setIs_connected:1];
+        [client->delegate setIs_connected:1];
         
         nCount = 0;
         
