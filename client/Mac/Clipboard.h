@@ -1,8 +1,7 @@
 /**
  * FreeRDP: A Remote Desktop Protocol Implementation
- * Video Redirection Virtual Channel - Codec
  *
- * Copyright 2010-2011 Vic Lee
+ * Copyright 2014 Marc-Andre Moreau <marcandre.moreau@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +16,14 @@
  * limitations under the License.
  */
 
-#ifndef __TSMF_CODEC
-#define __TSMF_CODEC
+#import "mfreerdp.h"
+#import "mf_client.h"
 
-#include "tsmf_types.h"
+#import "freerdp/freerdp.h"
+#import "freerdp/channels/channels.h"
+#import "freerdp/client/cliprdr.h"
 
-BOOL tsmf_codec_parse_media_type(TS_AM_MEDIA_TYPE* mediatype, wStream* s);
-BOOL tsmf_codec_check_media_type(const char* decoder_name, wStream* s);
+int mac_cliprdr_send_client_format_list(CliprdrClientContext* cliprdr);
 
-#endif
-
+void mac_cliprdr_init(mfContext* mfc, CliprdrClientContext* cliprdr);
+void mac_cliprdr_uninit(mfContext* mfc, CliprdrClientContext* cliprdr);

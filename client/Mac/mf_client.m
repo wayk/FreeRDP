@@ -91,8 +91,7 @@ int mfreerdp_client_new(freerdp* instance, rdpContext* context)
 	mfc->stopEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
 
     context->instance->PreConnect = mac_pre_connect;
-    context->instance->PostConnect = mac_post_connect;
-    context->instance->ReceiveChannelData = mac_receive_channel_data;
+    context->instance->PostConnect = mac_post_connect;    
     context->instance->Authenticate = mac_authenticate;
     context->instance->VerifyCertificate = mac_verify_certificate;
     context->instance->VerifyX509Certificate = mac_verify_x509certificate;
@@ -102,10 +101,8 @@ int mfreerdp_client_new(freerdp* instance, rdpContext* context)
 	settings = instance->settings;
 
 	settings->AsyncTransport = TRUE;
-	
 	settings->AsyncUpdate = TRUE;
-	settings->AsyncInput = FALSE;
-	settings->AsyncChannels = FALSE;
+	settings->AsyncInput = TRUE;
 
 	return 0;
 }
