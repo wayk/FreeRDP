@@ -60,7 +60,7 @@ set(${MODULE_PREFIX}_HEADERS
 
 set(${MODULE_PREFIX}_RESOURCES "en.lproj/InfoPlist.strings")
 
-# Include XIB file in Xcode resources. 
+# Include XIB file in Xcode resources.
 if("${CMAKE_GENERATOR}" MATCHES "Xcode")
 	message(STATUS "Adding Xcode XIB resources for ${MODULE_NAME}")
 	set(${MODULE_PREFIX}_RESOURCES ${${MODULE_PREFIX}_RESOURCES} ${${MODULE_PREFIX}_XIBS})
@@ -73,6 +73,7 @@ add_library(${MODULE_NAME}
 	${${MODULE_PREFIX}_HEADERS}
 	${${MODULE_PREFIX}_RESOURCES})
 
+set_target_properties(${MODULE_NAME} PROPERTIES PUBLIC_HEADER "${${MODULE_PREFIX}_HEADERS}")
 set_target_properties(${MODULE_NAME} PROPERTIES OUTPUT_NAME "${MODULE_OUTPUT_NAME}")
 
 # configures the framework to always be looked for in the application bundle in the Frameworks sub-folder.
