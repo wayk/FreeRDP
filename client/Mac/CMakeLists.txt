@@ -38,7 +38,8 @@ set(${MODULE_PREFIX}_OBJECTIVE_SOURCES
        PasswordDialog.m
        MRDPCenteringClipView.m
        X509Certificate.m
-       Keyboard.m)
+       Keyboard.m
+       Clipboard.m)
 
 list(APPEND ${MODULE_PREFIX}_SOURCES ${${MODULE_PREFIX}_OBJECTIVE_SOURCES})
 
@@ -56,7 +57,8 @@ set(${MODULE_PREFIX}_HEADERS
        PasswordDialog.h
        MRDPCenteringClipView.h
        X509Certificate.h
-       Keyboard.h)
+       Keyboard.h
+       Clipboard.h)
 
 set(${MODULE_PREFIX}_RESOURCES "en.lproj/InfoPlist.strings")
 

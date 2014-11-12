@@ -23,6 +23,7 @@
 #import "mfreerdp.h"
 #import "MRDPView.h"
 #import "MRDPCursor.h"
+#import "Clipboard.h"
 #import "PasswordDialog.h"
 #import "MRDPViewDelegate.h"
 #import "X509Certificate.h"
@@ -42,8 +43,6 @@
 #import "freerdp/gdi/dc.h"
 #import "freerdp/gdi/region.h"
 #import "freerdp/graphics.h"
-#import "freerdp/utils/event.h"
-#import "freerdp/client/cliprdr.h"
 #import "freerdp/client/file.h"
 #import "freerdp/client/cmdline.h"
 #import "freerdp/log.h"
@@ -62,38 +61,8 @@ void mac_desktop_resize(rdpContext* context);
 
 static void update_activity_cb(freerdp* instance);
 static void input_activity_cb(freerdp* instance);
-static void channel_activity_cb(freerdp* instance);
-
-int process_plugin_args(rdpSettings* settings, const char* name, RDP_PLUGIN_DATA* plugin_data, void* user_data);
-int receive_channel_data(freerdp* instance, int chan_id, BYTE* data, int size, int flags, int total_size);
-
-void process_cliprdr_event(freerdp* instance, wMessage* event);
-void cliprdr_process_cb_format_list_event(freerdp* instance, RDP_CB_FORMAT_LIST_EVENT* event);
-void cliprdr_send_data_request(freerdp* instance, UINT32 format);
-void cliprdr_process_cb_monitor_ready_event(freerdp* inst);
-void cliprdr_process_cb_data_response_event(freerdp* instance, RDP_CB_DATA_RESPONSE_EVENT* event);
-void cliprdr_process_text(freerdp* instance, BYTE* data, int len);
-void cliprdr_send_supported_format_list(freerdp* instance);
-int register_channel_fds(int* fds, int count, freerdp* instance);
 
 DWORD mac_client_thread(void* param);
-
-struct cursor
-{
-	rdpPointer* pointer;
-	BYTE* cursor_data;
-	void* bmiRep; /* NSBitmapImageRep */
-	void* nsCursor; /* NSCursor */
-	void* nsImage; /* NSImage */
-};
-
-struct rgba_data
-{
-	char red;
-	char green;
-	char blue;
-	char alpha;
-};
 
 @implementation MRDPView
 
@@ -158,43 +127,6 @@ DWORD mac_client_input_thread(void* param)
 	return 0;
 }
 
-DWORD mac_client_channels_thread(void* param)
-{
-	int status;
-	wMessage* event;
-	HANDLE channelsEvent;
-	rdpChannels* channels;
-	rdpContext* context = (rdpContext*) param;
-	
-	channels = context->channels;
-	channelsEvent = freerdp_channels_get_event_handle(context->instance);
-	
-	while (WaitForSingleObject(channelsEvent, INFINITE) == WAIT_OBJECT_0)
-	{
-		status = freerdp_channels_process_pending_messages(context->instance);
-		
-		if (!status)
-			break;
-		
-		event = freerdp_channels_pop_event(context->channels);
-		
-		if (event)
-		{
-			switch (GetMessageClass(event->id))
-			{
-				case CliprdrChannel_Class:
-					process_cliprdr_event(context->instance, event);
-					break;
-			}
-			
-			freerdp_event_free(event);
-		}
-	}
-	
-	ExitThread(0);
-	return 0;
-}
-
 DWORD mac_client_thread(void* param)
 {
 	@autoreleasepool
@@ -206,7 +138,6 @@ DWORD mac_client_thread(void* param)
 		HANDLE updateEvent;
 		HANDLE updateThread;
 		HANDLE channelsEvent;
-		HANDLE channelsThread;
 		
 		DWORD nCount;
 		rdpContext* context = (rdpContext*) param;
@@ -243,14 +174,7 @@ DWORD mac_client_thread(void* param)
 			events[nCount++] = inputEvent = freerdp_get_message_queue_event_handle(instance, FREERDP_INPUT_MESSAGE_QUEUE);
 		}
 		
-		if (settings->AsyncChannels)
-		{
-			channelsThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE) mac_client_channels_thread, context, 0, NULL);
-		}
-		else
-		{
-			events[nCount++] = channelsEvent = freerdp_channels_get_event_handle(instance);
-		}
+		events[nCount++] = channelsEvent = freerdp_channels_get_event_handle(instance);
 		
 		while (1)
 		{
@@ -278,12 +202,9 @@ DWORD mac_client_thread(void* param)
 				}
 			}
 			
-			if (!settings->AsyncChannels)
+			if (WaitForSingleObject(channelsEvent, 0) == WAIT_OBJECT_0)
 			{
-				if (WaitForSingleObject(channelsEvent, 0) == WAIT_OBJECT_0)
-				{
-					channel_activity_cb(instance);
-				}
+				freerdp_channels_process_pending_messages(instance);
 			}
 		}
 		
@@ -303,12 +224,6 @@ DWORD mac_client_thread(void* param)
 			CloseHandle(inputThread);
 		}
 		
-		if (settings->AsyncChannels)
-		{
-			WaitForSingleObject(channelsThread, INFINITE);
-			CloseHandle(channelsThread);
-		}
-
 		ExitThread(0);
 		return 0;
 	}
@@ -890,51 +805,87 @@ DWORD fixKeyCode(DWORD keyCode, unichar keyChar, enum APPLE_KEYBOARD_TYPE type)
 
 - (void) onPasteboardTimerFired :(NSTimer*) timer
 {
-	int i;
-    NSArray* types;
+	BYTE* data;
+	UINT32 size;
+	UINT32 formatId;
+	BOOL formatMatch;
+	int changeCount;
+	NSData* formatData;
+	const char* formatType;
+	NSPasteboardItem* item;
 	
-	i = (int) [pasteboard_rd changeCount];
+	changeCount = (int) [pasteboard_rd changeCount];
 	
-	if (i != pasteboard_changecount)
+	if (changeCount == pasteboard_changecount)
+		return;
+	
+	pasteboard_changecount = changeCount;
+	
+	NSArray* items = [pasteboard_rd pasteboardItems];
+		
+	if ([items count] < 1)
+		return;
+	
+	item = [items objectAtIndex:0];
+	
+	/**
+	 * System-Declared Uniform Type Identifiers:
+	 * https://developer.apple.com/library/ios/documentation/Miscellaneous/Reference/UTIRef/Articles/System-DeclaredUniformTypeIdentifiers.html
+	 */
+	
+	formatMatch = FALSE;
+	
+	for (NSString* type in [item types])
 	{
-        pasteboard_changecount = i;
-        types = [NSArray arrayWithObject:NSStringPboardType];
-        NSString *str = [pasteboard_rd availableTypeFromArray:types];
-        if (str != nil)
-        {
-            cliprdr_send_supported_format_list(instance);
-        }
+		formatType = [type UTF8String];
+		
+		if (strcmp(formatType, "public.utf8-plain-text") == 0)
+		{
+			formatData = [item dataForType:type];
+			formatId = ClipboardRegisterFormat(mfc->clipboard, "UTF8_STRING");
+		
+			size = (UINT32) [formatData length];
+			
+			data = (BYTE*) malloc(size);
+			[formatData getBytes:data length:size];
+			
+			ClipboardSetData(mfc->clipboard, formatId, (void*) data, size);
+			formatMatch = TRUE;
+			
+			break;
+		}
 	}
-    
-    //pasteboard_changecount = (int) [pasteboard_rd changeCount];
+	
+	if (!formatMatch)
+		ClipboardEmpty(mfc->clipboard);
+	
+	if (mfc->clipboardSync)
+		mac_cliprdr_send_client_format_list(mfc->cliprdr);
 }
 
 - (void) pause
 {
-    // Invalidate the timer on the thread it was created on
-    dispatch_async(dispatch_get_main_queue(), ^{
-    [self->pasteboard_timer invalidate];
-    });
-    
-    
-    // Temporarily remove tracking areas, else we will crash if the mouse
-    // enters the view while restarting
-    NSArray *trackingAreas = self.trackingAreas;
-    for(NSTrackingArea *ta in trackingAreas)
-    {
-        [self removeTrackingArea:ta];
-    }
+	dispatch_async(dispatch_get_main_queue(), ^{
+		[self->pasteboard_timer invalidate];
+	});
+	
+	NSArray* trackingAreas = self.trackingAreas;
+	
+	for (NSTrackingArea* ta in trackingAreas)
+	{
+		[self removeTrackingArea:ta];
+	}
 }
 
 - (void)resume
 {
-    dispatch_async(dispatch_get_main_queue(), ^{
-    self->pasteboard_timer = [NSTimer scheduledTimerWithTimeInterval:0.5 target:self selector:@selector(onPasteboardTimerFired:) userInfo:nil repeats:YES];
-    });
-    
-    NSTrackingArea * trackingArea = [[NSTrackingArea alloc] initWithRect:[self visibleRect] options:NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved | NSTrackingCursorUpdate | NSTrackingEnabledDuringMouseDrag | NSTrackingActiveWhenFirstResponder owner:self userInfo:nil];
-    [self addTrackingArea:trackingArea];
-    [trackingArea release];
+	dispatch_async(dispatch_get_main_queue(), ^{
+		self->pasteboard_timer = [NSTimer scheduledTimerWithTimeInterval:0.5 target:self selector:@selector(onPasteboardTimerFired:) userInfo:nil repeats:YES];
+	});
+	
+	NSTrackingArea * trackingArea = [[NSTrackingArea alloc] initWithRect:[self visibleRect] options:NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved | NSTrackingCursorUpdate | NSTrackingEnabledDuringMouseDrag | NSTrackingActiveWhenFirstResponder owner:self userInfo:nil];
+	[self addTrackingArea:trackingArea];
+	[trackingArea release];
 }
 
 - (void) setScrollOffset:(int)xOffset y:(int)yOffset w:(int)width h:(int)height
@@ -948,6 +899,7 @@ DWORD fixKeyCode(DWORD keyCode, unichar keyChar, enum APPLE_KEYBOARD_TYPE type)
 void mac_OnChannelConnectedEventHandler(rdpContext* context, ChannelConnectedEventArgs* e)
 {
 	rdpSettings* settings = context->settings;
+	mfContext* mfc = (mfContext*) context;
 	
 	if (strcmp(e->name, RDPEI_DVC_CHANNEL_NAME) == 0)
 	{
@@ -958,6 +910,10 @@ void mac_OnChannelConnectedEventHandler(rdpContext* context, ChannelConnectedEve
 		if (settings->SoftwareGdi)
 			gdi_graphics_pipeline_init(context->gdi, (RdpgfxClientContext*) e->pInterface);
 	}
+	else if (strcmp(e->name, CLIPRDR_SVC_CHANNEL_NAME) == 0)
+	{
+		mac_cliprdr_init(mfc, (CliprdrClientContext*) e->pInterface);
+	}
 	else if (strcmp(e->name, ENCOMSP_SVC_CHANNEL_NAME) == 0)
 	{
 		
@@ -967,6 +923,7 @@ void mac_OnChannelConnectedEventHandler(rdpContext* context, ChannelConnectedEve
 void mac_OnChannelDisconnectedEventHandler(rdpContext* context, ChannelDisconnectedEventArgs* e)
 {
 	rdpSettings* settings = context->settings;
+	mfContext* mfc = (mfContext*) context;
 	
 	if (strcmp(e->name, RDPEI_DVC_CHANNEL_NAME) == 0)
 	{
@@ -976,6 +933,10 @@ void mac_OnChannelDisconnectedEventHandler(rdpContext* context, ChannelDisconnec
 	{
 		if (settings->SoftwareGdi)
 			gdi_graphics_pipeline_uninit(context->gdi, (RdpgfxClientContext*) e->pInterface);
+	}
+	else if (strcmp(e->name, CLIPRDR_SVC_CHANNEL_NAME) == 0)
+	{
+		mac_cliprdr_uninit(mfc, (CliprdrClientContext*) e->pInterface);
 	}
 	else if (strcmp(e->name, ENCOMSP_SVC_CHANNEL_NAME) == 0)
 	{
@@ -1084,11 +1045,12 @@ BOOL mac_post_connect(freerdp* instance)
 	view->pasteboard_wr = [NSPasteboard generalPasteboard];
 	
 	/* setup pasteboard for read operations */
-    dispatch_async(dispatch_get_main_queue(), ^{
-	view->pasteboard_rd = [NSPasteboard generalPasteboard];
-    view->pasteboard_changecount = -1;
-    });
-    
+	dispatch_async(dispatch_get_main_queue(), ^{
+		view->pasteboard_rd = [NSPasteboard generalPasteboard];
+		view->pasteboard_changecount = -1;
+	});
+	
+	[view resume];
 	
 	mfc->appleKeyboardType = mac_detect_keyboard_type();
 
@@ -1488,256 +1450,6 @@ static void input_activity_cb(freerdp* instance)
 	{
 		WLog_ERR(TAG,  "input_activity_cb: No queue!");
 	}
-}
-
-static void channel_activity_cb(freerdp* instance)
-{
-	wMessage* event;
-
-	freerdp_channels_process_pending_messages(instance);
-	event = freerdp_channels_pop_event(instance->context->channels);
-
-	if (event)
-	{
-		WLog_DBG(TAG,  "channel_activity_cb: message %d", event->id);
-
-		switch (GetMessageClass(event->id))
-		{
-            case CliprdrChannel_Class:
-                process_cliprdr_event(instance, event);
-                break;
-		}
-
-		freerdp_event_free(event);
-	}
-}
-
-/***********************************************************************
-   * called when channel data is available
-   ***********************************************************************/
-
-int mac_receive_channel_data(freerdp* instance, int chan_id, BYTE* data, int size, int flags, int total_size)
-{
-    return freerdp_channels_data(instance, chan_id, data, size, flags, total_size);
-}
-
-int process_plugin_args(rdpSettings* settings, const char* name, RDP_PLUGIN_DATA* plugin_data, void* user_data)
-{
-	rdpChannels* channels = (rdpChannels*) user_data;
-	
-	freerdp_channels_load_plugin(channels, settings, name, plugin_data);
-	
-	return 1;
-}
-
-/*
- * stuff related to clipboard redirection
- */
-
-void cliprdr_process_cb_data_request_event(freerdp* instance)
-{
-    NSLog(@"cliprdr_process_cb_data_request_event");
-    
-	int len;
-	NSArray* types;
-	RDP_CB_DATA_RESPONSE_EVENT* event;
-	mfContext* mfc = (mfContext*) instance->context;
-	MRDPView* view = (MRDPView*) mfc->view;
-
-	event = (RDP_CB_DATA_RESPONSE_EVENT*) freerdp_event_new(CliprdrChannel_Class, CliprdrChannel_DataResponse, NULL, NULL);
-	
-	types = [NSArray arrayWithObject:NSStringPboardType];
-	NSString* str = [view->pasteboard_rd availableTypeFromArray:types];
-	
-	if (str == nil)
-	{
-		event->data = NULL;
-		event->size = 0;
-	}
-	else
-	{
-		NSString* data = [view->pasteboard_rd stringForType:NSStringPboardType];
-		len = (int) ([data length] * 2 + 2);
-		event->data = malloc(len);
-		[data getCString:(char *) event->data maxLength:len encoding:NSUnicodeStringEncoding];
-		event->size = len;
-	}
-	
-	freerdp_channels_send_event(instance->context->channels, (wMessage*) event);
-}
-
-void cliprdr_send_data_request(freerdp* instance, UINT32 format)
-{
-    NSLog(@"cliprdr_send_data_request");
-    
-	RDP_CB_DATA_REQUEST_EVENT* event;
-	
-	event = (RDP_CB_DATA_REQUEST_EVENT*) freerdp_event_new(CliprdrChannel_Class, CliprdrChannel_DataRequest, NULL, NULL);
-	
-	event->format = format;
-	freerdp_channels_send_event(instance->context->channels, (wMessage*) event);
-}
-
-/**
- * at the moment, only the following formats are supported
- *    CF_TEXT
- *    CF_UNICODETEXT
- */
-
-void cliprdr_process_cb_data_response_event(freerdp* instance, RDP_CB_DATA_RESPONSE_EVENT* event)
-{
-    NSLog(@"cliprdr_process_cb_data_response_event");
-    
-	NSString* str;
-	NSArray* types;
-	mfContext* mfc = (mfContext*) instance->context;
-	MRDPView* view = (MRDPView*) mfc->view;
-
-	if (event->size == 0)
-		return;
-	
-	if (view->pasteboard_format == CF_TEXT || view->pasteboard_format == CF_UNICODETEXT)
-	{
-		str = [[NSString alloc] initWithCharacters:(unichar *) event->data length:event->size / 2];
-		types = [[NSArray alloc] initWithObjects:NSStringPboardType, nil];
-		[view->pasteboard_wr declareTypes:types owner:mfc->view];
-		[view->pasteboard_wr setString:str forType:NSStringPboardType];
-	}
-}
-
-void cliprdr_process_cb_monitor_ready_event(freerdp* instance)
-{
-    NSLog(@"cliprdr_process_cb_monitor_ready_event");
-    
-	wMessage* event;
-	RDP_CB_FORMAT_LIST_EVENT* format_list_event;
-	
-	event = freerdp_event_new(CliprdrChannel_Class, CliprdrChannel_FormatList, NULL, NULL);
-	
-	format_list_event = (RDP_CB_FORMAT_LIST_EVENT*) event;
-	format_list_event->num_formats = 0;
-	
-	freerdp_channels_send_event(instance->context->channels, event);
-    
-    cliprdr_send_supported_format_list(instance);
-}
-
-/**
- * list of supported clipboard formats; currently only the following are supported
- *    CF_TEXT
- *    CF_UNICODETEXT
- */
-
-void cliprdr_process_cb_format_list_event(freerdp* instance, RDP_CB_FORMAT_LIST_EVENT* event)
-{
-    NSLog(@"cliprdr_process_cb_format_list_event");
-    
-	int i;
-	mfContext* mfc = (mfContext*) instance->context;
-	MRDPView* view = (MRDPView*) mfc->view;
-
-	if (event->num_formats == 0)
-		return;
-	
-	for (i = 0; i < event->num_formats; i++)
-	{
-		switch (event->formats[i])
-		{
-		case CF_TEXT:
-		case CF_UNICODETEXT:
-			view->pasteboard_format = CF_UNICODETEXT;
-			cliprdr_send_data_request(instance, CF_UNICODETEXT);
-			return;
-			break;
-		}
-	}
-}
-
-void process_cliprdr_event(freerdp* instance, wMessage* event)
-{
-    NSLog(@"process_cliprdr_event");
-    
-    int i;
-    NSArray* types;
-    mfContext* mfc = (mfContext*) instance->context;
-    
-	MRDPView* view = (MRDPView*) mfc->view;
-    NSPasteboard* pasteboard_rd = (NSPasteboard*)view->pasteboard_rd;
-    
-	i = (int) [pasteboard_rd changeCount];
-	if (i != view->pasteboard_changecount)
-	{
-        view->pasteboard_changecount = i;
-        types = [NSArray arrayWithObject:NSStringPboardType];
-        NSString *str = [pasteboard_rd availableTypeFromArray:types];
-        if (str != nil)
-        {
-            cliprdr_send_supported_format_list(instance);
-        }
-	}
-    
-	if (event)
-	{
-		switch (GetMessageType(event->id))
-		{
-		/*
-				 * Monitor Ready PDU is sent by server to indicate that it has been
-				 * initialized and is ready. This PDU is transmitted by the server after it has sent
-				 * Clipboard Capabilities PDU
-				 */
-		case CliprdrChannel_MonitorReady:
-			cliprdr_process_cb_monitor_ready_event(instance);
-			break;
-
-			/*
-				 * The Format List PDU is sent either by the client or the server when its
-				 * local system clipboard is updated with new clipboard data. This PDU
-				 * contains the Clipboard Format ID and name pairs of the new Clipboard
-				 * Formats on the clipboard
-				 */
-		case CliprdrChannel_FormatList:
-			cliprdr_process_cb_format_list_event(instance, (RDP_CB_FORMAT_LIST_EVENT*) event);
-			break;
-
-			/*
-				 * The Format Data Request PDU is sent by the receipient of the Format List PDU.
-				 * It is used to request the data for one of the formats that was listed in the
-				 * Format List PDU
-				 */
-		case CliprdrChannel_DataRequest:
-			cliprdr_process_cb_data_request_event(instance);
-			break;
-
-			/*
-				 * The Format Data Response PDU is sent as a reply to the Format Data Request PDU.
-				 * It is used to indicate whether processing of the Format Data Request PDU
-				 * was successful. If the processing was successful, the Format Data Response PDU
-				 * includes the contents of the requested clipboard data
-				 */
-		case CliprdrChannel_DataResponse:
-			cliprdr_process_cb_data_response_event(instance, (RDP_CB_DATA_RESPONSE_EVENT*) event);
-			break;
-
-		default:
-			WLog_ERR(TAG, "process_cliprdr_event: unknown event type %d", GetMessageType(event->id));
-			break;
-		}
-	}
-}
-
-void cliprdr_send_supported_format_list(freerdp* instance)
-{
-    NSLog(@"cliprdr_send_supported_format_list");
-    
-	RDP_CB_FORMAT_LIST_EVENT* event;
-	
-	event = (RDP_CB_FORMAT_LIST_EVENT*) freerdp_event_new(CliprdrChannel_Class, CliprdrChannel_FormatList, NULL, NULL);
-	
-	event->formats = (UINT32*) malloc(sizeof(UINT32) * 1);
-	event->num_formats = 1;
-	event->formats[0] = CF_UNICODETEXT;
-	
-	freerdp_channels_send_event(instance->context->channels, (wMessage*) event);
 }
 
 /**

@@ -528,7 +528,7 @@ static void gdi_bitmap_update(rdpContext* context, BITMAP_UPDATE* bitmapUpdate)
 			pSrcData = gdi->bitmap_buffer;
 		}
 
-		nSrcStep = nWidth * 4;
+		nSrcStep = nWidth * gdi->bytesPerPixel;
 
 		pDstData = gdi->primary_buffer;
 		nDstStep = gdi->width * gdi->bytesPerPixel;
@@ -764,7 +764,7 @@ static void gdi_polyline(rdpContext* context, POLYLINE_ORDER* polyline)
 	gdi_MoveToEx(gdi->drawing->hdc, x, y, NULL);
 
 	points = polyline->points;
-	for (i = 0; i < (int) polyline->numPoints; i++)
+	for (i = 0; i < (int) polyline->numDeltaEntries; i++)
 	{
 		x += points[i].x;
 		y += points[i].y;

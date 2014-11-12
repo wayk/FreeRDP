@@ -19,8 +19,8 @@ set(MODULE_NAME "freerdp-channels-server")
 set(MODULE_PREFIX "FREERDP_CHANNELS_SERVER")
 
 set(${MODULE_PREFIX}_SRCS
-	channels.c
-	channels.h)
+	${CMAKE_CURRENT_SOURCE_DIR}/channels.c
+	${CMAKE_CURRENT_SOURCE_DIR}/channels.h)
 	
 foreach(STATIC_MODULE ${CHANNEL_STATIC_SERVER_MODULES})
 	set(STATIC_MODULE_NAME ${${STATIC_MODULE}_SERVER_NAME})
@@ -28,12 +28,29 @@ foreach(STATIC_MODULE ${CHANNEL_STATIC_SERVER_MODULES})
 	set(${MODULE_PREFIX}_LIBS ${${MODULE_PREFIX}_LIBS} ${STATIC_MODULE_NAME})
 endforeach()
 
+# On windows create dll version information.
+# Vendor, product and year are already set in top level CMakeLists.txt
+if (WIN32)
+  set (RC_VERSION_MAJOR ${FREERDP_VERSION_MAJOR})
+  set (RC_VERSION_MINOR ${FREERDP_VERSION_MINOR})
+  set (RC_VERSION_BUILD ${FREERDP_VERSION_REVISION})
+  set (RC_VERSION_FILE "${CMAKE_SHARED_LIBRARY_PREFIX}${MODULE_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX}" )
+
+  configure_file(
+    ${CMAKE_SOURCE_DIR}/cmake/WindowsDLLVersion.rc.in
+    ${CMAKE_CURRENT_BINARY_DIR}/version.rc
+    @ONLY)
+
+  set ( ${MODULE_PREFIX}_SRCS ${${MODULE_PREFIX}_SRCS} ${CMAKE_CURRENT_BINARY_DIR}/version.rc)
+endif()
+
+
 add_library(${MODULE_NAME} STATIC ${${MODULE_PREFIX}_SRCS})
 
 if (WITH_LIBRARY_VERSIONING)
   set_target_properties(${MODULE_NAME} PROPERTIES VERSION ${FREERDP_VERSION} SOVERSION ${FREERDP_API_VERSION})
 endif()
-set_target_properties(${MODULE_NAME} PROPERTIES PREFIX "lib")
+
 
 set(${MODULE_PREFIX}_LIBS ${${MODULE_PREFIX}_LIBS} winpr freerdp)
 
