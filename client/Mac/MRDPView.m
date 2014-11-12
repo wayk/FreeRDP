@@ -118,12 +118,12 @@ DWORD mac_client_input_thread(void* param)
 		{
 			status = freerdp_message_queue_process_message(context->instance, FREERDP_INPUT_MESSAGE_QUEUE, &message);
             
-            if (!status)
+			if (!status)
 				break;
 		}
-        
-        if (!status)
-            break;
+		
+		if (!status)
+			break;
 	}
 	
 	ExitThread(0);
