@@ -69,6 +69,7 @@ int mfreerdp_client_stop(rdpContext* context)
 	}
 	
     MRDPClient* client = (MRDPClient*) mfc->client;
+    // TODO: release the delegate here?
     [client releaseResources];
     [client release];
     mfc->client = nil;

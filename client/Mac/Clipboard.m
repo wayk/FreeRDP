@@ -265,7 +265,7 @@ int mac_cliprdr_server_format_data_response(CliprdrClientContext* cliprdr, CLIPR
 	UINT32 formatId;
 	CLIPRDR_FORMAT* format = NULL;
 	mfContext* mfc = (mfContext*) cliprdr->custom;
-	MRDPView* view = (MRDPView*) mfc->view;
+	MRDPClient* client = (MRDPClient*) mfc->client;
 	
 	if (formatDataResponse->msgFlags & CB_RESPONSE_FAIL)
 	{
@@ -314,8 +314,8 @@ int mac_cliprdr_server_format_data_response(CliprdrClientContext* cliprdr, CLIPR
 		free(data);
 		
 		NSArray* types = [[NSArray alloc] initWithObjects:NSStringPboardType, nil];
-		[view->pasteboard_wr declareTypes:types owner:view];
-		[view->pasteboard_wr setString:str forType:NSStringPboardType];
+		[client->pasteboard_wr declareTypes:types owner:client];
+		[client->pasteboard_wr setString:str forType:NSStringPboardType];
 	}
 	
 	return 1;

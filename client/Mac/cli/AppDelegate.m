@@ -341,13 +341,15 @@ void mac_set_view_size(rdpContext* context, MRDPView* view)
         mrdpViewController = [[MRDPViewController alloc] init];
         mrdpViewController.delegate = self;
         
+        bool result = false;
+        
         if(USE_CLI == true)
         {
-            [mrdpViewController configure:[[NSProcessInfo processInfo] arguments]];
+            result = [mrdpViewController configure:[[NSProcessInfo processInfo] arguments]];
         }
         else
         {
-            [mrdpViewController configure];
+            result = [mrdpViewController configure];
             
             [mrdpViewController setStringSettingForIdentifier:21 withValue:LOGIN_USERNAME];
             [mrdpViewController setStringSettingForIdentifier:23 withValue:LOGIN_DOMAIN];
