@@ -418,6 +418,20 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
 	
 	for (NSString* str in args)
 	{
+        /* filter out some arguments added by XCode */
+        
+        if ([str isEqualToString:@"YES"])
+        {
+            argc--;
+            continue;
+        }
+        
+        if ([str isEqualToString:@"-NSDocumentRevisionsDebugMode"])
+        {
+            argc--;
+            continue;
+        }
+        
 		len = (int) ([str length] + 1);
 		cptr = (char*) malloc(len);
 		strcpy(cptr, [str UTF8String]);
