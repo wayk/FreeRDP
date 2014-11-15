@@ -13,6 +13,8 @@
 
 @implementation MRDPIPCClient
 
+static NSString* const clientBaseName = @"com.devolutions.mrdp-ipc-client";
+
 - (id)initWithServer:(NSString *)registeredName
 {
     self = [super init];
@@ -30,7 +32,16 @@
             return nil;
         }
         
-        [serverProxy clientConnected];
+        NSString *serverID = [serverProxy serverId];
+        NSString *clientName = [NSString stringWithFormat:@"%@.%@", clientBaseName, serverID];
+        
+        clientConnection = [NSConnection serviceConnectionWithName:clientName rootObject:self];
+        [clientConnection runInNewThread];
+        [clientConnection registerName:clientName];
+        
+        NSLog(@"Launched IPC server at %@", clientName);
+        
+        [serverProxy clientConnected:clientName];
     }
     
     return self;
