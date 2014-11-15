@@ -67,12 +67,6 @@ int mfreerdp_client_stop(rdpContext* context)
 		CloseHandle(mfc->thread);
 		mfc->thread = NULL;
 	}
-	
-    MRDPClient* client = (MRDPClient*) mfc->client;
-
-    [client releaseResources];
-    [client release];
-    mfc->client = nil;
 
 	return 0;
 }
