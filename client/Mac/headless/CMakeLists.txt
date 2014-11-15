@@ -1,4 +1,3 @@
-
 project(MacFreeRDP)
 
 set(MODULE_NAME "MacFreeRDP-headless")
@@ -12,8 +11,8 @@ find_library(COCOA_LIBRARY Cocoa)
 set(MACOSX_BUNDLE_INFO_STRING "MacFreeRDP")
 set(MACOSX_BUNDLE_GUI_IDENTIFIER "com.freerdp.mac")
 set(MACOSX_BUNDLE_BUNDLE_IDENTIFIER "FreeRDP-headless.Mac")
-set(MACOSX_BUNDLE_LONG_VERSION_STRING "MacFreeRDP Headless Client Version 1.0.0”)
-set(MACOSX_BUNDLE_BUNDLE_NAME "MacFreeRDP-headless”)
+set(MACOSX_BUNDLE_LONG_VERSION_STRING "MacFreeRDP Headless Client Version 1.0.0")
+set(MACOSX_BUNDLE_BUNDLE_NAME "MacFreeRDP-headless")
 set(MACOSX_BUNDLE_SHORT_VERSION_STRING 1.0.0)
 set(MACOSX_BUNDLE_BUNDLE_VERSION 1.0.0)
 set(MACOSX_BUNDLE_COPYRIGHT "Copyright 2014. All Rights Reserved.")
@@ -28,12 +27,15 @@ set(${MODULE_PREFIX}_SOURCES "")
 
 set(${MODULE_PREFIX}_OBJECTIVE_SOURCES
 	main.m
-	AppDelegate.m)
+	AppDelegate.m
+    MRDPIPCClient.m)
 
 list(APPEND ${MODULE_PREFIX}_SOURCES ${${MODULE_PREFIX}_OBJECTIVE_SOURCES})
 
 set(${MODULE_PREFIX}_HEADERS
-	AppDelegate.h)
+	AppDelegate.h
+    MRDPIPCClient.h
+    MRDPIPCServer.h)
 
 add_executable(${MODULE_NAME}
 	${APP_TYPE} 
