@@ -604,7 +604,6 @@ void mac_desktop_resize(rdpContext* context)
     mfc->height = settings->DesktopHeight;
     
     gdi_resize(context->gdi, mfc->width, mfc->height);
-    
     view->bitmap_context = mac_create_bitmap_context(context);
 }
 

@@ -1,6 +1,3 @@
-#ifndef MRDPVIEW_H
-#define MRDPVIEW_H
-
 /**
  * FreeRDP: A Remote Desktop Protocol Implementation
  * MacFreeRDP
