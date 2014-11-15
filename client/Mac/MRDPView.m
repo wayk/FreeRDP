@@ -19,7 +19,6 @@
 
 #include <winpr/windows.h>
 
-#include "mf_client.h"
 #import "mfreerdp.h"
 #import "MRDPView.h"
 #import "MRDPCursor.h"
@@ -71,12 +70,12 @@ void mac_desktop_resize(rdpContext* context);
 
 - (void)initialise:(rdpContext *)rdpContext
 {
+    // TODO: dispose of this properly
+    self->context = rdpContext;
+    self->instance = context->instance;
+    
     if (!initialized)
     {
-        // TODO: dispose of this properly
-        self->context = rdpContext;
-        self->instance = context->instance;
-        
         EmbedWindowEventArgs e;
         EventArgsInit(&e, "mfreerdp");
         e.embed = TRUE;
@@ -221,10 +220,10 @@ void mac_desktop_resize(rdpContext* context);
 	
     NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
     
-	int x = (int) loc.x;
-	int y = (int) loc.y;
-
-	mf_scale_mouse_event(context, instance->input, PTR_FLAGS_MOVE, x, y);
+    mfContext* mfCtx = (mfContext*)instance->context;
+    MRDPClient* client = (MRDPClient *)mfCtx->client;
+    
+    [client mouseMoved:loc];
 }
 
 - (void)mouseDown:(NSEvent *) event
@@ -235,10 +234,11 @@ void mac_desktop_resize(rdpContext* context);
 		return;
 	
     NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
-	int x = (int) loc.x;
-	int y = (int) loc.y;
-	
-	mf_scale_mouse_event(context, instance->input, PTR_FLAGS_DOWN | PTR_FLAGS_BUTTON1, x, y);
+    
+    mfContext* mfCtx = (mfContext*)instance->context;
+    MRDPClient* client = (MRDPClient *)mfCtx->client;
+    
+    [client mouseDown:loc];
 }
 
 - (void)mouseUp:(NSEvent *) event
@@ -249,10 +249,11 @@ void mac_desktop_resize(rdpContext* context);
 		return;
 	
     NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
-	int x = (int) loc.x;
-	int y = (int) loc.y;
-	
-	mf_scale_mouse_event(context, instance->input, PTR_FLAGS_BUTTON1, x, y);
+    
+    mfContext* mfCtx = (mfContext*)instance->context;
+    MRDPClient* client = (MRDPClient *)mfCtx->client;
+    
+    [client mouseUp:loc];
 }
 
 - (void)rightMouseDown:(NSEvent *)event
@@ -263,10 +264,11 @@ void mac_desktop_resize(rdpContext* context);
 		return;
 	
     NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
-	int x = (int) loc.x;
-	int y = (int) loc.y;
-	
-	mf_scale_mouse_event(context, instance->input, PTR_FLAGS_DOWN | PTR_FLAGS_BUTTON2, x, y);
+    
+    mfContext* mfCtx = (mfContext*)instance->context;
+    MRDPClient* client = (MRDPClient *)mfCtx->client;
+    
+    [client rightMouseDown:loc];
 }
 
 - (void)rightMouseUp:(NSEvent *)event
@@ -277,10 +279,11 @@ void mac_desktop_resize(rdpContext* context);
 		return;
 	
     NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
-	int x = (int) loc.x;
-	int y = (int) loc.y;
-	
-	mf_scale_mouse_event(context, instance->input, PTR_FLAGS_BUTTON2, x, y);
+    
+    mfContext* mfCtx = (mfContext*)instance->context;
+    MRDPClient* client = (MRDPClient *)mfCtx->client;
+    
+    [client rightMouseUp:loc];
 }
 
 - (void)otherMouseDown:(NSEvent *)event
@@ -291,10 +294,11 @@ void mac_desktop_resize(rdpContext* context);
 		return;
 	
     NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
-	int x = (int) loc.x;
-	int y = (int) loc.y;
-	
-	mf_scale_mouse_event(context, instance->input, PTR_FLAGS_DOWN | PTR_FLAGS_BUTTON3, x, y);
+
+    mfContext* mfCtx = (mfContext*)instance->context;
+    MRDPClient* client = (MRDPClient *)mfCtx->client;
+    
+    [client otherMouseDown:loc];
 }
 
 - (void)otherMouseUp:(NSEvent *)event
@@ -305,39 +309,26 @@ void mac_desktop_resize(rdpContext* context);
 		return;
 	
     NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
-	int x = (int) loc.x;
-	int y = (int) loc.y;
-	
-	mf_scale_mouse_event(context, instance->input, PTR_FLAGS_BUTTON3, x, y);
+
+    mfContext* mfCtx = (mfContext*)instance->context;
+    MRDPClient* client = (MRDPClient *)mfCtx->client;
+    
+    [client otherMouseUp:loc];
 }
 
 - (void)scrollWheel:(NSEvent *)event
 {
-	UINT16 flags;
-
 	[super scrollWheel:event];
 
 	if (!is_connected)
 		return;
 	
     NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
-	int x = (int) loc.x;
-	int y = (int) loc.y;
-	
-	flags = PTR_FLAGS_WHEEL;
 
-	/* 1 event = 120 units */
-	int units = [event deltaY] * 120;
-
-	/* send out all accumulated rotations */
-	while(units != 0)
-	{
-		/* limit to maximum value in WheelRotationMask (9bit signed value) */
-		int step = MIN(MAX(-256, units), 255);
-
-		mf_scale_mouse_event(context, instance->input, flags | ((UINT16)step & WheelRotationMask), x, y);
-		units -= step;
-	}
+    mfContext* mfCtx = (mfContext*)instance->context;
+    MRDPClient* client = (MRDPClient *)mfCtx->client;
+    
+    [client scrollWheelCoordinates:loc deltaY:event.deltaY];
 }
 
 - (void)mouseDragged:(NSEvent *)event
@@ -348,11 +339,11 @@ void mac_desktop_resize(rdpContext* context);
 		return;
 	
     NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
-	int x = (int) loc.x;
-	int y = (int) loc.y;
-	
-	// send mouse motion event to RDP server
-	mf_scale_mouse_event(context, instance->input, PTR_FLAGS_MOVE, x, y);
+    
+    mfContext* mfCtx = (mfContext*)instance->context;
+    MRDPClient* client = (MRDPClient *)mfCtx->client;
+    
+    [client mouseDragged:loc];
 }
 
 - (void)rightMouseDragged:(NSEvent *)event
@@ -363,11 +354,11 @@ void mac_desktop_resize(rdpContext* context);
         return;
     
     NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
-    int x = (int) loc.x;
-    int y = (int) loc.y;
     
-    // send mouse motion event to RDP server
-    mf_scale_mouse_event(context, instance->input, PTR_FLAGS_MOVE | PTR_FLAGS_BUTTON2, x, y);
+    mfContext* mfCtx = (mfContext*)instance->context;
+    MRDPClient* client = (MRDPClient *)mfCtx->client;
+    
+    [client rightMouseDragged:loc];
 }
 
 - (void)otherMouseDragged:(NSEvent *)event
@@ -378,11 +369,11 @@ void mac_desktop_resize(rdpContext* context);
         return;
     
     NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
-    int x = (int) loc.x;
-    int y = (int) loc.y;
+
+    mfContext* mfCtx = (mfContext*)instance->context;
+    MRDPClient* client = (MRDPClient *)mfCtx->client;
     
-    // send mouse motion event to RDP server
-    mf_scale_mouse_event(context, instance->input, PTR_FLAGS_MOVE | PTR_FLAGS_BUTTON3, x, y);
+    [client otherMouseDragged:loc];
 }
 
 - (void)keyDown:(NSEvent *)event
