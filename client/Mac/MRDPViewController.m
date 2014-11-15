@@ -129,6 +129,8 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     
     MRDPView *view = (MRDPView *)self.mrdpClient.delegate;
     view.delegate = nil;
+    [view release];
+    
     self.delegate = nil;
     
     freerdp_client_stop(context);

@@ -27,6 +27,7 @@
 - (void)postConnect:(freerdp*)rdpInstance;
 - (void)pause;
 - (void)resume;
+- (void)releaseResources;
 - (BOOL)provideServerCredentials:(ServerCredential **)credentials;
 - (BOOL)validateCertificate:(ServerCertificate *)certificate;
 - (BOOL)validateX509Certificate:(X509Certificate *)certificate;

@@ -9,6 +9,8 @@
 #import "MRDPClient.h"
 #import "MRDPCursor.h"
 
+#include "mf_client.h"
+
 #include <winpr/crt.h>
 #include <winpr/input.h>
 #include <winpr/synch.h>
@@ -102,6 +104,8 @@ int register_channel_fds(int* fds, int count, freerdp* instance);
     if (!self.delegate.is_connected)
         return;
     
+    [delegate releaseResources];
+    
     gdi_free(context->instance);
 }
 
@@ -143,6 +147,74 @@ int register_channel_fds(int* fds, int count, freerdp* instance);
     }
     
     //pasteboard_changecount = (int) [pasteboard_rd changeCount];
+}
+
+- (void)mouseMoved:(NSPoint)coord
+{
+    mf_scale_mouse_event(context, instance->input, PTR_FLAGS_MOVE, coord.x, coord.y);
+}
+
+- (void)mouseDown:(NSPoint)coord
+{
+    mf_scale_mouse_event(context, instance->input, PTR_FLAGS_DOWN | PTR_FLAGS_BUTTON1, coord.x, coord.y);
+}
+
+- (void)mouseUp:(NSPoint)coord
+{
+    mf_scale_mouse_event(context, instance->input, PTR_FLAGS_BUTTON1, coord.x, coord.y);
+}
+
+- (void)rightMouseDown:(NSPoint)coord
+{
+    mf_scale_mouse_event(context, instance->input, PTR_FLAGS_DOWN | PTR_FLAGS_BUTTON2, coord.x, coord.y);
+}
+
+- (void)rightMouseUp:(NSPoint)coord
+{
+    mf_scale_mouse_event(context, instance->input, PTR_FLAGS_BUTTON2, coord.x, coord.y);
+}
+
+- (void)otherMouseDown:(NSPoint)coord
+{
+    mf_scale_mouse_event(context, instance->input, PTR_FLAGS_DOWN | PTR_FLAGS_BUTTON3, coord.x, coord.y);
+}
+
+- (void)otherMouseUp:(NSPoint)coord
+{
+    mf_scale_mouse_event(context, instance->input, PTR_FLAGS_BUTTON3, coord.x, coord.y);
+}
+
+- (void)scrollWheelCoordinates:(NSPoint)coord deltaY:(CGFloat)deltaY
+{
+    UINT16 flags = PTR_FLAGS_WHEEL;
+    
+    /* 1 event = 120 units */
+    int units = deltaY * 120;
+    
+    /* send out all accumulated rotations */
+    while(units != 0)
+    {
+        /* limit to maximum value in WheelRotationMask (9bit signed value) */
+        int step = MIN(MAX(-256, units), 255);
+        
+        mf_scale_mouse_event(context, instance->input, flags | ((UINT16)step & WheelRotationMask), coord.x, coord.y);
+        units -= step;
+    }
+}
+
+- (void)mouseDragged:(NSPoint)coord
+{
+    mf_scale_mouse_event(context, instance->input, PTR_FLAGS_MOVE, coord.x, coord.y);
+}
+
+- (void)rightMouseDragged:(NSPoint)coord
+{
+    mf_scale_mouse_event(context, instance->input, PTR_FLAGS_MOVE | PTR_FLAGS_BUTTON2, coord.x, coord.y);
+}
+
+- (void)otherMouseDragged:(NSPoint)coord
+{
+    mf_scale_mouse_event(context, instance->input, PTR_FLAGS_MOVE | PTR_FLAGS_BUTTON3, coord.x, coord.y);
 }
 
 - (void)keyDown:(NSEvent *)event
