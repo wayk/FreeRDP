@@ -12,6 +12,8 @@
 
 @required
 
-- (void)clientConnected;
+- (NSString *)serverName;
+- (NSString *)serverId;
+- (void)clientConnected:(NSString *)clientName;
 
 @end

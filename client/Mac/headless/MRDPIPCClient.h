@@ -10,6 +10,7 @@
 
 @interface MRDPIPCClient : NSObject
 {
+    NSConnection *clientConnection;
     id serverProxy;
 }
 
