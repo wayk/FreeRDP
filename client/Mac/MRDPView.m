@@ -55,6 +55,11 @@ void mac_desktop_resize(rdpContext* context);
 @synthesize usesAppleKeyboard;
 @synthesize delegate;
 
+- (bool)renderToBuffer
+{
+    return false;
+}
+
 - (id)initWithFrame:(NSRect)frame
 {
 	self = [super initWithFrame:frame];

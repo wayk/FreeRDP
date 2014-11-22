@@ -9,6 +9,8 @@
 #import "MRDPClient.h"
 #import "MRDPCursor.h"
 
+#include <sys/shm.h>
+
 #include "mf_client.h"
 
 #include <winpr/crt.h>
@@ -31,6 +33,8 @@
 #import "freerdp/client/file.h"
 #import "freerdp/client/cmdline.h"
 #import "freerdp/log.h"
+
+#import "FreeRDS.h"
 
 #define TAG CLIENT_TAG("mac")
 
@@ -63,6 +67,7 @@ int register_channel_fds(int* fds, int count, freerdp* instance);
 
 @implementation MRDPClient
 
+@synthesize frameBuffer;
 @synthesize delegate;
 
 - (id)init
@@ -711,7 +716,29 @@ BOOL mac_post_connect(freerdp* instance)
     //else
     //	flags |= CLRBUF_16BPP;
     
-    gdi_init(instance, flags, NULL);
+    if(![view renderToBuffer])
+    {
+         gdi_init(instance, flags, NULL);
+    }
+    else
+    {
+        RDS_FRAMEBUFFER fb = client.frameBuffer;
+        fb.fbBitsPerPixel = 32;
+        fb.fbBytesPerPixel = 4;
+        
+        fb.fbWidth = settings->DesktopWidth;
+        fb.fbHeight = settings->DesktopHeight;
+        
+        fb.fbScanline = fb.fbWidth * fb.fbBytesPerPixel;
+        int framebufferSize = fb.fbScanline * fb.fbHeight;
+        
+        fb.fbSegmentId = shmget(IPC_PRIVATE, framebufferSize,
+                                         IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+        fb.fbSharedMemory = (BYTE*)shmat(fb.fbSegmentId, 0, 0);
+        
+        gdi_init(instance, flags, fb.fbSharedMemory);
+    }
+    
     gdi = instance->context->gdi;
     
     [view postConnect:instance];

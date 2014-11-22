@@ -5,6 +5,7 @@
 @interface AppDelegate : NSObject <NSApplicationDelegate>
 {
     MRDPIPCClient *ipcClient;
+    int parentProcessID;
 }
 
 @end

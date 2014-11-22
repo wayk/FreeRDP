@@ -12,8 +12,8 @@
 
 @required
 
-- (NSString *)serverName;
-- (NSString *)serverId;
+- (NSString *)proxyName;
+- (NSString *)proxyID;
 - (void)clientConnected:(NSString *)clientName;
 
 @end

@@ -19,6 +19,7 @@
 // TODO: Move is_connected up to the client
 @property (assign) int is_connected;
 @property (readonly) NSRect frame;
+@property (readonly) bool renderToBuffer;
 
 - (void)initialise:(rdpContext *)rdpContext;
 - (void)setNeedsDisplayInRect:(NSRect)newDrawRect;
