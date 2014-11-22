@@ -60,8 +60,9 @@ set(${MODULE_PREFIX}_HEADERS
        MRDPCenteringClipView.h
        X509Certificate.h
        Keyboard.h
+       MRDPClientDelegate.h
        Clipboard.h
-       MRDPClientDelegate.h)
+       FreeRDS.h)
 
 set(${MODULE_PREFIX}_RESOURCES "en.lproj/InfoPlist.strings")
 

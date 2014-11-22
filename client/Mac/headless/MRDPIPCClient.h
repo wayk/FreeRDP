@@ -8,12 +8,19 @@
 
 #import <Foundation/Foundation.h>
 
-@interface MRDPIPCClient : NSObject
+// TODO! Fix references...
+#import "../MRDPViewController.h"
+#import "../MRDPClientDelegate.h"
+
+@interface MRDPIPCClient : NSObject<MRDPClientDelegate>
 {
     NSConnection *clientConnection;
     id serverProxy;
+    rdpContext* context;
+    MRDPClient* mrdpClient;
 }
 
 - (id)initWithServer:(NSString *)registeredName;
+- (void)configure;
 
 @end

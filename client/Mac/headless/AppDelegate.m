@@ -5,14 +5,16 @@
 - (void)applicationDidFinishLaunching:(NSNotification*)aNotification
 {
     NSString *bundleDescription = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleLongVersionString"];
-    NSLog(@"%@", bundleDescription);
+    NSLog(@"%@\n", bundleDescription);
     
     NSString *server = nil;
+    parentProcessID = 0;
     NSArray *args = [[NSProcessInfo processInfo] arguments];
     
     if([args count] > 1)
     {
         server = args[1];
+        parentProcessID = [args[2] intValue];
     }
     
     if([server length] > 0)
@@ -21,6 +23,27 @@
     }
     
     if(ipcClient == nil)
+    {
+        [NSApp terminate:nil];
+    }
+    
+    [self setupDeadManSwitch];
+}
+
+- (void)setupDeadManSwitch
+{
+    NSNotificationCenter* center = [[NSWorkspace sharedWorkspace] notificationCenter];
+    [center addObserver:self
+               selector:@selector(appTerminated:)
+                   name:NSWorkspaceDidTerminateApplicationNotification 
+                 object:nil];
+}
+
+- (void)appTerminated:(NSNotification *)note
+{
+    int processID = [[[note userInfo] objectForKey:@"NSApplicationProcessIdentifier"] intValue];
+    
+    if(processID == parentProcessID)
     {
         [NSApp terminate:nil];
     }
