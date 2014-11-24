@@ -44,7 +44,6 @@ include(CheckCmakeCompat)
 include(CheckIncludeFiles)
 include(CheckLibraryExists)
 include(CheckStructHasMember)
-include(CMakeDetermineSystem)
 include(FindPkgConfig)
 include(TestBigEndian)
 
@@ -67,7 +66,7 @@ set(WITH_LIBRARY_VERSIONING "ON")
 set(FREERDP_VERSION_MAJOR "1")
 set(FREERDP_VERSION_MINOR "2")
 set(FREERDP_VERSION_REVISION "0")
-set(FREERDP_VERSION_SUFFIX "beta1")
+set(FREERDP_VERSION_SUFFIX "dev")
 set(FREERDP_API_VERSION "${FREERDP_VERSION_MAJOR}.${FREERDP_VERSION_MINOR}")
 set(FREERDP_VERSION "${FREERDP_API_VERSION}.${FREERDP_VERSION_REVISION}")
 if (FREERDP_VERSION_SUFFIX)
@@ -628,11 +627,6 @@ include_directories("${CMAKE_SOURCE_DIR}/winpr/include")
 include_directories("${CMAKE_BINARY_DIR}/winpr/include")
 
 add_subdirectory(winpr)
-
-if(WITH_CUNIT)
-	message(FATAL_ERROR "cunit (WITH_CUNIT) is deprecated please use BUILD_TESTING to build ctest tests.
-The cunit directory contains the old tests and is kept until all tests are converted.")
-endif()
 
 # Sub-directories
 

@@ -1,8 +1,8 @@
 /**
  * FreeRDP: A Remote Desktop Protocol Implementation
- * NSCodec Library Unit Tests
+ * Wayland Input
  *
- * Copyright 2012 Vic Lee
+ * Copyright 2014 Manuel Bachmann <tarnyko@tarnyko.net>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,11 +17,24 @@
  * limitations under the License.
  */
 
-#include "test_freerdp.h"
+#ifndef __WLF_INPUT_H
+#define __WLF_INPUT_H
 
-int init_nsc_suite(void);
-int clean_nsc_suite(void);
-int add_nsc_suite(void);
+#include <wayland-client.h>
 
-void test_nsc_decode(void);
-void test_nsc_encode(void);
+typedef struct wlf_input wlfInput;
+
+#include "wlfreerdp.h"
+
+struct wlf_input
+{
+	rdpInput *input;
+
+	struct wl_pointer *pointer;
+	struct wl_keyboard *keyboard;
+};
+
+wlfInput* wlf_CreateInput(wlfContext* wlfc);
+void wlf_DestroyInput(wlfContext* wlfc, wlfInput* input);
+
+#endif /* __WLF_INPUT_H */

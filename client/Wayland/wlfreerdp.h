@@ -1,8 +1,8 @@
 /**
  * FreeRDP: A Remote Desktop Protocol Implementation
- * Unix Domain Socket Utils
+ * Wayland Client
  *
- * Copyright 2012 Vic Lee
+ * Copyright 2014 Manuel Bachmann <tarnyko@tarnyko.net>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,20 +17,29 @@
  * limitations under the License.
  */
 
-#ifndef FREERDP_UTILS_UDS_H
-#define FREERDP_UTILS_UDS_H
+#ifndef __WLFREERDP_H
+#define __WLFREERDP_H
 
-#include <freerdp/api.h>
-#include <freerdp/types.h>
+#include <freerdp/freerdp.h>
+#include <freerdp/log.h>
+#include <winpr/wtypes.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#define TAG CLIENT_TAG("wayland")
 
-FREERDP_API int freerdp_uds_connect(const char* path);
+typedef struct wlf_context wlfContext;
 
-#ifdef __cplusplus
-}
-#endif
+#include "wlf_display.h"
+#include "wlf_window.h"
+#include "wlf_input.h"
 
-#endif /* FREERDP_UTILS_UDS_H */
+struct wlf_context
+{
+	rdpContext context;
+
+	wlfDisplay* display;
+	wlfWindow* window;
+	wlfInput* input;
+};
+
+#endif /* __WLFREERDP_H */
+

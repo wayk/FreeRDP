@@ -963,7 +963,8 @@ WINSCARDAPI LONG WINAPI PCSC_SCardListReaderGroupsW(SCARDCONTEXT hContext,
 	/* FIXME: unicode conversion */
 	status = (LONG) g_PCSC.pfnSCardListReaderGroups(hContext, (LPSTR) mszGroups, &pcsc_cchGroups);
 	status = PCSC_MapErrorCodeToWinSCard(status);
-	*pcchGroups = (DWORD) pcsc_cchGroups;
+	if (pcchGroups)
+		*pcchGroups = (DWORD) pcsc_cchGroups;
 
 	if (!PCSC_UnlockCardContext(hContext))
 		return SCARD_E_INVALID_HANDLE;
@@ -1383,8 +1384,8 @@ WINSCARDAPI LONG WINAPI PCSC_SCardGetStatusChange_Internal(SCARDCONTEXT hContext
 	int i, j;
 	int* map;
 	DWORD dwEventState;
-	PCSC_DWORD cMappedReaders;
 	BOOL stateChanged = FALSE;
+	PCSC_DWORD cMappedReaders;
 	PCSC_SCARD_READERSTATE* states;
 	LONG status = SCARD_S_SUCCESS;
 	PCSC_DWORD pcsc_dwTimeout = (PCSC_DWORD) dwTimeout;
@@ -1417,7 +1418,10 @@ WINSCARDAPI LONG WINAPI PCSC_SCardGetStatusChange_Internal(SCARDCONTEXT hContext
 	states = (PCSC_SCARD_READERSTATE*) calloc(pcsc_cReaders, sizeof(PCSC_SCARD_READERSTATE));
 
 	if (!states)
+	{
+		free (map);
 		return SCARD_E_NO_MEMORY;
+	}
 
 	for (i = j = 0; i < pcsc_cReaders; i++)
 	{
@@ -1437,6 +1441,7 @@ WINSCARDAPI LONG WINAPI PCSC_SCardGetStatusChange_Internal(SCARDCONTEXT hContext
 			states[j].szReader = rgReaderStates[i].szReader;
 
 		states[j].dwCurrentState = rgReaderStates[i].dwCurrentState;
+		states[j].pvUserData = rgReaderStates[i].pvUserData;
 		states[j].dwEventState = rgReaderStates[i].dwEventState;
 		states[j].cbAtr = rgReaderStates[i].cbAtr;
 		CopyMemory(&(states[j].rgbAtr), &(rgReaderStates[i].rgbAtr), PCSC_MAX_ATR_SIZE);
@@ -1470,6 +1475,7 @@ WINSCARDAPI LONG WINAPI PCSC_SCardGetStatusChange_Internal(SCARDCONTEXT hContext
 		rgReaderStates[i].dwCurrentState = states[j].dwCurrentState;
 		rgReaderStates[i].cbAtr = states[j].cbAtr;
 		CopyMemory(&(rgReaderStates[i].rgbAtr), &(states[j].rgbAtr), PCSC_MAX_ATR_SIZE);
+
 		/* pcsc-lite puts an event count in the higher bits of dwEventState */
 		states[j].dwEventState &= 0xFFFF;
 		dwEventState = states[j].dwEventState & ~SCARD_STATE_CHANGED;
@@ -1495,13 +1501,13 @@ WINSCARDAPI LONG WINAPI PCSC_SCardGetStatusChange_Internal(SCARDCONTEXT hContext
 			rgReaderStates[i].dwEventState = SCARD_STATE_IGNORE;
 	}
 
+	free(map);
+	free(states);
 	if ((status == SCARD_S_SUCCESS) && !stateChanged)
 		status = SCARD_E_TIMEOUT;
 	else if ((status == SCARD_E_TIMEOUT) && stateChanged)
 		return SCARD_S_SUCCESS;
 
-	free(states);
-	free(map);
 	return status;
 }
 
@@ -1610,7 +1616,15 @@ WINSCARDAPI LONG WINAPI PCSC_SCardConnect_Internal(SCARDCONTEXT hContext,
 	if (!szReaderPCSC)
 		szReaderPCSC = (char*) szReader;
 
-	pcsc_dwPreferredProtocols = (PCSC_DWORD) PCSC_ConvertProtocolsFromWinSCard(dwPreferredProtocols);
+	/**
+	 * As stated here : https://pcsclite.alioth.debian.org/api/group__API.html#ga4e515829752e0a8dbc4d630696a8d6a5
+	 * SCARD_PROTOCOL_UNDEFINED is valid for dwPreferredProtocols (only) if dwShareMode == SCARD_SHARE_DIRECT
+	 * and allows to send control commands to the reader (with SCardControl()) even if a card is not present in the reader
+	 */
+	if (pcsc_dwShareMode == SCARD_SHARE_DIRECT && dwPreferredProtocols == SCARD_PROTOCOL_UNDEFINED)
+		pcsc_dwPreferredProtocols = SCARD_PROTOCOL_UNDEFINED;
+	else
+		pcsc_dwPreferredProtocols = (PCSC_DWORD) PCSC_ConvertProtocolsFromWinSCard(dwPreferredProtocols);
 	status = (LONG) g_PCSC.pfnSCardConnect(hPrivateContext, szReaderPCSC,
 										   pcsc_dwShareMode, pcsc_dwPreferredProtocols, phCard, &pcsc_dwActiveProtocol);
 	status = PCSC_MapErrorCodeToWinSCard(status);
@@ -2033,7 +2047,11 @@ WINSCARDAPI LONG WINAPI PCSC_SCardTransmit(SCARDHANDLE hCard,
 		pcsc_pioRecvPci = (PCSC_SCARD_IO_REQUEST*) malloc(sizeof(PCSC_SCARD_IO_REQUEST) + cbExtraBytes);
 
 		if (!pcsc_pioRecvPci)
+		{
+			if (pioSendPci)
+				free (pcsc_pioSendPci);
 			return SCARD_E_NO_MEMORY;
+		}
 
 		pcsc_pioRecvPci->dwProtocol = (PCSC_DWORD) pioRecvPci->dwProtocol;
 		pcsc_pioRecvPci->cbPciLength = sizeof(PCSC_SCARD_IO_REQUEST) + cbExtraBytes;
@@ -2107,11 +2125,7 @@ WINSCARDAPI LONG WINAPI PCSC_SCardControl(SCARDHANDLE hCard,
 		{
 			ioCtlValue = _byteswap_ulong(tlv->value);
 			ioCtlValue -= 0x42000000; /* inverse of PCSC_SCARD_CTL_CODE() */
-			IoCtlMethod = METHOD_FROM_CTL_CODE(ioCtlValue);
-			IoCtlFunction = FUNCTION_FROM_CTL_CODE(ioCtlValue);
-			IoCtlAccess = ACCESS_FROM_CTL_CODE(ioCtlValue);
-			IoCtlDeviceType = DEVICE_TYPE_FROM_CTL_CODE(ioCtlValue);
-			ioCtlValue = SCARD_CTL_CODE(IoCtlFunction);
+			ioCtlValue = SCARD_CTL_CODE(ioCtlValue);
 			tlv->value = _byteswap_ulong(ioCtlValue);
 		}
 	}

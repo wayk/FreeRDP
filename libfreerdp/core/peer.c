@@ -22,12 +22,12 @@
 #endif
 
 #include <winpr/crt.h>
+#include <winpr/winsock.h>
 
 #include "info.h"
 #include "certificate.h"
 
 #include <freerdp/log.h>
-#include <freerdp/utils/tcp.h>
 
 #include "peer.h"
 
@@ -379,6 +379,11 @@ static int peer_recv_tpkt_pdu(freerdp_peer* client, wStream* s)
 					return -1;
 				break;
 
+			case PDU_TYPE_FLOW_RESPONSE:
+			case PDU_TYPE_FLOW_STOP:
+			case PDU_TYPE_FLOW_TEST:
+				break;
+
 			default:
 				WLog_ERR(TAG,  "Client sent pduType %d", pduType);
 				return -1;
@@ -643,11 +648,19 @@ void freerdp_peer_context_free(freerdp_peer* client)
 
 freerdp_peer* freerdp_peer_new(int sockfd)
 {
+	UINT32 option_value;
+	socklen_t option_len;
 	freerdp_peer* client;
 
 	client = (freerdp_peer*) calloc(1, sizeof(freerdp_peer));
 
-	freerdp_tcp_set_no_delay(sockfd, TRUE);
+	if (!client)
+		return NULL;
+
+	option_value = TRUE;
+	option_len = sizeof(option_value);
+
+	setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, (void*) &option_value, option_len);
 
 	if (client)
 	{

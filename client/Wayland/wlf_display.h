@@ -1,8 +1,8 @@
 /**
  * FreeRDP: A Remote Desktop Protocol Implementation
- * Licensing Unit Tests
+ * Wayland Displays
  *
- * Copyright 2011 Marc-Andre Moreau <marcandre.moreau@gmail.com>
+ * Copyright 2014 Manuel Bachmann <tarnyko@tarnyko.net>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,27 @@
  * limitations under the License.
  */
 
-#include "test_freerdp.h"
+#ifndef __WLF_DISPLAY_H
+#define __WLF_DISPLAY_H
 
-int init_license_suite(void);
-int clean_license_suite(void);
-int add_license_suite(void);
+#include <wayland-client.h>
 
-void test_license(void);
-void test_license_generate_keys(void);
-void test_license_encrypt_premaster_secret(void);
-void test_license_decrypt_platform_challenge(void);
+typedef struct wlf_display wlfDisplay;
+
+#include "wlfreerdp.h"
+
+struct wlf_display
+{
+	struct wl_display* display;
+	struct wl_registry* registry;
+	struct wl_compositor* compositor;
+	struct wl_shell* shell;
+	struct wl_shm* shm;
+	struct wl_seat* seat;
+};
+
+wlfDisplay* wlf_CreateDisplay(void);
+void wlf_RefreshDisplay(wlfDisplay* display);
+void wlf_DestroyDisplay(wlfContext* wlfc, wlfDisplay* display);
+
+#endif /* __WLF_DISPLAY_H */
