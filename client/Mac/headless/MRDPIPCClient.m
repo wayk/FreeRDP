@@ -17,11 +17,14 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 
 @implementation MRDPIPCClient
 
+// TODO: Make these global
 static NSString *MRDPViewDidPostErrorInfoNotification = @"MRDPViewDidPostErrorInfoNotification";
 static NSString *MRDPViewDidConnectWithResultNotification = @"MRDPViewDidConnectWithResultNotification";
-static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotification";
 
 static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
+
+@synthesize is_connected;
+@synthesize frame;
 
 - (id)initWithServer:(NSString *)registeredName
 {
@@ -54,6 +57,13 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
     return self;
 }
 
+- (void)dealloc
+{
+    [self stop];
+    
+    [super dealloc];
+}
+
 - (void)configure
 {
     if(context == nil)
@@ -66,14 +76,12 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
 
     PubSub_SubscribeConnectionResult(context->pubSub, ConnectionResultEventHandler);
     PubSub_SubscribeErrorInfo(context->pubSub, ErrorInfoEventHandler);
-    PubSub_SubscribeEmbedWindow(context->pubSub, EmbedWindowEventHandler);
 }
 
 - (void)start
 {
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidPostError:) name:MRDPViewDidPostErrorInfoNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidConnect:) name:MRDPViewDidConnectWithResultNotification object:nil];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidEmbed:) name:MRDPViewDidPostEmbedNotification object:nil];
     
     // view.usesAppleKeyboard = self.usesAppleKeyboard;
     
@@ -83,12 +91,37 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
     mfContext* mfc = (mfContext*)context;
     mfc->client = mrdpClient;
     
+    NSMakeRect(0, 0, context->settings->DesktopWidth, context->settings->DesktopHeight);
+    
     freerdp_client_start(context);
+    
+    is_stopped = false;
 }
 
 - (void)stop
 {
+    if(!is_stopped)
+    {
+        [[NSNotificationCenter defaultCenter] removeObserver:self];
+        
+        [mrdpClient pause];
 
+        freerdp_client_stop(context);
+        
+        [mrdpClient releaseResources];
+        [mrdpClient release];
+        mrdpClient = nil;
+        
+        mfContext* mfc = (mfContext *)context;
+        mfc->client = nil;
+        
+        PubSub_UnsubscribeConnectionResult(context->pubSub, ConnectionResultEventHandler);
+        PubSub_UnsubscribeErrorInfo(context->pubSub, ErrorInfoEventHandler);
+        
+        [self releaseContext];
+        
+        is_stopped = true;
+    }
 }
 
 - (void)createContext
@@ -180,6 +213,53 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
     return freerdp_set_param_double(context->settings, identifier, value);
 }
 
+- (void)viewDidConnect:(NSNotification *)notification
+{
+    rdpContext *ctx;
+    
+    [[[notification userInfo] valueForKey:@"context"] getValue:&ctx];
+    
+    if(ctx == self->context)
+    {
+        ConnectionResultEventArgs *e = nil;
+        [[[notification userInfo] valueForKey:@"connectionArgs"] getValue:&e];
+        
+        if(e->result == 0)
+        {
+            if([serverProxy delegate] && [[serverProxy delegate] respondsToSelector:@selector(didConnect)])
+            {
+                [[serverProxy delegate] performSelectorOnMainThread:@selector(didConnect) withObject:nil waitUntilDone:true];
+            }
+        }
+        else
+        {
+            if([serverProxy delegate] && [[serverProxy delegate] respondsToSelector:@selector(didFailToConnectWithError:)])
+            {
+                NSNumber *connectErrorCode =  [NSNumber numberWithUnsignedInt:freerdp_get_last_error(ctx)];
+                
+                [[serverProxy delegate] performSelectorOnMainThread:@selector(didFailToConnectWithError:) withObject:connectErrorCode waitUntilDone:true];
+            }
+        }
+    }
+}
+
+- (void)viewDidPostError:(NSNotification *)notification
+{
+    rdpContext *ctx;
+    [[[notification userInfo] valueForKey:@"context"] getValue:&ctx];
+    
+    if(ctx == self->context)
+    {
+        ErrorInfoEventArgs *e = nil;
+        [[[notification userInfo] valueForKey:@"errorArgs"] getValue:&e];
+        
+        if([serverProxy delegate] && [[serverProxy delegate] respondsToSelector:@selector(didErrorWithCode:)])
+        {
+            [[serverProxy delegate] performSelectorOnMainThread:@selector(didErrorWithCode:) withObject:[NSNumber numberWithInt:e->code] waitUntilDone:true];
+        }
+    }
+}
+
 // MRDPClientDelegate
 - (bool)renderToBuffer
 {
@@ -196,7 +276,9 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
 
 - (void)setNeedsDisplayInRect:(NSRect)newDrawRect
 {
+    NSValue* boxed = [NSValue valueWithRect:newDrawRect];
     
+    [serverProxy pixelDataUpdated:boxed];
 }
 
 - (void)setCursor:(NSCursor*) cursor
@@ -211,7 +293,10 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
 
 - (void)postConnect:(freerdp*)rdpInstance;
 {
-    printf("FRAMEBUFFER ID %i", mrdpClient.frameBuffer.fbSegmentId);
+    int framebufferSize = mrdpClient->frameBuffer->fbScanline * mrdpClient->frameBuffer->fbHeight;
+    
+    [serverProxy pixelDataAvailable:mrdpClient.frameBuffer->fbSegmentId
+                               size:framebufferSize];
 }
 
 - (void)pause
@@ -245,18 +330,6 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
 }
 
 @end
-
-void EmbedWindowEventHandler(void* ctx, EmbedWindowEventArgs* e)
-{
-    @autoreleasepool
-    {
-        rdpContext* context = (rdpContext*) ctx;
-        
-        NSDictionary *userInfo = [NSDictionary dictionaryWithObject:[NSValue valueWithPointer:context] forKey:@"context"];
-        
-        [[NSNotificationCenter defaultCenter] postNotificationName:MRDPViewDidPostEmbedNotification object:nil userInfo:userInfo];
-    }
-}
 
 void ConnectionResultEventHandler(void* ctx, ConnectionResultEventArgs* e)
 {
