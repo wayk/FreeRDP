@@ -25,7 +25,7 @@
     DWORD kbdModFlags;
     
     @public
-    RDS_FRAMEBUFFER frameBuffer;
+    RDS_FRAMEBUFFER* frameBuffer;
     id<MRDPClientDelegate> delegate;
     NSPasteboard* pasteboard_rd; /* for reading from clipboard */
     NSPasteboard* pasteboard_wr; /* for writing to clipboard */
@@ -33,7 +33,7 @@
     int pasteboard_format;
 }
 
-@property(nonatomic) RDS_FRAMEBUFFER frameBuffer;
+@property(nonatomic) RDS_FRAMEBUFFER* frameBuffer;
 @property(nonatomic, assign) id<MRDPClientDelegate> delegate;
 
 - (int)rdpStart:(rdpContext*)rdp_context;

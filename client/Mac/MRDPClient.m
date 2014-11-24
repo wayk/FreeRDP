@@ -76,6 +76,7 @@ int register_channel_fds(int* fds, int count, freerdp* instance);
     if(self)
     {
         cursors = [[NSMutableArray alloc] initWithCapacity:10];
+        frameBuffer = (RDS_FRAMEBUFFER *) malloc(sizeof(RDS_FRAMEBUFFER));
     }
     
     return self;
@@ -106,12 +107,22 @@ int register_channel_fds(int* fds, int count, freerdp* instance);
 
 - (void)releaseResources
 {
-    if (!self.delegate.is_connected)
-        return;
+    // TODO is_connected is dodgy, it gets set on connection and then never touched again...
+    //    if (!self.delegate.is_connected)
+    //        return;
+    
+    if(delegate.renderToBuffer)
+    {
+        shmdt(frameBuffer->fbSharedMemory);
+        
+        ZeroMemory(frameBuffer, sizeof(RDS_FRAMEBUFFER));
+    }
+    else // TODO: Not sure about this
+    {
+        gdi_free(context->instance);
+    }
     
     [delegate releaseResources];
-    
-    gdi_free(context->instance);
 }
 
 - (void)pause
@@ -722,26 +733,30 @@ BOOL mac_post_connect(freerdp* instance)
     }
     else
     {
-        RDS_FRAMEBUFFER fb = client.frameBuffer;
-        fb.fbBitsPerPixel = 32;
-        fb.fbBytesPerPixel = 4;
+        client->frameBuffer->fbBitsPerPixel = 32;
+        client->frameBuffer->fbBytesPerPixel = 4;
         
-        fb.fbWidth = settings->DesktopWidth;
-        fb.fbHeight = settings->DesktopHeight;
+        client->frameBuffer->fbWidth = settings->DesktopWidth;
+        client->frameBuffer->fbHeight = settings->DesktopHeight;
         
-        fb.fbScanline = fb.fbWidth * fb.fbBytesPerPixel;
-        int framebufferSize = fb.fbScanline * fb.fbHeight;
+        client->frameBuffer->fbScanline = client->frameBuffer->fbWidth * client->frameBuffer->fbBytesPerPixel;
+        int framebufferSize = client->frameBuffer->fbScanline * client->frameBuffer->fbHeight;
         
-        fb.fbSegmentId = shmget(IPC_PRIVATE, framebufferSize,
+        client->frameBuffer->fbSegmentId = shmget(IPC_PRIVATE, framebufferSize,
                                          IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-        fb.fbSharedMemory = (BYTE*)shmat(fb.fbSegmentId, 0, 0);
+        client->frameBuffer->fbSharedMemory = (BYTE*)shmat(client->frameBuffer->fbSegmentId, 0, 0);
         
-        gdi_init(instance, flags, fb.fbSharedMemory);
+        gdi_init(instance, flags, client->frameBuffer->fbSharedMemory);
     }
     
     gdi = instance->context->gdi;
     
     [view postConnect:instance];
+    
+    if([view renderToBuffer])
+    {
+        shmctl(client->frameBuffer->fbSegmentId, IPC_RMID, NULL);
+    }
     
     pointer_cache_register_callbacks(instance->update);
     graphics_register_pointer(instance->context->graphics, &rdp_pointer);
