@@ -1523,22 +1523,6 @@ static void update_send_pointer_position(rdpContext* context, POINTER_POSITION_U
 	Stream_Release(s);
 }
 
-static void update_send_pointer_position(rdpContext* context, POINTER_POSITION_UPDATE* pointerPosition)
-{
-	wStream* s;
-	rdpRdp* rdp = context->rdp;
-
-	s = fastpath_update_pdu_init(rdp->fastpath);
-
-	Stream_EnsureRemainingCapacity(s, 16);
-
-	Stream_Write_UINT16(s, pointerPosition->xPos); /* xPos (2 bytes) */
-	Stream_Write_UINT16(s, pointerPosition->yPos); /* yPos (2 bytes) */
-
-	fastpath_send_update_pdu(rdp->fastpath, FASTPATH_UPDATETYPE_PTR_POSITION, s);
-	Stream_Release(s);
-}
-
 static void update_write_pointer_color(wStream* s, POINTER_COLOR_UPDATE* pointer_color)
 {
 	Stream_EnsureRemainingCapacity(s, 32 + (int) pointer_color->lengthAndMask + (int) pointer_color->lengthXorMask);
