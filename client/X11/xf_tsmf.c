@@ -398,7 +398,6 @@ int xf_tsmf_xv_init(xfContext* xfc, TsmfClientContext* tsmf)
 		for (i = 0; i < ret; i++)
 		{
 			xv->xv_pixfmts[i] = fo[i].id;
-
 			WLog_DBG(TAG, "%c%c%c%c ", ((char*)(xv->xv_pixfmts + i))[0], ((char*)(xv->xv_pixfmts + i))[1],
 					 ((char*)(xv->xv_pixfmts + i))[2], ((char*)(xv->xv_pixfmts + i))[3]);
 		}

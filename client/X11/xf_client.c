@@ -1127,7 +1127,8 @@ int xf_logon_error_info(freerdp* instance, UINT32 data, UINT32 type)
 
 void xf_window_free(xfContext* xfc)
 {
-	rdpContext *context = (rdpContext *) xfc;
+	rdpContext* context = (rdpContext*) xfc;
+
 	xf_keyboard_free(xfc);
 	if(xfc->gc)
 	{
