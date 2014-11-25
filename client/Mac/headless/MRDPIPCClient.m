@@ -11,6 +11,8 @@
 #import "MRDPIPCClient.h"
 #import "MRDPIPCServer.h"
 
+#import "../MRDPCursor.h"
+
 void EmbedWindowEventHandler(void* context, EmbedWindowEventArgs* e);
 void ConnectionResultEventHandler(void* context, ConnectionResultEventArgs* e);
 void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
@@ -91,7 +93,7 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
     mfContext* mfc = (mfContext*)context;
     mfc->client = mrdpClient;
     
-    NSMakeRect(0, 0, context->settings->DesktopWidth, context->settings->DesktopHeight);
+    self.frame = NSMakeRect(0, 0, context->settings->DesktopWidth, context->settings->DesktopHeight);
     
     freerdp_client_start(context);
     
@@ -122,6 +124,15 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
         
         is_stopped = true;
     }
+}
+
+- (void)mouseMoved:(NSValue *)value
+{
+    NSPoint point = [value pointValue];
+ 
+    NSLog(@"mouse MOVED!");
+    
+    [mrdpClient mouseMoved:point];
 }
 
 - (void)createContext
@@ -281,9 +292,20 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
     [serverProxy pixelDataUpdated:boxed];
 }
 
-- (void)setCursor:(NSCursor*) cursor
+- (void)setCursor:(MRDPCursor*) cursor
 {
+    NSPoint hotspot;
+    NSData* cursorData = nil;
     
+    if(cursor != nil)
+    {
+        hotspot = cursor->nsCursor.hotSpot;
+        cursorData = [cursor->bmiRep TIFFRepresentation];
+    }
+    
+    NSValue* boxedHotspot = [NSValue valueWithPoint:hotspot];
+    
+    [serverProxy cursorUpdated:cursorData hotspot:boxedHotspot];
 }
 
 - (void)preConnect:(freerdp*)rdpInstance

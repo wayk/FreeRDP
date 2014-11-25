@@ -22,6 +22,7 @@
 #import "mfreerdp.h"
 #import "mf_client.h"
 #import "Keyboard.h"
+#import "MRDPCursor.h"
 
 #import "MRDPViewDelegate.h"
 
@@ -40,7 +41,7 @@
     NSObject<MRDPViewDelegate> *delegate;
 }
 
-- (void)setCursor:(NSCursor*) cursor;
+- (void)setCursor:(MRDPCursor*) cursor;
 - (void)releaseResources;
 - (void)preConnect:(freerdp*)rdpInstance;
 - (void)postConnect:(freerdp*)rdpInstance;

@@ -985,7 +985,7 @@ void mf_Pointer_Set(rdpContext* context, rdpPointer* pointer)
     {
         if (cursor->pointer == pointer)
         {
-            [view setCursor:cursor->nsCursor];
+            [view setCursor:cursor];
             return;
         }
     }
@@ -1003,7 +1003,7 @@ void mf_Pointer_SetDefault(rdpContext* context)
     mfContext* mfc = (mfContext*) context;
     MRDPClient* client = (MRDPClient *)mfc->client;
     id<MRDPClientDelegate> view = (id<MRDPClientDelegate>)client.delegate;
-    [view setCursor:[NSCursor arrowCursor]];
+    [view setCursor:nil];
 }
 
 /***********************************************************************

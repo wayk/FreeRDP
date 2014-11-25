@@ -8,6 +8,7 @@
 
 #import <Foundation/Foundation.h>
 
+#import "MRDPCursor.h"
 #import "ServerCredential.h"
 #import "ServerCertificate.h"
 #import "X509Certificate.h"
@@ -23,7 +24,7 @@
 
 - (void)initialise:(rdpContext *)rdpContext;
 - (void)setNeedsDisplayInRect:(NSRect)newDrawRect;
-- (void)setCursor:(NSCursor*) cursor;
+- (void)setCursor:(MRDPCursor*) cursor;
 - (void)preConnect:(freerdp*)rdpInstance;
 - (void)postConnect:(freerdp*)rdpInstance;
 - (void)pause;
