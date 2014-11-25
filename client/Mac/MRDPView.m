@@ -127,12 +127,11 @@ void mac_desktop_resize(rdpContext* context);
     }
 }
 
-- (void)setCursor:(NSCursor*) cursor
+- (void)setCursor:(MRDPCursor*) cursor
 {
-	self->currentCursor = cursor;
+    self->currentCursor = cursor == nil ?[NSCursor arrowCursor] : cursor->nsCursor;
 	[[self window] invalidateCursorRectsForView:self];
 }
-
 - (void)resetCursorRects
 {
 	[self addCursorRect:[self visibleRect] cursor:currentCursor];
