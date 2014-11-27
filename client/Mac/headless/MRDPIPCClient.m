@@ -126,13 +126,74 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
     }
 }
 
-- (void)mouseMoved:(NSValue *)value
+- (void)mouseDown:(NSValue *)boxed
 {
-    NSPoint point = [value pointValue];
- 
-    NSLog(@"mouse MOVED!");
+    NSPoint point = [boxed pointValue];
+    
+    [mrdpClient mouseDown:point];
+}
+
+- (void)mouseDragged:(NSValue *)boxed
+{
+    NSPoint point = [boxed pointValue];
+    
+    [mrdpClient mouseDragged:point];
+}
+
+- (void)mouseMoved:(NSValue *)boxed
+{
+    NSPoint point = [boxed pointValue];
     
     [mrdpClient mouseMoved:point];
+}
+
+- (void)mouseUp:(NSValue *)boxed
+{
+    NSPoint point = [boxed pointValue];
+    
+    [mrdpClient mouseUp:point];
+}
+
+- (void)otherMouseDown:(NSValue *)boxed
+{
+    NSPoint point = [boxed pointValue];
+    
+    [mrdpClient otherMouseDown:point];
+}
+
+- (void)otherMouseDragged:(NSValue *)boxed
+{
+    NSPoint point = [boxed pointValue];
+    
+    [mrdpClient otherMouseDragged:point];
+}
+
+- (void)otherMouseUp:(NSValue *)boxed
+{
+    NSPoint point = [boxed pointValue];
+    
+    [mrdpClient otherMouseUp:point];
+}
+
+- (void)rightMouseDown:(NSValue *)boxed
+{
+    NSPoint point = [boxed pointValue];
+    
+    [mrdpClient rightMouseDown:point];
+}
+
+- (void)rightMouseDragged:(NSValue *)boxed
+{
+    NSPoint point = [boxed pointValue];
+    
+    [mrdpClient rightMouseDragged:point];
+}
+
+- (void)rightMouseUp:(NSValue *)boxed
+{
+    NSPoint point = [boxed pointValue];
+    
+    [mrdpClient rightMouseUp:point];
 }
 
 - (void)createContext
@@ -289,7 +350,7 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
 {
     NSValue* boxed = [NSValue valueWithRect:newDrawRect];
     
-    [serverProxy pixelDataUpdated:boxed];
+    [serverProxy performSelector:@selector(pixelDataUpdated:) withObject:boxed afterDelay:0.0];
 }
 
 - (void)setCursor:(MRDPCursor*) cursor

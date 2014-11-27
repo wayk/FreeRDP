@@ -54,5 +54,3 @@
 @property(nonatomic, assign) NSObject<MRDPViewDelegate> *delegate;
 
 @end
-
-#endif // MRDPVIEW_H
