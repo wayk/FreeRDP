@@ -27,8 +27,8 @@
     @public
     RDS_FRAMEBUFFER* frameBuffer;
     id<MRDPClientDelegate> delegate;
-    NSPasteboard* pasteboard_rd; /* for reading from clipboard */
-    NSPasteboard* pasteboard_wr; /* for writing to clipboard */
+    NSPasteboard* pasteboard_rd;
+    NSPasteboard* pasteboard_wr;
     int pasteboard_changecount;
     int pasteboard_format;
 }
