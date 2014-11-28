@@ -730,11 +730,22 @@ BOOL mac_post_connect(freerdp* instance)
         client->frameBuffer->fbScanline = client->frameBuffer->fbWidth * client->frameBuffer->fbBytesPerPixel;
         int framebufferSize = client->frameBuffer->fbScanline * client->frameBuffer->fbHeight;
         
-        client->frameBuffer->fbSegmentId = shmget(IPC_PRIVATE, framebufferSize,
-                                         IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-        client->frameBuffer->fbSharedMemory = (BYTE*)shmat(client->frameBuffer->fbSegmentId, 0, 0);
+        int result = shmget(IPC_PRIVATE, framebufferSize, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
         
-        gdi_init(instance, flags, client->frameBuffer->fbSharedMemory);
+        if(result > -1)
+        {
+            client->frameBuffer->fbSegmentId = result;
+            client->frameBuffer->fbSharedMemory = (BYTE*)shmat(client->frameBuffer->fbSegmentId, 0, 0);
+            
+            gdi_init(instance, flags, client->frameBuffer->fbSharedMemory);
+    
+        }
+        else
+        {
+            NSLog(@"Failed to obtain shared memory: %s (%d)", strerror(errno), errno);
+            
+            return FALSE;
+        }
     }
     
     gdi = instance->context->gdi;
