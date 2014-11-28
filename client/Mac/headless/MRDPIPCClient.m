@@ -126,74 +126,86 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
     }
 }
 
-- (void)mouseDown:(NSValue *)boxed
+- (void)keyDown:(NSEvent *)event
 {
-    NSPoint point = [boxed pointValue];
-    
-    [mrdpClient mouseDown:point];
+    [mrdpClient keyDown:event];
 }
 
-- (void)mouseDragged:(NSValue *)boxed
+- (void)keyUp:(NSEvent*)event
 {
-    NSPoint point = [boxed pointValue];
-    
-    [mrdpClient mouseDragged:point];
+    [mrdpClient keyUp:event];
 }
 
-- (void)mouseMoved:(NSValue *)boxed
+- (void)flagsChanged:(NSEvent*)event
 {
-    NSPoint point = [boxed pointValue];
-    
-    [mrdpClient mouseMoved:point];
+    [mrdpClient flagsChanged:event];
 }
 
-- (void)mouseUp:(NSValue *)boxed
+- (void)forwardMouseEvent:(NSArray *)args
 {
-    NSPoint point = [boxed pointValue];
+    int eventType = (NSEventType)[args[0] integerValue];
+    float xCoord = [args[1] floatValue];
+    float yCoord = [args[2] floatValue];
+    NSPoint coord = NSMakePoint(xCoord, yCoord);
     
-    [mrdpClient mouseUp:point];
-}
-
-- (void)otherMouseDown:(NSValue *)boxed
-{
-    NSPoint point = [boxed pointValue];
-    
-    [mrdpClient otherMouseDown:point];
-}
-
-- (void)otherMouseDragged:(NSValue *)boxed
-{
-    NSPoint point = [boxed pointValue];
-    
-    [mrdpClient otherMouseDragged:point];
-}
-
-- (void)otherMouseUp:(NSValue *)boxed
-{
-    NSPoint point = [boxed pointValue];
-    
-    [mrdpClient otherMouseUp:point];
-}
-
-- (void)rightMouseDown:(NSValue *)boxed
-{
-    NSPoint point = [boxed pointValue];
-    
-    [mrdpClient rightMouseDown:point];
-}
-
-- (void)rightMouseDragged:(NSValue *)boxed
-{
-    NSPoint point = [boxed pointValue];
-    
-    [mrdpClient rightMouseDragged:point];
-}
-
-- (void)rightMouseUp:(NSValue *)boxed
-{
-    NSPoint point = [boxed pointValue];
-    
-    [mrdpClient rightMouseUp:point];
+    switch(eventType)
+    {
+        case NSLeftMouseDown:
+        {
+            [mrdpClient mouseDown:coord];
+            break;
+        }
+        case NSLeftMouseUp:
+        {
+            [mrdpClient mouseUp:coord];
+            break;
+        }
+        case NSRightMouseDown:
+        {
+            [mrdpClient rightMouseDown:coord];
+            break;
+        }
+        case NSRightMouseUp:
+        {
+            [mrdpClient rightMouseUp:coord];
+            break;
+        }
+        case NSMouseMoved:
+        {
+            [mrdpClient mouseMoved:coord];
+            break;
+        }
+        case NSLeftMouseDragged:
+        {
+            [mrdpClient mouseDragged:coord];
+            break;
+        }
+        case NSRightMouseDragged:
+        {
+            [mrdpClient rightMouseDragged:coord];
+            break;
+        }
+        case NSOtherMouseDown:
+        {
+            [mrdpClient otherMouseDown:coord];
+            break;
+        }
+        case NSOtherMouseUp:
+        {
+            [mrdpClient otherMouseUp:coord];
+            break;
+        }
+        case NSOtherMouseDragged:
+        {
+            [mrdpClient otherMouseDragged:coord];
+            break;
+        }
+        case NSScrollWheel:
+        {
+            float yDelta = [args[3] floatValue];
+            [mrdpClient scrollWheelCoordinates:coord deltaY:yDelta];
+        }
+    }
 }
 
 - (void)createContext
