@@ -99,7 +99,11 @@ void mac_end_paint(rdpContext* context);
     
     if(delegate.renderToBuffer)
     {
-        shmdt(frameBuffer->fbSharedMemory);
+        size_t shmemSize = frameBuffer->fbScanline * frameBuffer->fbHeight;
+        if(munmap(frameBuffer->fbSharedMemory, shmemSize) != 0)
+        {
+            NSLog(@"Failed to unmap shared memory object: %s (%d)", strerror(errno), errno);
+        }
         
         ZeroMemory(frameBuffer, sizeof(RDS_FRAMEBUFFER));
     }
@@ -723,28 +727,44 @@ BOOL mac_post_connect(freerdp* instance)
     {
         client->frameBuffer->fbBitsPerPixel = 32;
         client->frameBuffer->fbBytesPerPixel = 4;
-        
         client->frameBuffer->fbWidth = settings->DesktopWidth;
         client->frameBuffer->fbHeight = settings->DesktopHeight;
-        
         client->frameBuffer->fbScanline = client->frameBuffer->fbWidth * client->frameBuffer->fbBytesPerPixel;
-        int framebufferSize = client->frameBuffer->fbScanline * client->frameBuffer->fbHeight;
         
-        int result = shmget(IPC_PRIVATE, framebufferSize, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+        size_t shmemSize = client->frameBuffer->fbScanline * client->frameBuffer->fbHeight;
+        const char* shmName = [view.renderBufferName UTF8String];
+        client->frameBuffer->fbSegmentId = shm_open(shmName, (O_CREAT | O_EXCL | O_RDWR), 0600);
         
-        if(result > -1)
+        if (client->frameBuffer->fbSegmentId >= 0)
         {
-            client->frameBuffer->fbSegmentId = result;
-            client->frameBuffer->fbSharedMemory = (BYTE*)shmat(client->frameBuffer->fbSegmentId, 0, 0);
+            if (ftruncate(client->frameBuffer->fbSegmentId, shmemSize) == 0)
+            {
+                client->frameBuffer->fbSharedMemory = mmap(NULL, shmemSize, (PROT_READ | PROT_WRITE), MAP_SHARED,
+                                                           client->frameBuffer->fbSegmentId, 0);
+                
+                if (client->frameBuffer->fbSharedMemory != MAP_FAILED)
+                {
+                    gdi_init(instance, flags, client->frameBuffer->fbSharedMemory);
+                }
+                else
+                {
+                    NSLog(@"Failed to map shared memory object: %s (%d)", strerror(errno), errno);
+                    return false;
+                }
+            }
+            else
+            {
+                NSLog(@"Failed to truncate shared memory object");
+                return false;
+            }
             
-            gdi_init(instance, flags, client->frameBuffer->fbSharedMemory);
-    
+            // Note: sharedMemory still valid until munmap() called
+            close(client->frameBuffer->fbSegmentId);
         }
         else
         {
-            NSLog(@"Failed to obtain shared memory: %s (%d)", strerror(errno), errno);
-            
-            return FALSE;
+            NSLog(@"Failed to open shared memory object: %s (%d)", strerror(errno), errno);
+            return false;
         }
     }
     
@@ -754,7 +774,10 @@ BOOL mac_post_connect(freerdp* instance)
     
     if([view renderToBuffer])
     {
-        shmctl(client->frameBuffer->fbSegmentId, IPC_RMID, NULL);
+        if(shm_unlink([view.renderBufferName UTF8String]) != 0)
+        {
+            NSLog(@"Failed to unlink shared memory object: %s (%d)", strerror(errno), errno);
+        }
     }
     
     pointer_cache_register_callbacks(instance->update);

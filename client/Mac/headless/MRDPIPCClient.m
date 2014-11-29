@@ -350,6 +350,11 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
     return true;
 }
 
+- (NSString*)renderBufferName
+{
+    return [NSString stringWithFormat:@"/%@", [serverProxy proxyID]];
+}
+
 //@property (assign) int is_connected;
 //@property (readonly) NSRect frame;
 
@@ -390,8 +395,7 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
 {
     int framebufferSize = mrdpClient->frameBuffer->fbScanline * mrdpClient->frameBuffer->fbHeight;
     
-    [serverProxy pixelDataAvailable:mrdpClient.frameBuffer->fbSegmentId
-                               size:framebufferSize];
+    [serverProxy pixelDataAvailable:framebufferSize];
 }
 
 - (void)pause
