@@ -16,7 +16,7 @@
 - (NSString *)proxyID;
 - (void)clientConnected:(NSString *)clientName;
 - (void)cursorUpdated:(NSData *)cursorData hotspot:(NSValue *)hotspot;
-- (void)pixelDataAvailable:(int)shmId size:(int)shmSize;
+- (void)pixelDataAvailable:(int)shmSize;
 - (void)pixelDataUpdated:(NSValue *)dirtyRect;
 
 @property (nonatomic, readonly) id delegate;

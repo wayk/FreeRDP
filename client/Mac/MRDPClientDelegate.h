@@ -21,6 +21,7 @@
 @property (assign) int is_connected;
 @property (readonly) NSRect frame;
 @property (readonly) bool renderToBuffer;
+@property (readonly) NSString* renderBufferName;
 
 - (void)initialise:(rdpContext *)rdpContext;
 - (void)setNeedsDisplayInRect:(NSRect)newDrawRect;

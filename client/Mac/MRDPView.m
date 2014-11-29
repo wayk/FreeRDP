@@ -60,6 +60,11 @@ void mac_desktop_resize(rdpContext* context);
     return false;
 }
 
+- (NSString*)renderBufferName
+{
+    return nil;
+}
+
 - (id)initWithFrame:(NSRect)frame
 {
 	self = [super initWithFrame:frame];
