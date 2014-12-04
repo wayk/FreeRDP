@@ -339,16 +339,6 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     return freerdp_set_param_string(context->settings, identifier, cString);
 }
 
-- (double)getDoubleSettingForIdentifier:(int)identifier
-{
-    return freerdp_get_param_double(context-> settings, identifier);    
-}
-
-- (int)setDoubleSettingForIdentifier:(int)identifier withValue:(double)value
-{
-    return freerdp_set_param_double(context->settings, identifier, value);
-}
-
 - (NSString *)getErrorInfoString:(int)code
 {
     const char* errorMessage = freerdp_get_error_info_string(code);
