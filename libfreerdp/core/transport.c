@@ -71,7 +71,7 @@ wStream* transport_send_stream_init(rdpTransport* transport, int size)
 
 void transport_attach(rdpTransport* transport, int sockfd)
 {
-	tcp_attach(transport->TcpIn, sockfd);
+	freerdp_tcp_attach(transport->TcpIn, sockfd);
 	transport->SplitInputOutput = FALSE;
 	transport->TcpOut = transport->TcpIn;
 	transport->frontBio = transport->TcpIn->bufferedBio;
@@ -149,12 +149,16 @@ static int transport_bio_tsg_read(BIO* bio, char* buf, int size)
 	{
 		BIO_clear_flags(bio, BIO_FLAGS_SHOULD_RETRY);
 	}
+	else if (status == 0)
+	{
+		BIO_set_flags(bio, BIO_FLAGS_SHOULD_RETRY);
+	}
 	else
 	{
 		BIO_set_flags(bio, BIO_FLAGS_READ);
 	}
 
-	return status >= 0 ? status : -1;
+	return status > 0 ? status : -1;
 }
 
 static int transport_bio_tsg_puts(BIO* bio, const char* str)
@@ -439,14 +443,14 @@ BOOL transport_connect(rdpTransport* transport, const char* hostname, UINT16 por
 	{
 		transport->layer = TRANSPORT_LAYER_TSG;
 		transport->SplitInputOutput = TRUE;
-		transport->TcpOut = tcp_new(settings);
+		transport->TcpOut = freerdp_tcp_new(settings);
 
-		if (!tcp_connect(transport->TcpIn, settings->GatewayHostname, settings->GatewayPort, timeout) ||
-				!tcp_set_blocking_mode(transport->TcpIn, FALSE))
+		if (!freerdp_tcp_connect(transport->TcpIn, settings->GatewayHostname, settings->GatewayPort, timeout) ||
+				!freerdp_tcp_set_blocking_mode(transport->TcpIn, FALSE))
 			return FALSE;
 
-		if (!tcp_connect(transport->TcpOut, settings->GatewayHostname, settings->GatewayPort, timeout) ||
-				!tcp_set_blocking_mode(transport->TcpOut, FALSE))
+		if (!freerdp_tcp_connect(transport->TcpOut, settings->GatewayHostname, settings->GatewayPort, timeout) ||
+				!freerdp_tcp_set_blocking_mode(transport->TcpOut, FALSE))
 			return FALSE;
 
 		if (!transport_tsg_connect(transport, hostname, port))
@@ -456,7 +460,7 @@ BOOL transport_connect(rdpTransport* transport, const char* hostname, UINT16 por
 	}
 	else
 	{
-		status = tcp_connect(transport->TcpIn, hostname, port, timeout);
+		status = freerdp_tcp_connect(transport->TcpIn, hostname, port, timeout);
 		transport->SplitInputOutput = FALSE;
 		transport->TcpOut = transport->TcpIn;
 		transport->frontBio = transport->TcpIn->bufferedBio;
@@ -550,11 +554,11 @@ static int transport_wait_for_read(rdpTransport* transport)
 
 	if (tcpIn->readBlocked)
 	{
-		return tcp_wait_read(tcpIn, 10);
+		return freerdp_tcp_wait_read(tcpIn, 10);
 	}
 	else if (tcpIn->writeBlocked)
 	{
-		return tcp_wait_write(tcpIn, 10);
+		return freerdp_tcp_wait_write(tcpIn, 10);
 	}
 
 	USleep(1000);
@@ -568,11 +572,11 @@ static int transport_wait_for_write(rdpTransport* transport)
 
 	if (tcpOut->writeBlocked)
 	{
-		return tcp_wait_write(tcpOut, 10);
+		return freerdp_tcp_wait_write(tcpOut, 10);
 	}
 	else if (tcpOut->readBlocked)
 	{
-		return tcp_wait_read(tcpOut, 10);
+		return freerdp_tcp_wait_read(tcpOut, 10);
 	}
 
 	USleep(1000);
@@ -938,12 +942,12 @@ void transport_get_fds(rdpTransport* transport, void** rfds, int* rcount)
 
 void transport_get_read_handles(rdpTransport* transport, HANDLE* events, DWORD* count)
 {
-	events[*count] = tcp_get_event_handle(transport->TcpIn);
+	events[*count] = freerdp_tcp_get_event_handle(transport->TcpIn);
 	(*count)++;
 
 	if (transport->SplitInputOutput)
 	{
-		events[*count] = tcp_get_event_handle(transport->TcpOut);
+		events[*count] = freerdp_tcp_get_event_handle(transport->TcpOut);
 		(*count)++;
 	}
 
@@ -1063,12 +1067,12 @@ BOOL transport_set_blocking_mode(rdpTransport* transport, BOOL blocking)
 
 	if (transport->SplitInputOutput)
 	{
-		status &= tcp_set_blocking_mode(transport->TcpIn, blocking);
-		status &= tcp_set_blocking_mode(transport->TcpOut, blocking);
+		status &= freerdp_tcp_set_blocking_mode(transport->TcpIn, blocking);
+		status &= freerdp_tcp_set_blocking_mode(transport->TcpOut, blocking);
 	}
 	else
 	{
-		status &= tcp_set_blocking_mode(transport->TcpIn, blocking);
+		status &= freerdp_tcp_set_blocking_mode(transport->TcpIn, blocking);
 	}
 
 	if (transport->layer == TRANSPORT_LAYER_TSG || transport->layer == TRANSPORT_LAYER_TSG_TLS)
@@ -1162,7 +1166,7 @@ rdpTransport* transport_new(rdpSettings* settings)
 	if (!transport->log)
 		goto out_free;
 
-	transport->TcpIn = tcp_new(settings);
+	transport->TcpIn = freerdp_tcp_new(settings);
 
 	if (!transport->TcpIn)
 		goto out_free;
@@ -1213,7 +1217,7 @@ out_free_receivebuffer:
 out_free_receivepool:
 	StreamPool_Free(transport->ReceivePool);
 out_free_tcpin:
-	tcp_free(transport->TcpIn);
+	freerdp_tcp_free(transport->TcpIn);
 out_free:
 	free(transport);
 	return NULL;
@@ -1243,10 +1247,10 @@ void transport_free(rdpTransport* transport)
 	transport->TlsOut = NULL;
 
 	if (transport->TcpIn)
-		tcp_free(transport->TcpIn);
+		freerdp_tcp_free(transport->TcpIn);
 
 	if (transport->TcpOut != transport->TcpIn)
-		tcp_free(transport->TcpOut);
+		freerdp_tcp_free(transport->TcpOut);
 
 	transport->TcpIn = NULL;
 	transport->TcpOut = NULL;
