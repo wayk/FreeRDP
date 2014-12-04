@@ -18,12 +18,10 @@
     id serverProxy;
     rdpContext* context;
     MRDPClient* mrdpClient;
-    int is_connected;
     bool is_stopped;
     NSRect frame;
 }
 
-@property (assign) int is_connected;
 @property (assign) NSRect frame;
 
 - (id)initWithServer:(NSString *)registeredName;

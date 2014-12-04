@@ -17,8 +17,6 @@
 
 @required
 
-// TODO: Move is_connected up to the client
-@property (assign) int is_connected;
 @property (readonly) NSRect frame;
 @property (readonly) bool renderToBuffer;
 @property (readonly) NSString* renderBufferName;
@@ -27,7 +25,7 @@
 - (void)setNeedsDisplayInRect:(NSRect)newDrawRect;
 - (void)setCursor:(MRDPCursor*) cursor;
 - (void)preConnect:(freerdp*)rdpInstance;
-- (void)postConnect:(freerdp*)rdpInstance;
+- (bool)postConnect:(freerdp*)rdpInstance;
 - (void)pause;
 - (void)resume;
 - (void)releaseResources;

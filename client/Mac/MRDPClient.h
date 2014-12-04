@@ -14,6 +14,7 @@
 #import "FreeRDS.h"
 
 #import "MRDPClientDelegate.h"
+#import "ServerDrive.h"
 
 @interface MRDPClient : NSObject
 {
@@ -25,6 +26,7 @@
     DWORD kbdModFlags;
     
     @public
+    bool is_connected;
     RDS_FRAMEBUFFER* frameBuffer;
     id<MRDPClientDelegate> delegate;
     NSPasteboard* pasteboard_rd;
@@ -33,6 +35,7 @@
     int pasteboard_format;
 }
 
+@property(nonatomic, assign) bool is_connected;
 @property(nonatomic) RDS_FRAMEBUFFER* frameBuffer;
 @property(nonatomic, assign) id<MRDPClientDelegate> delegate;
 
@@ -40,6 +43,9 @@
 - (void)releaseResources;
 - (void)pause;
 - (void)resume;
+- (NSString*)getErrorInfoString:(int)code;
+- (void)sendCtrlAltDelete;
+- (void)addServerDrive:(ServerDrive *)drive;
 - (void)onPasteboardTimerFired:(NSTimer*)timer;
 - (void)keyDown:(NSEvent *)event;
 - (void)keyUp:(NSEvent *)event;

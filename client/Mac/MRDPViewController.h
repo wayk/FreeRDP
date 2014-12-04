@@ -20,13 +20,11 @@
     @public
 	rdpContext* context;
     MRDPClient* mrdpClient;
-    BOOL usesAppleKeyboard;
 }
 
 @property(nonatomic, assign) NSObject<MRDPViewControllerDelegate> *delegate;
 @property (assign) rdpContext *context;
 @property (nonatomic, readonly) BOOL isConnected;
-@property (assign) BOOL usesAppleKeyboard;
 @property (nonatomic, assign) MRDPClient *mrdpClient;
 @property (nonatomic, readonly) NSView *rdpView;
 

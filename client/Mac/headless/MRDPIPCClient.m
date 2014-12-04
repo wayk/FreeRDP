@@ -11,6 +11,7 @@
 #import "MRDPIPCClient.h"
 #import "MRDPIPCServer.h"
 
+#import "../MRDPClientNotifications.h"
 #import "../MRDPCursor.h"
 
 void EmbedWindowEventHandler(void* context, EmbedWindowEventArgs* e);
@@ -19,14 +20,12 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 
 @implementation MRDPIPCClient
 
-// TODO: Make these global
-static NSString *MRDPViewDidPostErrorInfoNotification = @"MRDPViewDidPostErrorInfoNotification";
-static NSString *MRDPViewDidConnectWithResultNotification = @"MRDPViewDidConnectWithResultNotification";
-
 static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
 
-@synthesize is_connected;
-@synthesize frame;
+- (BOOL)isConnected
+{
+    return self->mrdpClient.is_connected;
+}
 
 - (id)initWithServer:(NSString *)registeredName
 {
@@ -82,10 +81,8 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
 
 - (void)start
 {
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidPostError:) name:MRDPViewDidPostErrorInfoNotification object:nil];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidConnect:) name:MRDPViewDidConnectWithResultNotification object:nil];
-    
-    // view.usesAppleKeyboard = self.usesAppleKeyboard;
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidPostError:) name:MRDPClientDidPostErrorInfoNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidConnect:) name:MRDPClientDidConnectWithResultNotification object:nil];
     
     mrdpClient = [[MRDPClient alloc] init];
     mrdpClient.delegate = self;
@@ -227,10 +224,19 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
     context = nil;
 }
 
+-(void)sendCtrlAltDelete
+{
+    [mrdpClient sendCtrlAltDelete];
+}
+
 - (void)addServerDrive:(ServerDrive *)drive
 {
-    char* d[] = { "drive", (char *)[drive.name UTF8String], (char *)[drive.path UTF8String] };
-    freerdp_client_add_device_channel(context->settings, 3, d);
+    [mrdpClient addServerDrive:drive];
+}
+
+- (NSString *)getErrorInfoString:(int)code
+{
+    return [mrdpClient getErrorInfoString:code];
 }
 
 - (BOOL)getBooleanSettingForIdentifier:(int)identifier
@@ -355,8 +361,17 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
     return [NSString stringWithFormat:@"/%@", [serverProxy proxyID]];
 }
 
-//@property (assign) int is_connected;
-//@property (readonly) NSRect frame;
+- (NSRect)frame
+{
+    // Cheating a bit because I don't want to add "viewFrame" to the interface
+    NSValue* boxedFrame = (NSValue *)[[serverProxy delegate] performSelector:NSSelectorFromString(@"viewFrame")];
+    return [boxedFrame rectValue];
+}
+
+- (void)setFrame:(NSRect)frame
+{
+    // no-op
+}
 
 - (void)initialise:(rdpContext *)rdpContext
 {
@@ -391,11 +406,11 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
     
 }
 
-- (void)postConnect:(freerdp*)rdpInstance;
+- (bool)postConnect:(freerdp*)rdpInstance;
 {
     int framebufferSize = mrdpClient->frameBuffer->fbScanline * mrdpClient->frameBuffer->fbHeight;
     
-    [serverProxy pixelDataAvailable:framebufferSize];
+    return [serverProxy pixelDataAvailable:framebufferSize];
 }
 
 - (void)pause
@@ -434,15 +449,13 @@ void ConnectionResultEventHandler(void* ctx, ConnectionResultEventArgs* e)
 {
     @autoreleasepool
     {
-        NSLog(@"ConnectionResultEventHandler");
-        
         rdpContext* context = (rdpContext*) ctx;
         
         NSDictionary *userInfo = [NSDictionary dictionaryWithObjectsAndKeys:[NSValue valueWithPointer:context], @"context",
                                   [NSValue valueWithPointer:e], @"connectionArgs",
                                   [NSNumber numberWithInt:connectErrorCode], @"connectErrorCode", nil];
         
-        [[NSNotificationCenter defaultCenter] postNotificationName:MRDPViewDidConnectWithResultNotification object:nil userInfo:userInfo];
+        [[NSNotificationCenter defaultCenter] postNotificationName:MRDPClientDidConnectWithResultNotification object:nil userInfo:userInfo];
     }
 }
 
@@ -450,14 +463,12 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e)
 {
     @autoreleasepool
     {
-        NSLog(@"ErrorInfoEventHandler");
-        
         rdpContext* context = (rdpContext*) ctx;
         
         NSDictionary *userInfo = [NSDictionary dictionaryWithObjectsAndKeys:[NSValue valueWithPointer:context], @"context",
                                   [NSValue valueWithPointer:e], @"errorArgs", nil];
         
-        [[NSNotificationCenter defaultCenter] postNotificationName:MRDPViewDidPostErrorInfoNotification object:nil userInfo:userInfo];
+        [[NSNotificationCenter defaultCenter] postNotificationName:MRDPClientDidPostErrorInfoNotification object:nil userInfo:userInfo];
     }
 }
 
