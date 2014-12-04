@@ -9,6 +9,7 @@
 #import "MRDPViewController.h"
 #import "MRDPView.h"
 #import "MRDPCenteringClipView.h"
+#import "MRDPClientNotifications.h"
 
 #include <freerdp/addin.h>
 #include <freerdp/client/channels.h>
@@ -29,26 +30,10 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 @synthesize context;
 @synthesize delegate;
 @synthesize mrdpClient;
-@synthesize usesAppleKeyboard;
-
-static NSString *MRDPViewDidPostErrorInfoNotification = @"MRDPViewDidPostErrorInfoNotification";
-static NSString *MRDPViewDidConnectWithResultNotification = @"MRDPViewDidConnectWithResultNotification";
-static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotification";
-
-- (id)init
-{
-    self = [super init];
-    if (self)
-    {
-
-    }
-    
-    return self;
-}
 
 - (BOOL)isConnected
 {
-    return self->mrdpClient.delegate.is_connected;
+    return self->mrdpClient.is_connected;
 }
 
 - (NSView *)rdpView
@@ -194,13 +179,12 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
 {
     NSLog(@"start");
     
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidPostError:) name:MRDPViewDidPostErrorInfoNotification object:nil];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidConnect:) name:MRDPViewDidConnectWithResultNotification object:nil];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidEmbed:) name:MRDPViewDidPostEmbedNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidPostError:) name:MRDPClientDidPostErrorInfoNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidConnect:) name:MRDPClientDidConnectWithResultNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidEmbed:) name:MRDPClientDidPostEmbedNotification object:nil];
     
     MRDPView *view = [[MRDPView alloc] initWithFrame : NSMakeRect(0, 0, context->settings->DesktopWidth, context->settings->DesktopHeight)];
     view.delegate = self;
-    view.usesAppleKeyboard = self.usesAppleKeyboard;
     
     MRDPClient *client = [[MRDPClient alloc] init];
     client.delegate = view;
@@ -236,9 +220,9 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     NSLog(@"restart");
     
     // Prevent any notifications from firing
-    [[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPViewDidPostErrorInfoNotification object:nil];
-    [[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPViewDidConnectWithResultNotification object:nil];
-    [[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPViewDidPostEmbedNotification object:nil];
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPClientDidPostErrorInfoNotification object:nil];
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPClientDidConnectWithResultNotification object:nil];
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPClientDidPostEmbedNotification object:nil];
     
     [mrdpClient pause];
     
@@ -264,8 +248,8 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
     [self configure:arguments];
     
     // Don't resubscribe the view embedded event, we're already embedded
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidPostError:) name:MRDPViewDidPostErrorInfoNotification object:nil];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidConnect:) name:MRDPViewDidConnectWithResultNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidPostError:) name:MRDPClientDidPostErrorInfoNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidConnect:) name:MRDPClientDidConnectWithResultNotification object:nil];
     
     // Reassign the view back to the context
     mfContext* mfc = (mfContext*)context;
@@ -278,21 +262,12 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
 
 -(void)sendCtrlAltDelete
 {
-    if(context)
-    {
-        freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_DOWN, 0x1D); /* VK_LCONTROL, DOWN */
-        freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_DOWN, 0x38); /* VK_LMENU, DOWN */
-        freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_DOWN | KBD_FLAGS_EXTENDED, 0x53); /* VK_DELETE, DOWN */
-        freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_RELEASE | KBD_FLAGS_EXTENDED, 0x53); /* VK_DELETE, RELEASE */
-        freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_RELEASE, 0x38); /* VK_LMENU, RELEASE */
-        freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_RELEASE, 0x1D); /* VK_LCONTROL, RELEASE */
-    }
+    [mrdpClient sendCtrlAltDelete];
 }
 
 - (void)addServerDrive:(ServerDrive *)drive
 {
-    char* d[] = { "drive", (char *)[drive.name UTF8String], (char *)[drive.path UTF8String] };
-    freerdp_client_add_device_channel(context->settings, 3, d);
+    [mrdpClient addServerDrive:drive];
 }
 
 - (BOOL)getBooleanSettingForIdentifier:(int)identifier
@@ -351,8 +326,7 @@ static NSString *MRDPViewDidPostEmbedNotification = @"MRDPViewDidPostEmbedNotifi
 
 - (NSString *)getErrorInfoString:(int)code
 {
-    const char* errorMessage = freerdp_get_error_info_string(code);
-    return [NSString stringWithUTF8String:errorMessage];
+    return [mrdpClient getErrorInfoString:code];
 }
 
 - (BOOL)provideServerCredentials:(ServerCredential **)credentials
@@ -455,7 +429,7 @@ void EmbedWindowEventHandler(void* ctx, EmbedWindowEventArgs* e)
         
         NSDictionary *userInfo = [NSDictionary dictionaryWithObject:[NSValue valueWithPointer:context] forKey:@"context"];
         
-        [[NSNotificationCenter defaultCenter] postNotificationName:MRDPViewDidPostEmbedNotification object:nil userInfo:userInfo];
+        [[NSNotificationCenter defaultCenter] postNotificationName:MRDPClientDidPostEmbedNotification object:nil userInfo:userInfo];
     }
 }
 
@@ -471,7 +445,7 @@ void ConnectionResultEventHandler(void* ctx, ConnectionResultEventArgs* e)
                                   [NSValue valueWithPointer:e], @"connectionArgs",
                                   [NSNumber numberWithInt:connectErrorCode], @"connectErrorCode", nil];
         
-        [[NSNotificationCenter defaultCenter] postNotificationName:MRDPViewDidConnectWithResultNotification object:nil userInfo:userInfo];
+        [[NSNotificationCenter defaultCenter] postNotificationName:MRDPClientDidConnectWithResultNotification object:nil userInfo:userInfo];
     }
 }
 
@@ -486,6 +460,6 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e)
         NSDictionary *userInfo = [NSDictionary dictionaryWithObjectsAndKeys:[NSValue valueWithPointer:context], @"context",
                                   [NSValue valueWithPointer:e], @"errorArgs", nil];
 
-        [[NSNotificationCenter defaultCenter] postNotificationName:MRDPViewDidPostErrorInfoNotification object:nil userInfo:userInfo];
+        [[NSNotificationCenter defaultCenter] postNotificationName:MRDPClientDidPostErrorInfoNotification object:nil userInfo:userInfo];
     }
 }

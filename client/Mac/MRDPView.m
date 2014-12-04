@@ -51,8 +51,6 @@ void mac_desktop_resize(rdpContext* context);
 
 @implementation MRDPView
 
-@synthesize is_connected;
-@synthesize usesAppleKeyboard;
 @synthesize delegate;
 
 - (bool)renderToBuffer
@@ -71,11 +69,10 @@ void mac_desktop_resize(rdpContext* context);
 	
 	if (self)
 	{
-		// Initialization code here.
-        self.usesAppleKeyboard = true;
+        return self;
 	}
 	
-	return self;
+    return nil;
 }
 
 - (void)initialise:(rdpContext *)rdpContext
@@ -124,7 +121,10 @@ void mac_desktop_resize(rdpContext* context);
 
 - (void)applicationDidBecomeActive:(NSNotification *)notification
 {
-    if(self->is_connected)
+    mfContext* mfCtx = (mfContext*)instance->context;
+    MRDPClient* client = (MRDPClient *)mfCtx->client;
+    
+    if(client->is_connected)
     {
         NSLog(@"Releasing meta key");
         
@@ -137,6 +137,7 @@ void mac_desktop_resize(rdpContext* context);
     self->currentCursor = cursor == nil ?[NSCursor arrowCursor] : cursor->nsCursor;
 	[[self window] invalidateCursorRectsForView:self];
 }
+
 - (void)resetCursorRects
 {
 	[self addCursorRect:[self visibleRect] cursor:currentCursor];
@@ -206,11 +207,6 @@ void mac_desktop_resize(rdpContext* context);
     }
 }
 
-- (void)resizeWithOldSuperviewSize:(NSSize)oldBoundsSize
-{
-    [super resizeWithOldSuperviewSize:oldBoundsSize];
-}
-
 /***********************************************************************
  * become first responder so we can get keyboard and mouse events
  ***********************************************************************/
@@ -220,17 +216,17 @@ void mac_desktop_resize(rdpContext* context);
 	return YES;
 }
 
-- (void) mouseMoved:(NSEvent *)event
+- (void)mouseMoved:(NSEvent *)event
 {
 	[super mouseMoved:event];
 	
-	if (!is_connected)
+    mfContext* mfCtx = (mfContext*)instance->context;
+    MRDPClient* client = (MRDPClient *)mfCtx->client;
+    
+	if (!client.is_connected)
 		return;
 	
     NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
-    
-    mfContext* mfCtx = (mfContext*)instance->context;
-    MRDPClient* client = (MRDPClient *)mfCtx->client;
     
     [client mouseMoved:loc];
 }
@@ -239,13 +235,13 @@ void mac_desktop_resize(rdpContext* context);
 {
 	[super mouseDown:event];
 	
-	if (!is_connected)
+    mfContext* mfCtx = (mfContext*)instance->context;
+    MRDPClient* client = (MRDPClient *)mfCtx->client;
+    
+	if (!client.is_connected)
 		return;
 	
     NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
-    
-    mfContext* mfCtx = (mfContext*)instance->context;
-    MRDPClient* client = (MRDPClient *)mfCtx->client;
     
     [client mouseDown:loc];
 }
@@ -254,13 +250,13 @@ void mac_desktop_resize(rdpContext* context);
 {
 	[super mouseUp:event];
 	
-	if (!is_connected)
+    mfContext* mfCtx = (mfContext*)instance->context;
+    MRDPClient* client = (MRDPClient *)mfCtx->client;
+    
+	if (!client.is_connected)
 		return;
 	
     NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
-    
-    mfContext* mfCtx = (mfContext*)instance->context;
-    MRDPClient* client = (MRDPClient *)mfCtx->client;
     
     [client mouseUp:loc];
 }
@@ -269,13 +265,13 @@ void mac_desktop_resize(rdpContext* context);
 {
 	[super rightMouseDown:event];
 	
-	if (!is_connected)
+    mfContext* mfCtx = (mfContext*)instance->context;
+    MRDPClient* client = (MRDPClient *)mfCtx->client;
+    
+	if (!client.is_connected)
 		return;
 	
     NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
-    
-    mfContext* mfCtx = (mfContext*)instance->context;
-    MRDPClient* client = (MRDPClient *)mfCtx->client;
     
     [client rightMouseDown:loc];
 }
@@ -284,13 +280,13 @@ void mac_desktop_resize(rdpContext* context);
 {
 	[super rightMouseUp:event];
 	
-	if (!is_connected)
+    mfContext* mfCtx = (mfContext*)instance->context;
+    MRDPClient* client = (MRDPClient *)mfCtx->client;
+    
+	if (!client.is_connected)
 		return;
 	
     NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
-    
-    mfContext* mfCtx = (mfContext*)instance->context;
-    MRDPClient* client = (MRDPClient *)mfCtx->client;
     
     [client rightMouseUp:loc];
 }
@@ -299,13 +295,13 @@ void mac_desktop_resize(rdpContext* context);
 {
 	[super otherMouseDown:event];
 	
-	if (!is_connected)
+    mfContext* mfCtx = (mfContext*)instance->context;
+    MRDPClient* client = (MRDPClient *)mfCtx->client;
+    
+	if (!client.is_connected)
 		return;
 	
     NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
-
-    mfContext* mfCtx = (mfContext*)instance->context;
-    MRDPClient* client = (MRDPClient *)mfCtx->client;
     
     [client otherMouseDown:loc];
 }
@@ -314,13 +310,13 @@ void mac_desktop_resize(rdpContext* context);
 {
 	[super otherMouseUp:event];
 	
-	if (!is_connected)
+    mfContext* mfCtx = (mfContext*)instance->context;
+    MRDPClient* client = (MRDPClient *)mfCtx->client;
+    
+	if (!client.is_connected)
 		return;
 	
     NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
-
-    mfContext* mfCtx = (mfContext*)instance->context;
-    MRDPClient* client = (MRDPClient *)mfCtx->client;
     
     [client otherMouseUp:loc];
 }
@@ -329,13 +325,13 @@ void mac_desktop_resize(rdpContext* context);
 {
 	[super scrollWheel:event];
 
-	if (!is_connected)
+    mfContext* mfCtx = (mfContext*)instance->context;
+    MRDPClient* client = (MRDPClient *)mfCtx->client;
+    
+	if (!client.is_connected)
 		return;
 	
     NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
-
-    mfContext* mfCtx = (mfContext*)instance->context;
-    MRDPClient* client = (MRDPClient *)mfCtx->client;
     
     [client scrollWheelCoordinates:loc deltaY:event.deltaY];
 }
@@ -344,13 +340,13 @@ void mac_desktop_resize(rdpContext* context);
 {
 	[super mouseDragged:event];
 	
-	if (!is_connected)
+    mfContext* mfCtx = (mfContext*)instance->context;
+    MRDPClient* client = (MRDPClient *)mfCtx->client;
+    
+	if (!client.is_connected)
 		return;
 	
     NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
-    
-    mfContext* mfCtx = (mfContext*)instance->context;
-    MRDPClient* client = (MRDPClient *)mfCtx->client;
     
     [client mouseDragged:loc];
 }
@@ -359,13 +355,13 @@ void mac_desktop_resize(rdpContext* context);
 {
     [super rightMouseDragged:event];
     
-    if (!is_connected)
+    mfContext* mfCtx = (mfContext*)instance->context;
+    MRDPClient* client = (MRDPClient *)mfCtx->client;
+    
+    if (!client.is_connected)
         return;
     
     NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
-    
-    mfContext* mfCtx = (mfContext*)instance->context;
-    MRDPClient* client = (MRDPClient *)mfCtx->client;
     
     [client rightMouseDragged:loc];
 }
@@ -374,13 +370,13 @@ void mac_desktop_resize(rdpContext* context);
 {
     [super otherMouseDragged:event];
     
-    if (!is_connected)
+    mfContext* mfCtx = (mfContext*)instance->context;
+    MRDPClient* client = (MRDPClient *)mfCtx->client;
+    
+    if (!client.is_connected)
         return;
     
     NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
-
-    mfContext* mfCtx = (mfContext*)instance->context;
-    MRDPClient* client = (MRDPClient *)mfCtx->client;
     
     [client otherMouseDragged:loc];
 }
@@ -442,13 +438,15 @@ void mac_desktop_resize(rdpContext* context);
     rdpInstance->update->DesktopResize = mac_desktop_resize;
 }
 
-- (void)postConnect:(freerdp*)rdpInstance;
+- (bool)postConnect:(freerdp*)rdpInstance;
 {
     mfContext* mfCtx = (mfContext*)rdpInstance->context;
     MRDPClient* client = (MRDPClient *)mfCtx->client;
     MRDPView* view = (MRDPView*)client.delegate;
 
     view->bitmap_context = mac_create_bitmap_context(rdpInstance->context);
+    
+    return true;
 }
 
 - (BOOL)provideServerCredentials:(ServerCredential **)credentials

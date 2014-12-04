@@ -53,6 +53,7 @@ void mac_end_paint(rdpContext* context);
 
 @implementation MRDPClient
 
+@synthesize is_connected;
 @synthesize frameBuffer;
 @synthesize delegate;
 
@@ -132,6 +133,28 @@ void mac_end_paint(rdpContext* context);
     });
 
     [delegate resume];
+}
+
+- (NSString*)getErrorInfoString:(int)code
+{
+    const char* errorMessage = freerdp_get_error_info_string(code);
+    return [NSString stringWithUTF8String:errorMessage];
+}
+
+-(void)sendCtrlAltDelete
+{
+    freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_DOWN, 0x1D); /* VK_LCONTROL, DOWN */
+    freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_DOWN, 0x38); /* VK_LMENU, DOWN */
+    freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_DOWN | KBD_FLAGS_EXTENDED, 0x53); /* VK_DELETE, DOWN */
+    freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_RELEASE | KBD_FLAGS_EXTENDED, 0x53); /* VK_DELETE, RELEASE */
+    freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_RELEASE, 0x38); /* VK_LMENU, RELEASE */
+    freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_RELEASE, 0x1D); /* VK_LCONTROL, RELEASE */
+}
+
+- (void)addServerDrive:(ServerDrive *)drive
+{
+    char* d[] = { "drive", (char *)[drive.name UTF8String], (char *)[drive.path UTF8String] };
+    freerdp_client_add_device_channel(context->settings, 3, d);
 }
 
 - (void)onPasteboardTimerFired:(NSTimer*)timer
@@ -273,7 +296,7 @@ void mac_end_paint(rdpContext* context);
     NSUInteger modifierFlags;
     bool releaseKey = false;
     
-    if (!delegate.is_connected)
+    if (!self.is_connected)
         return;
     
     keyFlags = KBD_FLAGS_DOWN;
@@ -326,7 +349,7 @@ void mac_end_paint(rdpContext* context);
     unichar keyChar;
     NSString* characters;
     
-    if (!delegate.is_connected)
+    if (!self.is_connected)
         return;
     
     keyFlags = KBD_FLAGS_RELEASE;
@@ -362,7 +385,7 @@ void mac_end_paint(rdpContext* context);
     DWORD scancode;
     DWORD modFlags;
     
-    if (!delegate.is_connected)
+    if (!self.is_connected)
         return;
     
     keyFlags = 0;
@@ -546,11 +569,11 @@ DWORD mac_client_thread(void* param)
         
         if (!status)
         {
-            [client->delegate setIs_connected:0];
+            client.is_connected = 0;
             return 0;
         }
         
-        [client->delegate setIs_connected:1];
+        client.is_connected = 1;
         
         nCount = 0;
         
@@ -693,7 +716,6 @@ BOOL mac_pre_connect(freerdp* instance)
 
 BOOL mac_post_connect(freerdp* instance)
 {
-    rdpGdi* gdi;
     UINT32 flags;
     rdpSettings* settings;
     rdpPointer rdp_pointer;
@@ -768,9 +790,7 @@ BOOL mac_post_connect(freerdp* instance)
         }
     }
     
-    gdi = instance->context->gdi;
-    
-    [view postConnect:instance];
+    bool result = [view postConnect:instance];
     
     if([view renderToBuffer])
     {
@@ -778,6 +798,11 @@ BOOL mac_post_connect(freerdp* instance)
         {
             NSLog(@"Failed to unlink shared memory object: %s (%d)", strerror(errno), errno);
         }
+    }
+    
+    if(!result)
+    {
+        return result;
     }
     
     pointer_cache_register_callbacks(instance->update);

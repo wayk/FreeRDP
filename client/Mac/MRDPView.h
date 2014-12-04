@@ -36,21 +36,17 @@
 	BOOL initialized;
 	
 @public
-	int is_connected;
-    BOOL usesAppleKeyboard;
     NSObject<MRDPViewDelegate> *delegate;
 }
 
 - (void)setCursor:(MRDPCursor*) cursor;
 - (void)releaseResources;
 - (void)preConnect:(freerdp*)rdpInstance;
-- (void)postConnect:(freerdp*)rdpInstance;
+- (bool)postConnect:(freerdp*)rdpInstance;
 - (BOOL)provideServerCredentials:(ServerCredential **)credentials;
 - (BOOL)validateCertificate:(ServerCertificate *)certificate;
 - (BOOL)validateX509Certificate:(X509Certificate *)certificate;
 
-@property (assign) int is_connected;
-@property (assign) BOOL usesAppleKeyboard;
 @property(nonatomic, assign) NSObject<MRDPViewDelegate> *delegate;
 
 @end
