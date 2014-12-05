@@ -420,17 +420,23 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
 
 - (BOOL)provideServerCredentials:(ServerCredential **)credentials
 {
-    return false;
+    bool result = [serverProxy provideServerCredentials:[*credentials serverHostname] username:[*credentials username] password:[*credentials password] domain:[*credentials domain]];
+    
+    [*credentials setUsername:[[serverProxy serverCredential] username]];
+    [*credentials setPassword:[[serverProxy serverCredential] password]];
+    [*credentials setDomain:[[serverProxy serverCredential] domain]];
+    
+    return result;
 }
 
 - (BOOL)validateCertificate:(ServerCertificate *)certificate
 {
-    return false;
+    return [serverProxy validateCertificate:certificate.subject issuer:certificate.issuer fingerprint:certificate.fingerprint];
 }
 
 - (BOOL)validateX509Certificate:(X509Certificate *)certificate
 {
-    return false;
+    return [serverProxy validateX509Certificate:certificate.data hostname:certificate.hostname port:certificate.port];
 }
 
 @end

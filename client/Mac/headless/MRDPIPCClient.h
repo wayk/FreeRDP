@@ -11,6 +11,9 @@
 // TODO! Fix references...
 #import "../MRDPViewController.h"
 #import "../MRDPClientDelegate.h"
+#import "../ServerCertificate.h"
+#import "../X509Certificate.h"
+#import "../ServerCredential.h"
 
 @interface MRDPIPCClient : NSObject<MRDPClientDelegate>
 {
