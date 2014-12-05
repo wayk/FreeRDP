@@ -293,16 +293,6 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
     return freerdp_set_param_string(context->settings, identifier, cString);
 }
 
-- (double)getDoubleSettingForIdentifier:(int)identifier
-{
-    return freerdp_get_param_double(context-> settings, identifier);
-}
-
-- (int)setDoubleSettingForIdentifier:(int)identifier withValue:(double)value
-{
-    return freerdp_set_param_double(context->settings, identifier, value);
-}
-
 - (void)viewDidConnect:(NSNotification *)notification
 {
     rdpContext *ctx;
