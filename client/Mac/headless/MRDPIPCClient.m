@@ -123,22 +123,22 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
     }
 }
 
-- (void)keyDown:(NSEvent *)event
+- (oneway void)keyDown:(NSEvent *)event
 {
     [mrdpClient keyDown:event];
 }
 
-- (void)keyUp:(NSEvent*)event
+- (oneway void)keyUp:(NSEvent*)event
 {
     [mrdpClient keyUp:event];
 }
 
-- (void)flagsChanged:(NSEvent*)event
+- (oneway void)flagsChanged:(NSEvent*)event
 {
     [mrdpClient flagsChanged:event];
 }
 
-- (void)forwardMouseEvent:(NSArray *)args
+- (oneway void)forwardMouseEvent:(NSArray *)args
 {
     int eventType = (NSEventType)[args[0] integerValue];
     float xCoord = [args[1] floatValue];
@@ -224,7 +224,7 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
     context = nil;
 }
 
--(void)sendCtrlAltDelete
+-(oneway void)sendCtrlAltDelete
 {
     [mrdpClient sendCtrlAltDelete];
 }
@@ -401,6 +401,11 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
     int framebufferSize = mrdpClient->frameBuffer->fbScanline * mrdpClient->frameBuffer->fbHeight;
     
     return [serverProxy pixelDataAvailable:framebufferSize];
+}
+
+- (void)resizeDesktop
+{
+    [serverProxy desktopResized];
 }
 
 - (void)pause

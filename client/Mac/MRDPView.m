@@ -435,7 +435,7 @@ void mac_desktop_resize(rdpContext* context);
 
 - (void)preConnect:(freerdp*)rdpInstance;
 {
-    rdpInstance->update->DesktopResize = mac_desktop_resize;
+
 }
 
 - (bool)postConnect:(freerdp*)rdpInstance;
@@ -447,6 +447,15 @@ void mac_desktop_resize(rdpContext* context);
     view->bitmap_context = mac_create_bitmap_context(rdpInstance->context);
     
     return true;
+}
+
+- (void)resizeDesktop
+{
+    CGContextRef old_context = bitmap_context;
+    bitmap_context = NULL;
+    CGContextRelease(old_context);
+    
+    bitmap_context = mac_create_bitmap_context(context);
 }
 
 - (BOOL)provideServerCredentials:(ServerCredential **)credentials
@@ -506,30 +515,6 @@ CGContextRef mac_create_bitmap_context(rdpContext* context)
     CGColorSpaceRelease(colorSpace);
     
     return bitmap_context;
-}
-
-void mac_desktop_resize(rdpContext* context)
-{
-    mfContext* mfc = (mfContext*) context;
-    MRDPClient* client = (MRDPClient *)mfc->client;
-    MRDPView* view = (MRDPView*)client.delegate;
-    rdpSettings* settings = context->settings;
-    
-    /**
-     * TODO: Fix resizing race condition. We should probably implement a message to be
-     * put on the update message queue to be able to properly flush pending updates,
-     * resize, and then continue with post-resizing graphical updates.
-     */
-    
-    CGContextRef old_context = view->bitmap_context;
-    view->bitmap_context = NULL;
-    CGContextRelease(old_context);
-    
-    mfc->width = settings->DesktopWidth;
-    mfc->height = settings->DesktopHeight;
-    
-    gdi_resize(context->gdi, mfc->width, mfc->height);
-    view->bitmap_context = mac_create_bitmap_context(context);
 }
 
 @end
