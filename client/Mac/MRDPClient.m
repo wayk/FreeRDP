@@ -659,6 +659,7 @@ BOOL mac_pre_connect(freerdp* instance)
     
     instance->update->BeginPaint = mac_begin_paint;
     instance->update->EndPaint = mac_end_paint;
+    instance->update->DesktopResize = mac_desktop_resize;
     
     [view preConnect:instance];
     
@@ -1162,6 +1163,27 @@ BOOL mac_authenticate(freerdp* instance, char** username, char** password, char*
     [credential release];
     
     return TRUE;
+}
+
+void mac_desktop_resize(rdpContext* context)
+{
+    mfContext *mfc = (mfContext *)context;
+    MRDPClient* client = (MRDPClient *)mfc->client;
+    id<MRDPClientDelegate> view = (id<MRDPClientDelegate>)client.delegate;
+    rdpSettings* settings = context->settings;
+    
+    /**
+     * TODO: Fix resizing race condition. We should probably implement a message to be
+     * put on the update message queue to be able to properly flush pending updates,
+     * resize, and then continue with post-resizing graphical updates.
+     */
+    
+    mfc->width = settings->DesktopWidth;
+    mfc->height = settings->DesktopHeight;
+    
+    gdi_resize(context->gdi, mfc->width, mfc->height);
+
+    [view resizeDesktop];
 }
 
 BOOL mac_verify_certificate(freerdp* instance, char* subject, char* issuer, char* fingerprint)

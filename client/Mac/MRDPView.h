@@ -43,6 +43,7 @@
 - (void)releaseResources;
 - (void)preConnect:(freerdp*)rdpInstance;
 - (bool)postConnect:(freerdp*)rdpInstance;
+- (void)resizeDesktop;
 - (BOOL)provideServerCredentials:(ServerCredential **)credentials;
 - (BOOL)validateCertificate:(ServerCertificate *)certificate;
 - (BOOL)validateX509Certificate:(X509Certificate *)certificate;

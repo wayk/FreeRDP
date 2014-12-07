@@ -17,7 +17,8 @@
 - (void)clientConnected:(NSString *)clientName;
 - (void)cursorUpdated:(NSData *)cursorData hotspot:(NSValue *)hotspot;
 - (bool)pixelDataAvailable:(int)shmSize;
-- (void)pixelDataUpdated:(NSValue *)dirtyRect;
+- (oneway void)pixelDataUpdated:(NSValue *)dirtyRect;
+- (oneway void)desktopResized;
 - (ServerCredential *)serverCredential;
 
 - (bool)validateCertificate:(NSString *)subject issuer:(NSString *)issuer fingerprint:(NSString *)fingerprint;
