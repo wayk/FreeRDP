@@ -67,19 +67,29 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
 
 - (void)configure
 {
+    [self performSelector:@selector(configureInternal) withObject:nil afterDelay:0.0];
+}
+
+- (void)configureInternal
+{
     if(context == nil)
     {
         [self createContext];
     }
-
+    
     mfContext* mfc = (mfContext*)context;
     mfc->client = (void*)mrdpClient;
-
+    
     PubSub_SubscribeConnectionResult(context->pubSub, ConnectionResultEventHandler);
     PubSub_SubscribeErrorInfo(context->pubSub, ErrorInfoEventHandler);
 }
 
 - (void)start
+{
+    [self performSelector:@selector(startInternal) withObject:nil afterDelay:0.0];
+}
+
+- (void)startInternal
 {
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidPostError:) name:MRDPClientDidPostErrorInfoNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidConnect:) name:MRDPClientDidConnectWithResultNotification object:nil];
@@ -98,6 +108,11 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
 }
 
 - (void)stop
+{
+    [self performSelector:@selector(stopInternal) withObject:nil afterDelay:0.0];
+}
+
+- (void)stopInternal
 {
     if(!is_stopped)
     {
@@ -125,20 +140,25 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
 
 - (oneway void)keyDown:(NSEvent *)event
 {
-    [mrdpClient keyDown:event];
+    [mrdpClient performSelector:@selector(keyDown:) withObject:event afterDelay:0.0];
 }
 
 - (oneway void)keyUp:(NSEvent*)event
 {
-    [mrdpClient keyUp:event];
+    [mrdpClient performSelector:@selector(keyUp:) withObject:event afterDelay:0.0];
 }
 
 - (oneway void)flagsChanged:(NSEvent*)event
 {
-    [mrdpClient flagsChanged:event];
+    [mrdpClient performSelector:@selector(flagsChanged:) withObject:event afterDelay:0.0];
 }
 
 - (oneway void)forwardMouseEvent:(NSArray *)args
+{
+    [self performSelector:@selector(forwardMouseEventInternal:) withObject:args afterDelay:0.0];
+}
+
+- (void)forwardMouseEventInternal:(NSArray *)args
 {
     int eventType = (NSEventType)[args[0] integerValue];
     float xCoord = [args[1] floatValue];
@@ -224,14 +244,14 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
     context = nil;
 }
 
--(oneway void)sendCtrlAltDelete
+- (oneway void)sendCtrlAltDelete
 {
-    [mrdpClient sendCtrlAltDelete];
+    [mrdpClient performSelector:@selector(sendCtrlAltDelete) withObject:nil afterDelay:0.0];
 }
 
-- (void)addServerDrive:(ServerDrive *)drive
+- (oneway void)addServerDrive:(ServerDrive *)drive
 {
-    [mrdpClient addServerDrive:drive];
+    [mrdpClient performSelector:@selector(addServerDrive:) withObject:drive afterDelay:0.0];
 }
 
 - (NSString *)getErrorInfoString:(int)code
@@ -244,9 +264,9 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
     return freerdp_get_param_bool(context->settings, identifier);
 }
 
-- (int)setBooleanSettingForIdentifier:(int)identifier withValue:(BOOL)value
+- (oneway void)setBooleanSettingForIdentifier:(int)identifier withValue:(BOOL)value
 {
-    return freerdp_set_param_bool(context->settings, identifier, value);
+    freerdp_set_param_bool(context->settings, identifier, value);
 }
 
 - (int)getIntegerSettingForIdentifier:(int)identifier
@@ -254,9 +274,9 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
     return freerdp_get_param_int(context-> settings, identifier);
 }
 
-- (int)setIntegerSettingForIdentifier:(int)identifier withValue:(int)value
+- (oneway void)setIntegerSettingForIdentifier:(int)identifier withValue:(int)value
 {
-    return freerdp_set_param_int(context->settings, identifier, value);
+    freerdp_set_param_int(context->settings, identifier, value);
 }
 
 - (uint32)getInt32SettingForIdentifier:(int)identifier
@@ -264,9 +284,9 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
     return freerdp_get_param_uint32(context-> settings, identifier);
 }
 
-- (int)setInt32SettingForIdentifier:(int)identifier withValue:(uint32)value
+- (oneway void)setInt32SettingForIdentifier:(int)identifier withValue:(uint32)value
 {
-    return freerdp_set_param_uint32(context->settings, identifier, value);
+    freerdp_set_param_uint32(context->settings, identifier, value);
 }
 
 - (uint64)getInt64SettingForIdentifier:(int)identifier
@@ -274,9 +294,9 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
     return freerdp_get_param_uint64(context-> settings, identifier);
 }
 
-- (int)setInt64SettingForIdentifier:(int)identifier withValue:(uint64)value
+- (oneway void)setInt64SettingForIdentifier:(int)identifier withValue:(uint64)value
 {
-    return freerdp_set_param_uint64(context->settings, identifier, value);
+    freerdp_set_param_uint64(context->settings, identifier, value);
 }
 
 - (NSString *)getStringSettingForIdentifier:(int)identifier
@@ -286,11 +306,11 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
     return cString ? [NSString stringWithUTF8String:cString] : nil;
 }
 
-- (int)setStringSettingForIdentifier:(int)identifier withValue:(NSString *)value
+- (oneway void)setStringSettingForIdentifier:(int)identifier withValue:(NSString *)value
 {
     char* cString = (char*)[value UTF8String];
     
-    return freerdp_set_param_string(context->settings, identifier, cString);
+    freerdp_set_param_string(context->settings, identifier, cString);
 }
 
 - (void)viewDidConnect:(NSNotification *)notification
