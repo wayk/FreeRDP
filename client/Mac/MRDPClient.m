@@ -93,12 +93,7 @@ void mac_end_paint(rdpContext* context);
 }
 
 - (void)releaseResources
-{
-    // TODO is_connected is dodgy, it gets set on connection and then never touched again...
-    //    if (!self.delegate.is_connected)
-    //        return;
-    
-    if(delegate.renderToBuffer)
+{if(delegate.renderToBuffer)
     {
         size_t shmemSize = frameBuffer->fbScanline * frameBuffer->fbHeight;
         if(munmap(frameBuffer->fbSharedMemory, shmemSize) != 0)
@@ -108,7 +103,7 @@ void mac_end_paint(rdpContext* context);
         
         ZeroMemory(frameBuffer, sizeof(RDS_FRAMEBUFFER));
     }
-    else // TODO: Not sure about this
+    else
     {
         gdi_free(context->instance);
     }
