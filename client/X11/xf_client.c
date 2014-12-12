@@ -128,12 +128,6 @@ static void xf_draw_screen_scaled(xfContext* xfc, int x, int y, int w, int h)
 		return;
 	}
 
-	if (!w || !h)
-	{
-		WLog_ERR(TAG,  "invalid width and/or height specified");
-		return;
-	}
-
 	xScalingFactor = xfc->width / (double)xfc->scaledWidth;
 	yScalingFactor = xfc->height / (double)xfc->scaledHeight;
 
@@ -161,7 +155,7 @@ static void xf_draw_screen_scaled(xfContext* xfc, int x, int y, int w, int h)
 		XDestroyRegion(reg2);
 	}
 
-	picFormat = XRenderFindStandardFormat(xfc->display, PictStandardRGB24);
+	picFormat = XRenderFindVisualFormat(xfc->display, xfc->visual);
 
 	pa.subwindow_mode = IncludeInferiors;
 	primaryPicture = XRenderCreatePicture(xfc->display, xfc->primary, picFormat, CPSubwindowMode, &pa);
@@ -207,6 +201,12 @@ BOOL xf_picture_transform_required(xfContext* xfc)
 
 void xf_draw_screen(xfContext* xfc, int x, int y, int w, int h)
 {
+	if (w == 0 || h == 0)
+	{
+		WLog_WARN(TAG,  "invalid width and/or height specified: w=%d h=%d", w, h);
+		return;
+	}
+
 #ifdef WITH_XRENDER
 	if (xf_picture_transform_required(xfc)) {
 		xf_draw_screen_scaled(xfc, x, y, w, h);
@@ -913,18 +913,22 @@ BOOL xf_pre_connect(freerdp* instance)
 	freerdp_client_load_addins(channels, instance->settings);
 	freerdp_channels_pre_connect(channels, instance);
 
+	if (!settings->Username)
+	{
+		char *login_name = getlogin();
+		if (login_name)
+		{
+			settings->Username = _strdup(login_name);
+			WLog_INFO(TAG, "No user name set. - Using login name: %s", settings->Username);
+		}
+	}
+
 	if (settings->AuthenticationOnly)
 	{
-		/* Check --authonly has a username and password. */
-		if (!settings->Username)
-		{
-			WLog_INFO(TAG, "--authonly, but no -u username. Please provide one.");
-			return FALSE;
-		}
-
+		/* Check +auth-only has a username and password. */
 		if (!settings->Password)
 		{
-			WLog_INFO(TAG, "--authonly, but no -p password. Please provide one.");
+			WLog_INFO(TAG, "auth-only, but no password set. Please provide one.");
 			return FALSE;
 		}
 
@@ -1259,9 +1263,11 @@ void xf_window_free(xfContext* xfc)
 void* xf_input_thread(void *arg)
 {
 	xfContext* xfc;
-	HANDLE event;
+	DWORD status;
+	HANDLE event[2];
 	XEvent xevent;
 	wMessageQueue *queue;
+	wMessage msg;
 	int pending_status = 1;
 	int process_status = 1;
 	freerdp *instance = (freerdp*) arg;
@@ -1269,34 +1275,51 @@ void* xf_input_thread(void *arg)
 	xfc = (xfContext *) instance->context;
 	assert(NULL != xfc);
 	queue = freerdp_get_message_queue(instance, FREERDP_INPUT_MESSAGE_QUEUE);
-	event = CreateFileDescriptorEvent(NULL, FALSE, FALSE, xfc->xfds);
+	event[0] = MessageQueue_Event(queue);
+	event[1] = CreateFileDescriptorEvent(NULL, FALSE, FALSE, xfc->xfds);
 
-	while (WaitForSingleObject(event, INFINITE) == WAIT_OBJECT_0)
+	while(1)
 	{
-		do
+		status = WaitForMultipleObjects(2, event, FALSE, INFINITE);
+		
+		if(status == WAIT_OBJECT_0 + 1)
 		{
-			xf_lock_x11(xfc, FALSE);
-			pending_status = XPending(xfc->display);
-			xf_unlock_x11(xfc, FALSE);
-
-			if (pending_status)
+			do
 			{
 				xf_lock_x11(xfc, FALSE);
-
-				ZeroMemory(&xevent, sizeof(xevent));
-				XNextEvent(xfc->display, &xevent);
-
-				process_status = xf_event_process(instance, &xevent);
-
+				pending_status = XPending(xfc->display);
 				xf_unlock_x11(xfc, FALSE);
 
-				if (!process_status)
+				if (pending_status)
+				{
+					xf_lock_x11(xfc, FALSE);
+
+					ZeroMemory(&xevent, sizeof(xevent));
+					XNextEvent(xfc->display, &xevent);
+
+					process_status = xf_event_process(instance, &xevent);
+
+					xf_unlock_x11(xfc, FALSE);
+
+					if (!process_status)
+						break;
+				}
+			}
+			while (pending_status);
+
+			if (!process_status)
+				break;
+
+		}
+		else if(status == WAIT_OBJECT_0)
+		{
+			if(MessageQueue_Peek(queue, &msg, FALSE))
+			{
+				if(msg.id == WMQ_QUIT)
 					break;
 			}
 		}
-		while (pending_status);
-
-		if (!process_status)
+		else
 			break;
 	}
 
