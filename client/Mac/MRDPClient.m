@@ -53,6 +53,8 @@ void mac_end_paint(rdpContext* context);
 
 @implementation MRDPClient
 
+BOOL isFirstResponder;
+
 @synthesize is_connected;
 @synthesize frameBuffer;
 @synthesize delegate;
@@ -278,6 +280,26 @@ void mac_end_paint(rdpContext* context);
 - (void)otherMouseDragged:(NSPoint)coord
 {
     mf_scale_mouse_event(context, instance->input, PTR_FLAGS_MOVE | PTR_FLAGS_BUTTON3, coord.x, coord.y);
+}
+
+- (void)becomeFirstResponder
+{
+	isFirstResponder = TRUE;
+}
+
+- (void)resignFirstResponder
+{
+	isFirstResponder = FALSE;
+}
+
+- (BOOL)performKeyEquivalent:(NSEvent *)theEvent
+{
+	if (isFirstResponder) {
+		[self keyDown:theEvent];
+		return TRUE;
+	}
+	
+	return FALSE;
 }
 
 - (void)keyDown:(NSEvent *)event

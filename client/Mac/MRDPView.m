@@ -216,6 +216,30 @@ void mac_desktop_resize(rdpContext* context);
 	return YES;
 }
 
+- (BOOL)becomeFirstResponder
+{
+	mfContext* mfCtx = (mfContext*)instance->context;
+	MRDPClient* client = (MRDPClient *)mfCtx->client;
+	
+	if (!client.is_connected)
+		return FALSE;
+	
+	[client becomeFirstResponder];
+	return [super becomeFirstResponder];
+}
+
+- (BOOL)resignFirstResponder
+{
+	mfContext* mfCtx = (mfContext*)instance->context;
+	MRDPClient* client = (MRDPClient *)mfCtx->client;
+	
+	if (!client.is_connected)
+		return FALSE;
+	
+	[client resignFirstResponder];
+	return [super resignFirstResponder];
+}
+
 - (void)mouseMoved:(NSEvent *)event
 {
 	[super mouseMoved:event];
@@ -379,6 +403,17 @@ void mac_desktop_resize(rdpContext* context);
     NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
     
     [client otherMouseDragged:loc];
+}
+
+- (BOOL)performKeyEquivalent:(NSEvent *)theEvent
+{
+	mfContext* mfCtx = (mfContext*)instance->context;
+	MRDPClient* client = (MRDPClient *)mfCtx->client;
+	
+	if (!client.is_connected)
+		return FALSE;
+	
+	return [client performKeyEquivalent:theEvent];
 }
 
 - (void)keyDown:(NSEvent *)event
