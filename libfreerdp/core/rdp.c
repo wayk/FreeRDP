@@ -1274,6 +1274,7 @@ rdpRdp* rdp_new(rdpContext* context)
 	BOOL newSettings = FALSE;
 
 	rdp = (rdpRdp*) calloc(1, sizeof(rdpRdp));
+
 	if (!rdp)
 		return NULL;
 
@@ -1299,7 +1300,8 @@ rdpRdp* rdp_new(rdpContext* context)
 	if (context->instance)
 		context->instance->settings = rdp->settings;
 
-	rdp->transport = transport_new(rdp->settings);
+	rdp->transport = transport_new(context);
+
 	if (!rdp->transport)
 		goto out_free_settings;
 	
@@ -1383,8 +1385,10 @@ out_free:
 
 void rdp_reset(rdpRdp* rdp)
 {
+	rdpContext* context;
 	rdpSettings* settings;
 
+	context = rdp->context;
 	settings = rdp->settings;
 
 	bulk_reset(rdp->bulk);
@@ -1412,7 +1416,7 @@ void rdp_reset(rdpRdp* rdp)
 	free(settings->ClientAddress);
 	settings->ClientAddress = NULL;
 
-	rdp->transport = transport_new(rdp->settings);
+	rdp->transport = transport_new(context);
 	rdp->transport->rdp = rdp;
 	rdp->license = license_new(rdp);
 	rdp->nego = nego_new(rdp->transport);
