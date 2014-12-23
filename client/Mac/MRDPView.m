@@ -405,17 +405,6 @@ void mac_desktop_resize(rdpContext* context);
     [client otherMouseDragged:loc];
 }
 
-- (BOOL)performKeyEquivalent:(NSEvent *)theEvent
-{
-	mfContext* mfCtx = (mfContext*)instance->context;
-	MRDPClient* client = (MRDPClient *)mfCtx->client;
-	
-	if (!client.is_connected)
-		return FALSE;
-	
-	return [client performKeyEquivalent:theEvent];
-}
-
 - (void)keyDown:(NSEvent *)event
 {
     mfContext* mfCtx = (mfContext*)instance->context;
@@ -438,6 +427,27 @@ void mac_desktop_resize(rdpContext* context);
     MRDPClient* client = (MRDPClient *)mfCtx->client;
     
     [client flagsChanged:event];
+}
+
+- (BOOL)isFirstResponder
+{
+	return ([self window] != nil && [[self window] isKeyWindow] && [[self window] firstResponder] == self);
+}
+
+- (BOOL)performKeyEquivalent:(NSEvent *)theEvent
+{
+	mfContext* mfCtx = (mfContext*)instance->context;
+	MRDPClient* client = (MRDPClient *)mfCtx->client;
+	
+	if (!client.is_connected)
+		return FALSE;
+	
+	if ([self isFirstResponder]) {
+		[self keyDown:theEvent];
+		return TRUE;
+	}
+	
+	return FALSE;
 }
 
 - (void)drawRect:(NSRect)rect
