@@ -113,14 +113,14 @@ BOOL isFirstResponder;
     [delegate releaseResources];
 }
 
-- (void)pause
+- (void) pause
 {
-    // Invalidate the timer on the thread it was created on
-    dispatch_async(dispatch_get_main_queue(), ^{
-        [self->pasteboard_timer invalidate];
-    });
-    
-    [delegate pause];
+	// Invalidate the timer on the thread it was created on
+	dispatch_async(dispatch_get_main_queue(), ^{
+		[self->pasteboard_timer invalidate];
+	});
+	
+	[delegate pause];
 }
 
 - (void)resume
@@ -154,64 +154,67 @@ BOOL isFirstResponder;
     freerdp_client_add_device_channel(context->settings, 3, d);
 }
 
-- (void)onPasteboardTimerFired:(NSTimer*)timer
+- (void) onPasteboardTimerFired :(NSTimer*) timer
 {
-    BYTE* data;
-    UINT32 size;
-    UINT32 formatId;
-    BOOL formatMatch;
-    int changeCount;
-    NSData* formatData;
-    const char* formatType;
-    NSPasteboardItem* item;
-    
-    changeCount = (int) [pasteboard_rd changeCount];
-    
-    if (changeCount == pasteboard_changecount)
-        return;
-    
-    pasteboard_changecount = changeCount;
-    
-    NSArray* items = [pasteboard_rd pasteboardItems];
-    
-    if ([items count] < 1)
-        return;
-    
-    item = [items objectAtIndex:0];
-    
-    /**
-     * System-Declared Uniform Type Identifiers:
-     * https://developer.apple.com/library/ios/documentation/Miscellaneous/Reference/UTIRef/Articles/System-DeclaredUniformTypeIdentifiers.html
-     */
-    
-    formatMatch = FALSE;
-    
-    for (NSString* type in [item types])
-    {
-        formatType = [type UTF8String];
-        
-        if (strcmp(formatType, "public.utf8-plain-text") == 0)
-        {
-            formatData = [item dataForType:type];
-            formatId = ClipboardRegisterFormat(mfc->clipboard, "UTF8_STRING");
-            
-            size = (UINT32) [formatData length];
-            
-            data = (BYTE*) malloc(size);
-            [formatData getBytes:data length:size];
-            
-            ClipboardSetData(mfc->clipboard, formatId, (void*) data, size);
-            formatMatch = TRUE;
-            
-            break;
-        }
-    }
-    
-    if (!formatMatch)
-        ClipboardEmpty(mfc->clipboard);
-    
-    if (mfc->clipboardSync)
-        mac_cliprdr_send_client_format_list(mfc->cliprdr);
+	BYTE* data;
+	UINT32 size;
+	UINT32 formatId;
+	BOOL formatMatch;
+	int changeCount;
+	NSData* formatData;
+	const char* formatType;
+	NSPasteboardItem* item;
+	
+	changeCount = (int) [pasteboard_rd changeCount];
+	
+	if (changeCount == pasteboard_changecount)
+		return;
+	
+	pasteboard_changecount = changeCount;
+	
+	NSArray* items = [pasteboard_rd pasteboardItems];
+	
+	if ([items count] < 1)
+		return;
+	
+	item = [items objectAtIndex:0];
+	
+	/**
+	 * System-Declared Uniform Type Identifiers:
+	 * https://developer.apple.com/library/ios/documentation/Miscellaneous/Reference/UTIRef/Articles/System-DeclaredUniformTypeIdentifiers.html
+	 */
+	
+	formatMatch = FALSE;
+	
+	for (NSString* type in [item types])
+	{
+		formatType = [type UTF8String];
+		
+		if (strcmp(formatType, "public.utf8-plain-text") == 0)
+		{
+			formatData = [item dataForType:type];
+			formatId = ClipboardRegisterFormat(mfc->clipboard, "UTF8_STRING");
+			
+			/* length does not include null terminator */
+			
+			size = (UINT32) [formatData length];
+			data = (BYTE*) malloc(size + 1);
+			[formatData getBytes:data length:size];
+			data[size] = '\0';
+			size++;
+			
+			ClipboardSetData(mfc->clipboard, formatId, (void*) data, size);
+			formatMatch = TRUE;
+			
+			break;
+		}
+	}
+	
+	if (!formatMatch)
+		ClipboardEmpty(mfc->clipboard);
+	
+	if (mfc->clipboardSync)
+		mac_cliprdr_send_client_format_list(mfc->cliprdr);
 }
 
 - (void)mouseMoved:(NSPoint)coord
@@ -338,9 +341,9 @@ BOOL isFirstResponder;
     if ((vkcode == 0x43 || vkcode == 0x56 || vkcode == 0x41 || vkcode == 0x58) && modifierFlags & NSCommandKeyMask)
     {
         releaseKey = true;
-        freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_RELEASE, 0x5B); /* VK_LWIN, RELEASE */
-        freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_RELEASE, 0x5C); /* VK_RWIN, RELEASE */
-        freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_DOWN, 0x1D); /* VK_LCONTROL, DOWN */
+        freerdp_input_send_keyboard_event(instance->input, KBD_FLAGS_RELEASE, 0x5B); /* VK_LWIN, RELEASE */
+        freerdp_input_send_keyboard_event(instance->input, KBD_FLAGS_RELEASE, 0x5C); /* VK_RWIN, RELEASE */
+        freerdp_input_send_keyboard_event(instance->input, KBD_FLAGS_DOWN, 0x1D); /* VK_LCONTROL, DOWN */
     }
     
 #if 0
@@ -353,7 +356,7 @@ BOOL isFirstResponder;
     if (releaseKey)
     {
         //For some reasons, keyUp isn't called when Command is held down.
-        freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_RELEASE, 0x1D); /* VK_LCONTROL, RELEASE */
+        freerdp_input_send_keyboard_event(instance->input, KBD_FLAGS_RELEASE, 0x1D); /* VK_LCONTROL, RELEASE */
     }
 }
 

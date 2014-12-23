@@ -143,16 +143,16 @@ void mac_desktop_resize(rdpContext* context);
 	[self addCursorRect:[self visibleRect] cursor:currentCursor];
 }
 
-- (void)pause
+- (void) pause
 {
-    // Temporarily remove tracking areas, else we will crash if the mouse
-    // enters the view while restarting
-    NSArray *trackingAreas = self.trackingAreas;
-    for(NSTrackingArea *ta in trackingAreas)
-    {
-        [self removeTrackingArea:ta];
-    }
-
+	// Temporarily remove tracking areas, else we will crash if the mouse
+	// enters the view while restarting
+	NSArray* trackingAreas = self.trackingAreas;
+	
+	for (NSTrackingArea* ta in trackingAreas)
+	{
+		[self removeTrackingArea:ta];
+	}
 }
 
 - (void)resume
@@ -465,83 +465,6 @@ void mac_desktop_resize(rdpContext* context);
 		/* Fill the screen with black */
 		[[NSColor blackColor] set];
 		NSRectFill([self bounds]);
-	}
-}
-
-- (void) onPasteboardTimerFired :(NSTimer*) timer
-{
-	BYTE* data;
-	UINT32 size;
-	UINT32 formatId;
-	BOOL formatMatch;
-	int changeCount;
-	NSData* formatData;
-	const char* formatType;
-	NSPasteboardItem* item;
-	
-	changeCount = (int) [pasteboard_rd changeCount];
-	
-	if (changeCount == pasteboard_changecount)
-		return;
-	
-	pasteboard_changecount = changeCount;
-	
-	NSArray* items = [pasteboard_rd pasteboardItems];
-		
-	if ([items count] < 1)
-		return;
-	
-	item = [items objectAtIndex:0];
-	
-	/**
-	 * System-Declared Uniform Type Identifiers:
-	 * https://developer.apple.com/library/ios/documentation/Miscellaneous/Reference/UTIRef/Articles/System-DeclaredUniformTypeIdentifiers.html
-	 */
-	
-	formatMatch = FALSE;
-	
-	for (NSString* type in [item types])
-	{
-		formatType = [type UTF8String];
-		
-		if (strcmp(formatType, "public.utf8-plain-text") == 0)
-		{
-			formatData = [item dataForType:type];
-			formatId = ClipboardRegisterFormat(mfc->clipboard, "UTF8_STRING");
-		
-			/* length does not include null terminator */
-			
-			size = (UINT32) [formatData length];
-			data = (BYTE*) malloc(size + 1);
-			[formatData getBytes:data length:size];
-			data[size] = '\0';
-			size++;
-			
-			ClipboardSetData(mfc->clipboard, formatId, (void*) data, size);
-			formatMatch = TRUE;
-			
-			break;
-		}
-	}
-	
-	if (!formatMatch)
-		ClipboardEmpty(mfc->clipboard);
-	
-	if (mfc->clipboardSync)
-		mac_cliprdr_send_client_format_list(mfc->cliprdr);
-}
-
-- (void) pause
-{
-	dispatch_async(dispatch_get_main_queue(), ^{
-		[self->pasteboard_timer invalidate];
-	});
-	
-	NSArray* trackingAreas = self.trackingAreas;
-	
-	for (NSTrackingArea* ta in trackingAreas)
-	{
-		[self removeTrackingArea:ta];
 	}
 }
 
