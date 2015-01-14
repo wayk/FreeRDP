@@ -24,9 +24,10 @@
     NSMutableArray* cursors;
     NSTimer* pasteboard_timer;
     DWORD kbdModFlags;
-    
+        
     @public
     bool is_connected;
+    bool altTabKeyPressed;
     RDS_FRAMEBUFFER* frameBuffer;
     id<MRDPClientDelegate> delegate;
     NSPasteboard* pasteboard_rd;

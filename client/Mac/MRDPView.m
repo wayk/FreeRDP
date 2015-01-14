@@ -107,8 +107,8 @@ void mac_desktop_resize(rdpContext* context);
         currentCursor = [NSCursor arrowCursor];
 
         [[NSNotificationCenter defaultCenter] addObserver:self
-                                                 selector:@selector(applicationDidBecomeActive:)
-                                                     name:@"NSApplicationDidBecomeActiveNotification" object:nil];
+                                                 selector:@selector(applicationDidResignActivate:)
+                                                     name:@"NSApplicationDidResignActiveNotification" object:nil];
         
 		initialized = YES;
 	}
@@ -116,19 +116,25 @@ void mac_desktop_resize(rdpContext* context);
 
 - (void)releaseResources
 {
-    [[NSNotificationCenter defaultCenter] removeObserver:self name:@"NSApplicationDidBecomeActiveNotification" object:nil];
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:@"NSApplicationDidResignActiveNotification" object:nil];
 }
 
-- (void)applicationDidBecomeActive:(NSNotification *)notification
+- (void)applicationDidResignActivate:(NSNotification *)notification
 {
     mfContext* mfCtx = (mfContext*)instance->context;
     MRDPClient* client = (MRDPClient *)mfCtx->client;
     
-    if(client->is_connected)
+//    if(client->is_connected)
+//    {
+//        NSLog(@"Releasing meta key");
+//        
+//        freerdp_input_send_keyboard_event(instance->input, 256 | KBD_FLAGS_RELEASE, 0x005B);
+//    }
+    
+    if(client->altTabKeyPressed)
     {
-        NSLog(@"Releasing meta key");
-        
-        freerdp_input_send_keyboard_event(instance->input, 256 | KBD_FLAGS_RELEASE, 0x005B);
+        NSLog(@"Application deactivated");
+        client->altTabKeyPressed = false;
     }
 }
 
