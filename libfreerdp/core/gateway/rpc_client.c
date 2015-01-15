@@ -160,13 +160,13 @@ int rpc_client_on_fragment_received_event(rdpRpc* rpc)
 
 	if (StubLength == 4)
 	{
-		//WLog_ERR(TAG,  "Ignoring TsProxySendToServer Response");
-		//WLog_DBG(TAG, "Got stub length 4 with flags %d and callid %d", header->common.pfc_flags, header->common.call_id);
-
 		/* received a disconnect request from the server? */
 		if ((header->common.call_id == rpc->PipeCallId) && (header->common.pfc_flags & PFC_LAST_FRAG))
 		{
 			TerminateEventArgs e;
+			
+			rpc->result = *((UINT32*) &buffer[StubOffset]);
+			
 			rpc->context->rdp->disconnect = TRUE;
 			rpc->transport->tsg->state = TSG_STATE_TUNNEL_CLOSE_PENDING;
 			EventArgsInit(&e, "freerdp");
@@ -240,10 +240,7 @@ int rpc_client_on_read_event(rdpRpc* rpc)
 					RPC_COMMON_FIELDS_LENGTH - Stream_GetPosition(rpc->client->RecvFrag));
 
 			if (status < 0)
-			{
-				WLog_ERR(TAG, "rpc_client_frag_read: error reading header");
 				return -1;
-			}
 
 			if (!status)
 				return 0;
@@ -512,7 +509,10 @@ static void* rpc_client_thread(void* arg)
 		if (WaitForSingleObject(ReadEvent, 0) == WAIT_OBJECT_0)
 		{
 			if (rpc_client_on_read_event(rpc) < 0)
+			{
+				rpc->transport->layer = TRANSPORT_LAYER_CLOSED;
 				break;
+			}
 		}
 
 		if (WaitForSingleObject(Queue_Event(rpc->client->SendQueue), 0) == WAIT_OBJECT_0)
