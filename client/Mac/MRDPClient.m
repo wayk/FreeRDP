@@ -152,6 +152,11 @@ void mac_end_paint(rdpContext* context);
     freerdp_client_add_device_channel(context->settings, 3, d);
 }
 
+- (void)resignActive
+{
+    altTabKeyPressed = false;
+}
+
 - (void) onPasteboardTimerFired :(NSTimer*) timer
 {
 	BYTE* data;
@@ -331,14 +336,12 @@ void mac_end_paint(rdpContext* context);
     
     if(altTabKeyPressed)
     {
-        NSLog(@"Command was pressed");
         if(vkcode == VK_TAB)
-        {NSLog(@"This is a tab, don't do anything");
+        {
             altTabKeyPressed = false;
         }
         else
         {
-            NSLog(@"Sending command before new key");
             freerdp_input_send_keyboard_event(instance->input, 256 | KBD_FLAGS_DOWN, 0x005B);
             altTabKeyPressed = false;
         }
@@ -460,19 +463,16 @@ void mac_end_paint(rdpContext* context);
     {
         if ((modFlags & NSCommandKeyMask) && !(kbdModFlags & NSCommandKeyMask))
         {
-            NSLog(@"Command was pressed, wait for another key");
             altTabKeyPressed = true;
-            //freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_DOWN, scancode);
         }
         else if (!(modFlags & NSCommandKeyMask) && (kbdModFlags & NSCommandKeyMask))
         {
             if(altTabKeyPressed)
             {
-                NSLog(@"Sending command down before command up");
                 freerdp_input_send_keyboard_event(instance->input, 256 | KBD_FLAGS_DOWN, 0x005B);
                 altTabKeyPressed = false;
             }
-            NSLog(@"Sending command up");
+
             freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_RELEASE, scancode);
         }
     }

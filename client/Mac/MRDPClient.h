@@ -65,6 +65,7 @@
 - (void)becomeFirstResponder;
 - (void)resignFirstResponder;
 - (BOOL)performKeyEquivalent:(NSEvent *)theEvent;
+- (void)resignActive;
 
 
 @end

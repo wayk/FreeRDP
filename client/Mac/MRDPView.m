@@ -124,18 +124,7 @@ void mac_desktop_resize(rdpContext* context);
     mfContext* mfCtx = (mfContext*)instance->context;
     MRDPClient* client = (MRDPClient *)mfCtx->client;
     
-//    if(client->is_connected)
-//    {
-//        NSLog(@"Releasing meta key");
-//        
-//        freerdp_input_send_keyboard_event(instance->input, 256 | KBD_FLAGS_RELEASE, 0x005B);
-//    }
-    
-    if(client->altTabKeyPressed)
-    {
-        NSLog(@"Application deactivated");
-        client->altTabKeyPressed = false;
-    }
+    [client performSelector:@selector(resignActive) withObject:nil afterDelay:0.0];
 }
 
 - (void)setCursor:(MRDPCursor*) cursor

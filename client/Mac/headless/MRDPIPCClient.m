@@ -138,6 +138,11 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
     }
 }
 
+- (void)applicationResignActive
+{
+    [mrdpClient performSelector:@selector(resignActive) withObject:nil afterDelay:0.0];
+}
+
 - (oneway void)keyDown:(NSEvent *)event
 {
     [mrdpClient performSelector:@selector(keyDown:) withObject:event afterDelay:0.0];
