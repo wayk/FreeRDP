@@ -323,10 +323,13 @@ void mac_end_paint(rdpContext* context);
     // For VK_A, VK_C, VK_V or VK_X
     if ((vkcode == 0x43 || vkcode == 0x56 || vkcode == 0x41 || vkcode == 0x58) && modifierFlags & NSCommandKeyMask)
     {
-        releaseKey = true;
-        freerdp_input_send_keyboard_event(instance->input, KBD_FLAGS_RELEASE, 0x5B); /* VK_LWIN, RELEASE */
-        freerdp_input_send_keyboard_event(instance->input, KBD_FLAGS_RELEASE, 0x5C); /* VK_RWIN, RELEASE */
-        freerdp_input_send_keyboard_event(instance->input, KBD_FLAGS_DOWN, 0x1D); /* VK_LCONTROL, DOWN */
+        if(context->settings->EnableWinKeyCutPaste)
+        {
+            releaseKey = true;
+            freerdp_input_send_keyboard_event(instance->input, KBD_FLAGS_RELEASE, 0x5B); /* VK_LWIN, RELEASE */
+            freerdp_input_send_keyboard_event(instance->input, KBD_FLAGS_RELEASE, 0x5C); /* VK_RWIN, RELEASE */
+            freerdp_input_send_keyboard_event(instance->input, KBD_FLAGS_DOWN, 0x1D); /* VK_LCONTROL, DOWN */
+        }
     }
     
 #if 0

@@ -56,6 +56,7 @@ BOOL reconnecting = false;
         NSLog(@"Smart sizing: %i", smartSizing);
         
         [mrdpViewController setBooleanSettingForIdentifier:707 withValue:true]; // EnableWindowsKey
+        [mrdpViewController setBooleanSettingForIdentifier:707 withValue:true]; // EnableWinKeyCutPaste
         
         if(smartSizing)
         {

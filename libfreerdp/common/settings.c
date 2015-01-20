@@ -708,6 +708,9 @@ BOOL freerdp_get_param_bool(rdpSettings* settings, int id)
 
 		case FreeRDP_EnableWindowsKey:
 			return settings->EnableWindowsKey;
+            
+        case FreeRDP_EnableWinKeyCutPaste:
+            return settings->EnableWinKeyCutPaste;
 
 		case FreeRDP_MaximizeShell:
 			return settings->MaximizeShell;
@@ -1110,6 +1113,10 @@ int freerdp_set_param_bool(rdpSettings* settings, int id, BOOL param)
 		case FreeRDP_EnableWindowsKey:
 			settings->EnableWindowsKey = param;
 			break;
+            
+        case FreeRDP_EnableWinKeyCutPaste:
+            settings->EnableWinKeyCutPaste = param;
+            break;
 
 		case FreeRDP_MaximizeShell:
 			settings->MaximizeShell = param;

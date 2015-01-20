@@ -578,6 +578,7 @@ typedef struct _RDPDR_PARALLEL RDPDR_PARALLEL;
 #define FreeRDP_IPv6Enabled					768
 #define FreeRDP_ClientAddress					769
 #define FreeRDP_ClientDir					770
+#define FreeRDP_EnableWinKeyCutPaste        772
 #define FreeRDP_AutoReconnectionEnabled				832
 #define FreeRDP_AutoReconnectMaxRetries				833
 #define FreeRDP_ClientAutoReconnectCookie			834
@@ -942,6 +943,7 @@ struct rdp_settings
 	ALIGN64 char* ClientAddress; /* 769 */
 	ALIGN64 char* ClientDir; /* 770 */
 	UINT64 padding0832[832 - 771]; /* 771 */
+    ALIGN64 BOOL EnableWinKeyCutPaste; /* 772 */
 
 	/* Client Info (Auto Reconnection) */
 	ALIGN64 BOOL AutoReconnectionEnabled; /* 832 */
