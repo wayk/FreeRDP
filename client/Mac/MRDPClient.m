@@ -155,6 +155,11 @@ void mac_end_paint(rdpContext* context);
 - (void)resignActive
 {
     altTabKeyPressed = false;
+	freerdp_input_send_keyboard_event(context->input, 0 | KBD_FLAGS_RELEASE, 0x2A); /*Left shift*/
+	freerdp_input_send_keyboard_event(context->input, 0 | KBD_FLAGS_RELEASE, 0x36); /*Right shift*/
+	freerdp_input_send_keyboard_event(context->input, 0 | KBD_FLAGS_RELEASE, 0x38); /*Alt*/
+	freerdp_input_send_keyboard_event(context->input, 0 | KBD_FLAGS_RELEASE, 0x1D); /*ctrl*/
+	kbdModFlags = 0;
 }
 
 - (void) onPasteboardTimerFired :(NSTimer*) timer
