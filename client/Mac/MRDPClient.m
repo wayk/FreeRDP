@@ -87,13 +87,19 @@ void mac_end_paint(rdpContext* context);
     mfc->client_height = instance->settings->DesktopHeight;
     mfc->client_width = instance->settings->DesktopWidth;
     
+    for(ServerDrive *forwardedDrive in [delegate getForwardedServerDrives])
+    {
+        [self addServerDrive:forwardedDrive];
+    }
+    
     mfc->thread = CreateThread(NULL, 0, mac_client_thread, (void*) context, 0, &mfc->mainThreadId);
     
     return 0;
 }
 
 - (void)releaseResources
-{if(delegate.renderToBuffer)
+{
+    if(delegate.renderToBuffer)
     {
         size_t shmemSize = frameBuffer->fbScanline * frameBuffer->fbHeight;
         if(munmap(frameBuffer->fbSharedMemory, shmemSize) != 0)
@@ -111,7 +117,7 @@ void mac_end_paint(rdpContext* context);
     [delegate releaseResources];
 }
 
-- (void) pause
+- (void)pause
 {
 	// Invalidate the timer on the thread it was created on
 	dispatch_async(dispatch_get_main_queue(), ^{
@@ -162,7 +168,7 @@ void mac_end_paint(rdpContext* context);
 	kbdModFlags = 0;
 }
 
-- (void) onPasteboardTimerFired :(NSTimer*) timer
+- (void)onPasteboardTimerFired:(NSTimer*) timer
 {
 	BYTE* data;
 	UINT32 size;

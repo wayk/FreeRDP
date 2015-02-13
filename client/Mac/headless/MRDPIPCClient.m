@@ -22,6 +22,8 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 
 static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
 
+NSMutableArray *forwardedServerDrives;
+
 - (BOOL)isConnected
 {
     return self->mrdpClient.is_connected;
@@ -53,6 +55,8 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
         NSLog(@"Launched IPC server at %@\n", clientName);
         
         [serverProxy clientConnected:clientName];
+        
+        forwardedServerDrives = [[NSMutableArray alloc] init];
     }
     
     return self;
@@ -61,6 +65,8 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
 - (void)dealloc
 {
     [self stop];
+    
+    [forwardedServerDrives release];
     
     [super dealloc];
 }
@@ -256,7 +262,7 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
 
 - (oneway void)addServerDrive:(ServerDrive *)drive
 {
-    [mrdpClient performSelector:@selector(addServerDrive:) withObject:drive afterDelay:0.0];
+    [forwardedServerDrives addObject:drive];
 }
 
 - (NSString *)getErrorInfoString:(int)code
@@ -386,6 +392,11 @@ static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
 - (void)setFrame:(NSRect)frame
 {
     // no-op
+}
+
+- (NSArray *)getForwardedServerDrives
+{
+    return [NSArray arrayWithArray:forwardedServerDrives];
 }
 
 - (void)initialise:(rdpContext *)rdpContext

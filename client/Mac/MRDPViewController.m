@@ -31,6 +31,8 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 @synthesize delegate;
 @synthesize mrdpClient;
 
+NSMutableArray *forwardedServerDrives;
+
 - (BOOL)isConnected
 {
     return self->mrdpClient.is_connected;
@@ -39,6 +41,11 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 - (NSView *)rdpView
 {
     return (NSView *)self->mrdpClient->delegate;
+}
+
+- (NSArray *)getForwardedServerDrives
+{
+    return [NSArray arrayWithArray:forwardedServerDrives];
 }
 
 - (void)viewDidConnect:(NSNotification *)notification
@@ -112,6 +119,8 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 
     [[NSNotificationCenter defaultCenter] removeObserver:self];
     
+    [forwardedServerDrives release];
+    
     MRDPView *view = (MRDPView *)self.mrdpClient.delegate;
     view.delegate = nil;
     [view release];
@@ -140,6 +149,8 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 - (BOOL)configure:(NSArray *)arguments
 {
     NSLog(@"configure");
+    
+    forwardedServerDrives = [[NSMutableArray alloc] init];
     
     int status;
     mfContext* mfc;
@@ -267,7 +278,7 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 
 - (void)addServerDrive:(ServerDrive *)drive
 {
-    [mrdpClient addServerDrive:drive];
+    [forwardedServerDrives addObject:drive];
 }
 
 - (BOOL)getBooleanSettingForIdentifier:(int)identifier

@@ -50,7 +50,7 @@ int mfreerdp_client_start(rdpContext* context)
 		mfc->client = [[MRDPClient alloc] init];
 	}
 
-	client = (MRDPClient*) mfc->client;
+	client = (MRDPClient*)mfc->client;
 	[client rdpStart:context];
 
 	return 0;

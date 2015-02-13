@@ -68,11 +68,21 @@ void mac_desktop_resize(rdpContext* context);
 	self = [super initWithFrame:frame];
 	
 	if (self)
-	{
+	{        
         return self;
 	}
 	
     return nil;
+}
+
+- (NSArray *)getForwardedServerDrives
+{
+    if(delegate && [delegate respondsToSelector:@selector(getForwardedServerDrives)])
+    {
+        return [delegate getForwardedServerDrives];
+    }
+    
+    return [NSArray array];
 }
 
 - (void)initialise:(rdpContext *)rdpContext
@@ -138,7 +148,7 @@ void mac_desktop_resize(rdpContext* context);
 	[self addCursorRect:[self visibleRect] cursor:currentCursor];
 }
 
-- (void) pause
+- (void)pause
 {
 	// Temporarily remove tracking areas, else we will crash if the mouse
 	// enters the view while restarting
