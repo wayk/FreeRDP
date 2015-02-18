@@ -31,8 +31,6 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 @synthesize delegate;
 @synthesize mrdpClient;
 
-NSMutableArray *forwardedServerDrives;
-
 - (BOOL)isConnected
 {
     return self->mrdpClient.is_connected;

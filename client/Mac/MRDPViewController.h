@@ -16,6 +16,7 @@
 {
     NSObject<MRDPViewControllerDelegate> *delegate;
     NSView *rdpView;
+	NSMutableArray *forwardedServerDrives;
     
     @public
 	rdpContext* context;
