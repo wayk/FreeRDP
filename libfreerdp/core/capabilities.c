@@ -198,11 +198,20 @@ BOOL rdp_read_general_capability_set(wStream* s, UINT16 length, rdpSettings* set
 	if (!(extraFlags & ENC_SALTED_CHECKSUM))
 		settings->SaltedChecksum = FALSE;
 
-	if (refreshRectSupport == FALSE)
-		settings->RefreshRect = FALSE;
 
-	if (suppressOutputSupport == FALSE)
-		settings->SuppressOutput = FALSE;
+	if (!settings->ServerMode)
+	{
+		/**
+		 * Note: refreshRectSupport and suppressOutputSupport are
+		 * server-only flags indicating to the client weather the
+		 * respective PDUs are supported. See MS-RDPBCGR 2.2.7.1.1
+		 */
+		if (!refreshRectSupport)
+			settings->RefreshRect = FALSE;
+
+		if (!suppressOutputSupport)
+			settings->SuppressOutput = FALSE;
+	}
 
 	return TRUE;
 }
@@ -3309,8 +3318,6 @@ BOOL rdp_read_capability_sets(wStream* s, rdpSettings* settings, UINT16 numberCa
 	UINT16 length;
 	BYTE *bm, *em;
 
-	BOOL foundMultifragmentUpdate = FALSE;
-
 	Stream_GetPointer(s, mark);
 	count = numberCapabilities;
 
@@ -3457,7 +3464,6 @@ BOOL rdp_read_capability_sets(wStream* s, rdpSettings* settings, UINT16 numberCa
 			case CAPSET_TYPE_MULTI_FRAGMENT_UPDATE:
 				if (!rdp_read_multifragment_update_capability_set(s, length, settings))
 					return FALSE;
-				foundMultifragmentUpdate = TRUE;
 				break;
 
 			case CAPSET_TYPE_LARGE_POINTER:
@@ -3504,15 +3510,6 @@ BOOL rdp_read_capability_sets(wStream* s, rdpSettings* settings, UINT16 numberCa
 	{
 		WLog_ERR(TAG,  "strange we haven't read the number of announced capacity sets, read=%d expected=%d",
 				 count-numberCapabilities, count);
-	}
-
-	/**
-	 * If we never received a multifragment update capability set,
-	 * then the peer doesn't support fragmentation.
-	 */
-	if (!foundMultifragmentUpdate)
-	{
-		settings->MultifragMaxRequestSize = 0;
 	}
 
 #ifdef WITH_DEBUG_CAPABILITIES

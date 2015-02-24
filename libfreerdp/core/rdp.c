@@ -362,7 +362,7 @@ BOOL rdp_read_header(rdpRdp* rdp, wStream* s, UINT16* length, UINT16* channelId)
 				rdp_set_error_info(rdp, ERRINFO_RPC_INITIATED_DISCONNECT);
 		}
 
-		WLog_ERR(TAG,  "DisconnectProviderUltimatum: reason: %d", reason);
+		WLog_ERR(TAG, "DisconnectProviderUltimatum: reason: %d", reason);
 		rdp->disconnect = TRUE;
 
 		EventArgsInit(&e, "freerdp");
@@ -655,6 +655,9 @@ BOOL rdp_recv_server_auto_reconnect_status_pdu(rdpRdp* rdp, wStream* s)
 		return FALSE;
 
 	Stream_Read_UINT32(s, arcStatus); /* arcStatus (4 bytes) */
+
+	WLog_WARN(TAG, "AutoReconnectStatus: 0x%04X", arcStatus);
+
 	return TRUE;
 }
 
@@ -746,7 +749,7 @@ int rdp_recv_data_pdu(rdpRdp* rdp, wStream* s)
 
 		if (Stream_GetRemainingLength(s) < (size_t) SrcSize)
 		{
-			WLog_ERR(TAG,  "bulk_decompress: not enough bytes for compressedLength %d", compressedLength);
+			WLog_ERR(TAG, "bulk_decompress: not enough bytes for compressedLength %d", compressedLength);
 			return -1;
 		}
 
@@ -761,7 +764,7 @@ int rdp_recv_data_pdu(rdpRdp* rdp, wStream* s)
 		}
 		else
 		{
-			WLog_ERR(TAG,  "bulk_decompress() failed");
+			WLog_ERR(TAG, "bulk_decompress() failed");
 			return -1;
 		}
 
@@ -968,13 +971,13 @@ BOOL rdp_decrypt(rdpRdp* rdp, wStream* s, int length, UINT16 securityFlags)
 
 		if (!security_fips_decrypt(Stream_Pointer(s), length, rdp))
 		{
-			WLog_ERR(TAG,  "FATAL: cannot decrypt");
+			WLog_ERR(TAG, "FATAL: cannot decrypt");
 			return FALSE; /* TODO */
 		}
 
 		if (!security_fips_check_signature(Stream_Pointer(s), length - pad, sig, rdp))
 		{
-			WLog_ERR(TAG,  "FATAL: invalid packet signature");
+			WLog_ERR(TAG, "FATAL: invalid packet signature");
 			return FALSE; /* TODO */
 		}
 
@@ -998,7 +1001,7 @@ BOOL rdp_decrypt(rdpRdp* rdp, wStream* s, int length, UINT16 securityFlags)
 
 	if (memcmp(wmac, cmac, sizeof(wmac)) != 0)
 	{
-		WLog_ERR(TAG,  "WARNING: invalid packet signature");
+		WLog_ERR(TAG, "WARNING: invalid packet signature");
 		/*
 		 * Because Standard RDP Security is totally broken,
 		 * and cannot protect against MITM, don't treat signature
@@ -1030,7 +1033,7 @@ static int rdp_recv_tpkt_pdu(rdpRdp* rdp, wStream* s)
 
 	if (!rdp_read_header(rdp, s, &length, &channelId))
 	{
-		WLog_ERR(TAG,  "Incorrect RDP header.");
+		WLog_ERR(TAG, "Incorrect RDP header.");
 		return -1;
 	}
 
@@ -1051,7 +1054,7 @@ static int rdp_recv_tpkt_pdu(rdpRdp* rdp, wStream* s)
 		{
 			if (!rdp_decrypt(rdp, s, length - 4, securityFlags))
 			{
-				WLog_ERR(TAG,  "rdp_decrypt failed");
+				WLog_ERR(TAG, "rdp_decrypt failed");
 				return -1;
 			}
 		}
@@ -1086,7 +1089,7 @@ static int rdp_recv_tpkt_pdu(rdpRdp* rdp, wStream* s)
 				case PDU_TYPE_DATA:
 					if (rdp_recv_data_pdu(rdp, s) < 0)
 					{
-						WLog_ERR(TAG,  "rdp_recv_data_pdu failed");
+						WLog_ERR(TAG, "rdp_recv_data_pdu failed");
 						return -1;
 					}
 					break;
@@ -1106,7 +1109,7 @@ static int rdp_recv_tpkt_pdu(rdpRdp* rdp, wStream* s)
 					break;
 
 				default:
-					WLog_ERR(TAG,  "incorrect PDU type: 0x%04X", pduType);
+					WLog_ERR(TAG, "incorrect PDU type: 0x%04X", pduType);
 					break;
 			}
 
@@ -1138,7 +1141,7 @@ static int rdp_recv_fastpath_pdu(rdpRdp* rdp, wStream* s)
 
 	if ((length == 0) || (length > Stream_GetRemainingLength(s)))
 	{
-		WLog_ERR(TAG,  "incorrect FastPath PDU header length %d", length);
+		WLog_ERR(TAG, "incorrect FastPath PDU header length %d", length);
 		return -1;
 	}
 
@@ -1166,7 +1169,7 @@ static int rdp_recv_pdu(rdpRdp* rdp, wStream* s)
 		return rdp_recv_fastpath_pdu(rdp, s);
 }
 
-static int rdp_recv_callback(rdpTransport* transport, wStream* s, void* extra)
+int rdp_recv_callback(rdpTransport* transport, wStream* s, void* extra)
 {
 	int status = 0;
 	rdpRdp* rdp = (rdpRdp*) extra;
@@ -1177,8 +1180,7 @@ static int rdp_recv_callback(rdpTransport* transport, wStream* s, void* extra)
 	 * enters the active state, an auto-detect PDU can be received
 	 * on the MCS message channel.
 	 */
-	if ((rdp->state > CONNECTION_STATE_MCS_CHANNEL_JOIN) &&
-		(rdp->state < CONNECTION_STATE_ACTIVE))
+	if ((rdp->state > CONNECTION_STATE_MCS_CHANNEL_JOIN) && (rdp->state < CONNECTION_STATE_ACTIVE))
 	{
 		if (rdp_client_connect_auto_detect(rdp, s))
 			return 0;
@@ -1186,14 +1188,59 @@ static int rdp_recv_callback(rdpTransport* transport, wStream* s, void* extra)
 
 	switch (rdp->state)
 	{
-		case CONNECTION_STATE_NEGO:
-			if (!rdp_client_connect_mcs_connect_response(rdp, s))
-				status = -1;
+		case CONNECTION_STATE_NLA:
+			if (nla_recv_pdu(rdp->nla, s) < 1)
+				return -1;
+
+			if (rdp->nla->state == NLA_STATE_AUTH_INFO)
+			{
+				transport_set_nla_mode(rdp->transport, FALSE);
+
+				nla_free(rdp->nla);
+				rdp->nla = NULL;
+
+				if (!mcs_client_begin(rdp->mcs))
+					return -1;
+			}
+
+			break;
+
+		case CONNECTION_STATE_MCS_CONNECT:
+			if (!mcs_recv_connect_response(rdp->mcs, s))
+			{
+				WLog_ERR(TAG, "mcs_recv_connect_response failure");
+				return -1;
+			}
+
+			if (!mcs_send_erect_domain_request(rdp->mcs))
+			{
+				WLog_ERR(TAG, "mcs_send_erect_domain_request failure");
+				return -1;
+			}
+
+			if (!mcs_send_attach_user_request(rdp->mcs))
+			{
+				WLog_ERR(TAG, "mcs_send_attach_user_request failure");
+				return -1;
+			}
+
+			rdp_client_transition_to_state(rdp, CONNECTION_STATE_MCS_ATTACH_USER);
 			break;
 
 		case CONNECTION_STATE_MCS_ATTACH_USER:
-			if (!rdp_client_connect_mcs_attach_user_confirm(rdp, s))
-				status = -1;
+			if (!mcs_recv_attach_user_confirm(rdp->mcs, s))
+			{
+				WLog_ERR(TAG, "mcs_recv_attach_user_confirm failure");
+				return -1;
+			}
+
+			if (!mcs_send_channel_join_request(rdp->mcs, rdp->mcs->userId))
+			{
+				WLog_ERR(TAG, "mcs_send_channel_join_request failure");
+				return -1;
+			}
+
+			rdp_client_transition_to_state(rdp, CONNECTION_STATE_MCS_CHANNEL_JOIN);
 			break;
 
 		case CONNECTION_STATE_MCS_CHANNEL_JOIN:
@@ -1224,7 +1271,7 @@ static int rdp_recv_callback(rdpTransport* transport, wStream* s, void* extra)
 			break;
 
 		default:
-			WLog_ERR(TAG,  "Invalid state %d", rdp->state);
+			WLog_ERR(TAG, "Invalid state %d", rdp->state);
 			status = -1;
 			break;
 	}
@@ -1254,23 +1301,25 @@ BOOL rdp_send_error_info(rdpRdp* rdp)
 	return status;
 }
 
-/**
- * Set non-blocking mode information.
- * @param rdp RDP module
- * @param blocking blocking mode
- */
-void rdp_set_blocking_mode(rdpRdp* rdp, BOOL blocking)
-{
-	rdp->transport->ReceiveCallback = rdp_recv_callback;
-	rdp->transport->ReceiveExtra = rdp;
-	transport_set_blocking_mode(rdp->transport, blocking);
-}
-
 int rdp_check_fds(rdpRdp* rdp)
 {
 	int status;
+	rdpTransport* transport = rdp->transport;
 
-	status = transport_check_fds(rdp->transport);
+	if (transport->tsg)
+	{
+		rdpTsg* tsg = transport->tsg;
+
+		status = tsg_check_event_handles(tsg);
+
+		if (status < 0)
+			return -1;
+
+		if (tsg->state != TSG_STATE_PIPE_CREATED)
+			return status;
+	}
+
+	status = transport_check_fds(transport);
 
 	if (status == 1)
 	{
@@ -1322,8 +1371,6 @@ rdpRdp* rdp_new(rdpContext* context)
 
 	if (!rdp->transport)
 		goto out_free_settings;
-	
-	rdp->transport->rdp = rdp;
 
 	rdp->license = license_new(rdp);
 	if (!rdp->license)
@@ -1411,31 +1458,61 @@ void rdp_reset(rdpRdp* rdp)
 
 	bulk_reset(rdp->bulk);
 
-	crypto_rc4_free(rdp->rc4_decrypt_key);
-	rdp->rc4_decrypt_key = NULL;
-	crypto_rc4_free(rdp->rc4_encrypt_key);
-	rdp->rc4_encrypt_key = NULL;
-	crypto_des3_free(rdp->fips_encrypt);
-	rdp->fips_encrypt = NULL;
-	crypto_des3_free(rdp->fips_decrypt);
-	rdp->fips_decrypt = NULL;
-	crypto_hmac_free(rdp->fips_hmac);
-	rdp->fips_hmac = NULL;
+	if (rdp->rc4_decrypt_key)
+	{
+		crypto_rc4_free(rdp->rc4_decrypt_key);
+		rdp->rc4_decrypt_key = NULL;
+	}
+
+	if (rdp->rc4_encrypt_key)
+	{
+		crypto_rc4_free(rdp->rc4_encrypt_key);
+		rdp->rc4_encrypt_key = NULL;
+	}
+
+	if (rdp->fips_encrypt)
+	{
+		crypto_des3_free(rdp->fips_encrypt);
+		rdp->fips_encrypt = NULL;
+	}
+
+	if (rdp->fips_decrypt)
+	{
+		crypto_des3_free(rdp->fips_decrypt);
+		rdp->fips_decrypt = NULL;
+	}
+
+	if (rdp->fips_hmac)
+	{
+		crypto_hmac_free(rdp->fips_hmac);
+		rdp->fips_hmac = NULL;
+	}
+
+	if (settings->ServerRandom)
+	{
+		free(settings->ServerRandom);
+		settings->ServerRandom = NULL;
+		settings->ServerRandomLength = 0;
+	}
+
+	if (settings->ServerCertificate)
+	{
+		free(settings->ServerCertificate);
+		settings->ServerCertificate = NULL;
+	}
+
+	if (settings->ClientAddress)
+	{
+		free(settings->ClientAddress);
+		settings->ClientAddress = NULL;
+	}
 
 	mcs_free(rdp->mcs);
 	nego_free(rdp->nego);
 	license_free(rdp->license);
 	transport_free(rdp->transport);
 
-	free(settings->ServerRandom);
-	settings->ServerRandom = NULL;
-	free(settings->ServerCertificate);
-	settings->ServerCertificate = NULL;
-	free(settings->ClientAddress);
-	settings->ClientAddress = NULL;
-
 	rdp->transport = transport_new(context);
-	rdp->transport->rdp = rdp;
 	rdp->license = license_new(rdp);
 	rdp->nego = nego_new(rdp->transport);
 	rdp->mcs = mcs_new(rdp->transport);
@@ -1469,6 +1546,7 @@ void rdp_free(rdpRdp* rdp)
 		fastpath_free(rdp->fastpath);
 		nego_free(rdp->nego);
 		mcs_free(rdp->mcs);
+		nla_free(rdp->nla);
 		redirection_free(rdp->redirection);
 		autodetect_free(rdp->autodetect);
 		heartbeat_free(rdp->heartbeat);
