@@ -68,11 +68,21 @@ void mac_desktop_resize(rdpContext* context);
 	self = [super initWithFrame:frame];
 	
 	if (self)
-	{
+	{        
         return self;
 	}
 	
     return nil;
+}
+
+- (NSArray *)getForwardedServerDrives
+{
+    if(delegate && [delegate respondsToSelector:@selector(getForwardedServerDrives)])
+    {
+        return [delegate getForwardedServerDrives];
+    }
+    
+    return [NSArray array];
 }
 
 - (void)initialise:(rdpContext *)rdpContext
@@ -138,7 +148,7 @@ void mac_desktop_resize(rdpContext* context);
 	[self addCursorRect:[self visibleRect] cursor:currentCursor];
 }
 
-- (void) pause
+- (void)pause
 {
 	// Temporarily remove tracking areas, else we will crash if the mouse
 	// enters the view while restarting
@@ -209,30 +219,6 @@ void mac_desktop_resize(rdpContext* context);
 - (BOOL)acceptsFirstResponder
 {
 	return YES;
-}
-
-- (BOOL)becomeFirstResponder
-{
-	mfContext* mfCtx = (mfContext*)instance->context;
-	MRDPClient* client = (MRDPClient *)mfCtx->client;
-	
-	if (!client.is_connected)
-		return FALSE;
-	
-	[client becomeFirstResponder];
-	return [super becomeFirstResponder];
-}
-
-- (BOOL)resignFirstResponder
-{
-	mfContext* mfCtx = (mfContext*)instance->context;
-	MRDPClient* client = (MRDPClient *)mfCtx->client;
-	
-	if (!client.is_connected)
-		return FALSE;
-	
-	[client resignFirstResponder];
-	return [super resignFirstResponder];
 }
 
 - (void)mouseMoved:(NSEvent *)event

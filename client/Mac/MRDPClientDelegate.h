@@ -21,6 +21,7 @@
 @property (readonly) bool renderToBuffer;
 @property (readonly) NSString* renderBufferName;
 
+- (NSArray *)getForwardedServerDrives;
 - (void)initialise:(rdpContext *)rdpContext;
 - (void)setNeedsDisplayInRect:(NSRect)newDrawRect;
 - (void)setCursor:(MRDPCursor*) cursor;
