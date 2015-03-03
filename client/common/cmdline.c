@@ -66,7 +66,7 @@ COMMAND_LINE_ARGUMENT_A args[] =
 	{ "monitors", COMMAND_LINE_VALUE_REQUIRED, "<0,1,2...>", NULL, NULL, -1, NULL, "Select monitors to use" },
 	{ "monitor-list", COMMAND_LINE_VALUE_FLAG | COMMAND_LINE_PRINT, NULL, NULL, NULL, -1, NULL, "List detected monitors" },
 	{ "t", COMMAND_LINE_VALUE_REQUIRED, "<title>", NULL, NULL, -1, "title", "Window title" },
-	{ "decorations", COMMAND_LINE_VALUE_BOOL, NULL, NULL, BoolValueTrue, -1, NULL, "Window decorations" },
+	{ "decorations", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "Window decorations" },
 	{ "smart-sizing", COMMAND_LINE_VALUE_OPTIONAL, "<width>x<height>", NULL, NULL, -1, NULL, "Scale remote desktop to window size" },
 	{ "a", COMMAND_LINE_VALUE_REQUIRED, NULL, NULL, NULL, -1, "addin", "Addin" },
 	{ "vc", COMMAND_LINE_VALUE_REQUIRED, NULL, NULL, NULL, -1, NULL, "Static virtual channel" },
@@ -132,8 +132,7 @@ COMMAND_LINE_ARGUMENT_A args[] =
 	{ "sec-tls", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "tls protocol security" },
 	{ "sec-nla", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "nla protocol security" },
 	{ "sec-ext", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "nla extended protocol security" },
-	{ "tls-ciphers", COMMAND_LINE_VALUE_REQUIRED, NULL, NULL, NULL, -1, NULL, "List of permitted openssl ciphers - see ciphers(1)" },
-	{ "tls-ciphers-netmon", COMMAND_LINE_VALUE_FLAG, NULL, NULL, NULL, -1, NULL, "Use tls ciphers that netmon can parse" },
+	{ "tls-ciphers", COMMAND_LINE_VALUE_REQUIRED, "<netmon|ma|ciphers>", NULL, NULL, -1, NULL, "Allowed TLS ciphers" },
 	{ "cert-name", COMMAND_LINE_VALUE_REQUIRED, "<name>", NULL, NULL, -1, NULL, "certificate name" },
 	{ "cert-ignore", COMMAND_LINE_VALUE_FLAG, NULL, NULL, NULL, -1, NULL, "ignore certificate" },
 	{ "pcb", COMMAND_LINE_VALUE_REQUIRED, "<blob>", NULL, NULL, -1, NULL, "Preconnection Blob" },
@@ -1323,8 +1322,10 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings, 
 
 				p = freerdp_command_line_parse_comma_separated_values(arg->Value, &count);
 
+				if (count > 16)
+					count = 16;
+
 				settings->NumMonitorIds = (UINT32) count;
-				settings->MonitorIds = (UINT32*) malloc(sizeof(UINT32) * settings->NumMonitorIds);
 
 				for (i = 0; i < settings->NumMonitorIds; i++)
 				{
@@ -1810,11 +1811,18 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings, 
 		}
 		CommandLineSwitchCase(arg, "tls-ciphers")
 		{
-			settings->PermittedTLSCiphers = _strdup(arg->Value);
-		}
-		CommandLineSwitchCase(arg, "tls-ciphers-netmon")
-		{
-			settings->PermittedTLSCiphers = arg->Value ? _strdup("ALL:!ECDH") : NULL;
+			if (strcmp(arg->Value, "netmon") == 0)
+			{
+				settings->AllowedTlsCiphers = _strdup("ALL:!ECDH");
+			}
+			else if (strcmp(arg->Value, "ma") == 0)
+			{
+				settings->AllowedTlsCiphers = _strdup("AES128-SHA");
+			}
+			else
+			{
+				settings->AllowedTlsCiphers = _strdup(arg->Value);
+			}
 		}
 		CommandLineSwitchCase(arg, "cert-name")
 		{

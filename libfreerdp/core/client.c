@@ -99,6 +99,8 @@ rdpChannels* freerdp_channels_new(void)
 void freerdp_channels_free(rdpChannels* channels)
 {
 	int index;
+	int nkeys;
+	ULONG_PTR* pKeys = NULL;
 	CHANNEL_OPEN_DATA* pChannelOpenData;
 
 	if (channels->queue)
@@ -116,14 +118,23 @@ void freerdp_channels_free(rdpChannels* channels)
 			free(pChannelOpenData->pInterface);
 			pChannelOpenData->pInterface = NULL;
 		}
+
+		HashTable_Remove(g_OpenHandles, (void*) (UINT_PTR)pChannelOpenData->OpenHandle);
+
 	}
 
 	if (g_OpenHandles)
 	{
-		HashTable_Free(g_OpenHandles);
-		DeleteCriticalSection(&g_channels_lock);
+		nkeys = HashTable_GetKeys(g_OpenHandles, &pKeys);
 
-		g_OpenHandles = NULL;
+		if (nkeys == 0)
+		{
+			HashTable_Free(g_OpenHandles);
+			DeleteCriticalSection(&g_channels_lock);
+			g_OpenHandles = NULL;
+		}
+
+		free(pKeys);
 	}
 
 	free(channels);
@@ -194,7 +205,7 @@ int freerdp_channels_post_connect(rdpChannels* channels, freerdp* instance)
 	int hostnameLength;
 	CHANNEL_CLIENT_DATA* pChannelClientData;
 
-	channels->is_connected = 1;
+	channels->connected = 1;
 	hostname = instance->settings->ServerHostname;
 	hostnameLength = (int) strlen(hostname);
 
@@ -405,7 +416,10 @@ int freerdp_channels_disconnect(rdpChannels* channels, freerdp* instance)
 	CHANNEL_OPEN_DATA* pChannelOpenData;
 	CHANNEL_CLIENT_DATA* pChannelClientData;
 
-	channels->is_connected = 0;
+	if (!channels->connected)
+		return 0;
+
+	channels->connected = 0;
 	freerdp_channels_check_fds(channels, instance);
 
 	/* tell all libraries we are shutting down */
@@ -490,7 +504,7 @@ UINT VCAPITYPE FreeRDP_VirtualChannelInit(LPVOID* ppInitHandle, PCHANNEL_DEF pCh
 	if (!pChannel)
 		return CHANNEL_RC_BAD_CHANNEL;
 
-	if (channels->is_connected)
+	if (channels->connected)
 		return CHANNEL_RC_ALREADY_CONNECTED;
 
 	if (versionRequested != VIRTUAL_CHANNEL_VERSION_WIN2000)
@@ -563,7 +577,7 @@ UINT VCAPITYPE FreeRDP_VirtualChannelOpen(LPVOID pInitHandle, LPDWORD pOpenHandl
 	if (!pChannelOpenEventProc)
 		return CHANNEL_RC_BAD_PROC;
 
-	if (!channels->is_connected)
+	if (!channels->connected)
 		return CHANNEL_RC_NOT_CONNECTED;
 
 	pChannelOpenData = freerdp_channels_find_channel_open_data_by_name(channels, pChannelName);
@@ -615,7 +629,7 @@ UINT VCAPITYPE FreeRDP_VirtualChannelWrite(DWORD openHandle, LPVOID pData, ULONG
 	if (!channels)
 		return CHANNEL_RC_BAD_CHANNEL_HANDLE;
 
-	if (!channels->is_connected)
+	if (!channels->connected)
 		return CHANNEL_RC_NOT_CONNECTED;
 
 	if (!pData)
