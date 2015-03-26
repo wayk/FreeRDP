@@ -193,9 +193,13 @@ static int rdpdr_server_write_general_capability_set(RdpdrServerContext* context
 	UINT32 extraFlags1;
 	UINT32 SpecialTypeDeviceCap;
 	RDPDR_CAPABILITY_HEADER header;
-
+    
 	header.CapabilityType = CAP_GENERAL_TYPE;
 	header.CapabilityLength = RDPDR_CAPABILITY_HEADER_LENGTH + 36;
+	if(!Stream_EnsureRemainingCapacity(s, header.CapabilityLength))
+		return -1;
+
+	header.CapabilityType = CAP_GENERAL_TYPE;
 	header.Version = GENERAL_CAPABILITY_VERSION_02;
 	ioCode1 = 0;
 	ioCode1 |= RDPDR_IRP_MJ_CREATE; /* always set */
@@ -256,7 +260,8 @@ static int rdpdr_server_write_printer_capability_set(RdpdrServerContext* context
 	header.CapabilityLength = RDPDR_CAPABILITY_HEADER_LENGTH;
 	header.Version = PRINT_CAPABILITY_VERSION_01;
 
-	Stream_EnsureRemainingCapacity(s, header.CapabilityLength);
+    if(!Stream_EnsureRemainingCapacity(s, header.CapabilityLength))
+		return -1;
 
 	rdpdr_server_write_capability_set_header(s, &header);
 
@@ -276,7 +281,8 @@ static int rdpdr_server_write_port_capability_set(RdpdrServerContext* context, w
 	header.CapabilityLength = RDPDR_CAPABILITY_HEADER_LENGTH;
 	header.Version = PORT_CAPABILITY_VERSION_01;
 
-	Stream_EnsureRemainingCapacity(s, header.CapabilityLength);
+    if(!Stream_EnsureRemainingCapacity(s, header.CapabilityLength))
+		return -1;
 
 	rdpdr_server_write_capability_set_header(s, &header);
 
@@ -295,7 +301,9 @@ static int rdpdr_server_write_drive_capability_set(RdpdrServerContext* context, 
 	header.CapabilityType = CAP_DRIVE_TYPE;
 	header.CapabilityLength = RDPDR_CAPABILITY_HEADER_LENGTH;
 	header.Version = DRIVE_CAPABILITY_VERSION_02;
-	Stream_EnsureRemainingCapacity(s, header.CapabilityLength);
+
+    if(!Stream_EnsureRemainingCapacity(s, header.CapabilityLength))
+		return -1;
 
 	rdpdr_server_write_capability_set_header(s, &header);
 
@@ -315,7 +323,8 @@ static int rdpdr_server_write_smartcard_capability_set(RdpdrServerContext* conte
 	header.CapabilityLength = RDPDR_CAPABILITY_HEADER_LENGTH;
 	header.Version = SMARTCARD_CAPABILITY_VERSION_01;
 
-	Stream_EnsureRemainingCapacity(s, header.CapabilityLength);
+    if(!Stream_EnsureRemainingCapacity(s, header.CapabilityLength))
+		return -1;
 
 	rdpdr_server_write_capability_set_header(s, &header);
 
@@ -347,6 +356,9 @@ static int rdpdr_server_send_core_capability_request(RdpdrServerContext* context
 		numCapabilities++;
 
 	s = Stream_New(NULL, RDPDR_HEADER_LENGTH + 512);
+
+	if (!s)
+		return -1;
 
 	Stream_Write_UINT16(s, header.Component); /* Component (2 bytes) */
 	Stream_Write_UINT16(s, header.PacketId); /* PacketId (2 bytes) */
