@@ -78,6 +78,7 @@ COMMAND_LINE_ARGUMENT_A args[] =
 	{ "gu", COMMAND_LINE_VALUE_REQUIRED, "[<domain>\\]<user> or <user>[@<domain>]", NULL, NULL, -1, NULL, "Gateway username" },
 	{ "gp", COMMAND_LINE_VALUE_REQUIRED, "<password>", NULL, NULL, -1, NULL, "Gateway password" },
 	{ "gd", COMMAND_LINE_VALUE_REQUIRED, "<domain>", NULL, NULL, -1, NULL, "Gateway domain" },
+	{ "gt", COMMAND_LINE_VALUE_REQUIRED, "<rpc|http|auto>", NULL, NULL, -1, NULL, "Gateway transport type" },
 	{ "gateway-usage-method", COMMAND_LINE_VALUE_REQUIRED, "<direct|detect>", NULL, NULL, -1, "gum", "Gateway usage method" },
 	{ "load-balance-info", COMMAND_LINE_VALUE_REQUIRED, "<info string>", NULL, NULL, -1, NULL, "Load balance info" },
 	{ "app", COMMAND_LINE_VALUE_REQUIRED, "<executable path> or <||alias>", NULL, NULL, -1, NULL, "Remote application program" },
@@ -544,10 +545,16 @@ static char** freerdp_command_line_parse_comma_separated_values(char* list, int*
 static char** freerdp_command_line_parse_comma_separated_values_offset(char* list, int* count)
 {
 	char** p;
+	char** t;
 
 	p = freerdp_command_line_parse_comma_separated_values(list, count);
+	if (!p)
+		return NULL;
 
-	p = (char**) realloc(p, sizeof(char*) * (*count + 1));
+	t = (char**) realloc(p, sizeof(char*) * (*count + 1));
+	if (!t)
+		return NULL;
+	p = t;
 	MoveMemory(&p[1], p, sizeof(char*) * *count);
 	(*count)++;
 
@@ -982,7 +989,8 @@ int freerdp_detect_command_line_pre_filter(void* context, int index, int argc, L
 	return 0;
 }
 
-int freerdp_detect_windows_style_command_line_syntax(int argc, char** argv, int* count)
+int freerdp_detect_windows_style_command_line_syntax(int argc, char** argv,
+	int* count, BOOL ignoreUnknown)
 {
 	int status;
 	DWORD flags;
@@ -991,6 +999,10 @@ int freerdp_detect_windows_style_command_line_syntax(int argc, char** argv, int*
 
 	flags = COMMAND_LINE_SEPARATOR_COLON;
 	flags |= COMMAND_LINE_SIGIL_SLASH | COMMAND_LINE_SIGIL_PLUS_MINUS;
+	if (ignoreUnknown)
+	{
+		flags |= COMMAND_LINE_IGN_UNKNOWN_KEYWORD;
+	}
 
 	*count = 0;
 	detect_status = 0;
@@ -1019,7 +1031,8 @@ int freerdp_detect_windows_style_command_line_syntax(int argc, char** argv, int*
 	return detect_status;
 }
 
-int freerdp_detect_posix_style_command_line_syntax(int argc, char** argv, int* count)
+int freerdp_detect_posix_style_command_line_syntax(int argc, char** argv,
+	int* count, BOOL ignoreUnknown)
 {
 	int status;
 	DWORD flags;
@@ -1029,6 +1042,10 @@ int freerdp_detect_posix_style_command_line_syntax(int argc, char** argv, int* c
 	flags = COMMAND_LINE_SEPARATOR_SPACE;
 	flags |= COMMAND_LINE_SIGIL_DASH | COMMAND_LINE_SIGIL_DOUBLE_DASH;
 	flags |= COMMAND_LINE_SIGIL_ENABLE_DISABLE;
+	if (ignoreUnknown)
+	{
+		flags |= COMMAND_LINE_IGN_UNKNOWN_KEYWORD;
+	}
 
 	*count = 0;
 	detect_status = 0;
@@ -1057,7 +1074,8 @@ int freerdp_detect_posix_style_command_line_syntax(int argc, char** argv, int* c
 	return detect_status;
 }
 
-BOOL freerdp_client_detect_command_line(int argc, char** argv, DWORD* flags)
+static BOOL freerdp_client_detect_command_line(int argc, char** argv,
+	DWORD* flags, BOOL ignoreUnknown)
 {
 	int old_cli_status;
 	int old_cli_count;
@@ -1067,8 +1085,8 @@ BOOL freerdp_client_detect_command_line(int argc, char** argv, DWORD* flags)
 	int windows_cli_count;
 	BOOL compatibility = FALSE;
 
-	windows_cli_status = freerdp_detect_windows_style_command_line_syntax(argc, argv, &windows_cli_count);
-	posix_cli_status = freerdp_detect_posix_style_command_line_syntax(argc, argv, &posix_cli_count);
+	windows_cli_status = freerdp_detect_windows_style_command_line_syntax(argc, argv, &windows_cli_count, ignoreUnknown);
+	posix_cli_status = freerdp_detect_posix_style_command_line_syntax(argc, argv, &posix_cli_count, ignoreUnknown);
 	old_cli_status = freerdp_detect_old_command_line_syntax(argc, argv, &old_cli_count);
 
 	/* Default is POSIX syntax */
@@ -1162,7 +1180,8 @@ int freerdp_client_settings_command_line_status_print(rdpSettings* settings, int
 	return 0;
 }
 
-int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings, int argc, char** argv)
+int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
+	int argc, char** argv, BOOL allowUnknown)
 {
 	char* p;
 	char* str;
@@ -1172,7 +1191,7 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings, 
 	BOOL compatibility;
 	COMMAND_LINE_ARGUMENT_A* arg;
 
-	compatibility = freerdp_client_detect_command_line(argc, argv, &flags);
+	compatibility = freerdp_client_detect_command_line(argc, argv, &flags, allowUnknown);
 
 	if (compatibility)
 	{
@@ -1183,6 +1202,10 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings, 
 	{
 		CommandLineClearArgumentsA(args);
 
+		if (allowUnknown)
+		{
+			flags |= COMMAND_LINE_IGN_UNKNOWN_KEYWORD;
+		}
 		status = CommandLineParseArgumentsA(argc, (const char**) argv, args, flags, settings,
 				freerdp_client_command_line_pre_filter, freerdp_client_command_line_post_filter);
 
@@ -1488,6 +1511,24 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings, 
 		{
 			settings->GatewayPassword = _strdup(arg->Value);
 			settings->GatewayUseSameCredentials = FALSE;
+		}
+		CommandLineSwitchCase(arg, "gt")
+		{
+			if (_stricmp(arg->Value, "rpc") == 0)
+			{
+				settings->GatewayRpcTransport = TRUE;
+				settings->GatewayHttpTransport = FALSE;
+			}
+			else if (_stricmp(arg->Value, "http") == 0)
+			{
+				settings->GatewayRpcTransport = FALSE;
+				settings->GatewayHttpTransport = TRUE;
+			}
+			else if (_stricmp(arg->Value, "auto") == 0)
+			{
+				settings->GatewayRpcTransport = TRUE;
+				settings->GatewayHttpTransport = TRUE;
+			}
 		}
 		CommandLineSwitchCase(arg, "gateway-usage-method")
 		{
@@ -2020,7 +2061,6 @@ int freerdp_client_load_addins(rdpChannels* channels, rdpSettings* settings)
 	UINT32 index;
 	ADDIN_ARGV* args;
 
-	settings->DynamicChannelCount = 0;
 	if ((freerdp_static_channel_collection_find(settings, "rdpsnd")) ||
 			(freerdp_dynamic_channel_collection_find(settings, "tsmf")))
 	{

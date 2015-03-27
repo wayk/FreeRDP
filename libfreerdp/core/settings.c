@@ -273,6 +273,8 @@ rdpSettings* freerdp_settings_new(DWORD flags)
 		settings->MonitorCount = 0;
 		settings->MonitorDefArraySize = 32;
 		settings->MonitorDefArray = (rdpMonitor*) calloc(settings->MonitorDefArraySize, sizeof(rdpMonitor));
+		settings->MonitorLocalShiftX = 0;
+		settings->MonitorLocalShiftY = 0;
 
 		settings->MonitorIds = (UINT32*) calloc(16, sizeof(UINT32));
 
@@ -395,6 +397,9 @@ rdpSettings* freerdp_settings_new(DWORD flags)
 
 		settings->GatewayUseSameCredentials = FALSE;
 		settings->GatewayBypassLocal = FALSE;
+		settings->GatewayRpcTransport = TRUE;
+		settings->GatewayHttpTransport = TRUE;
+		settings->GatewayUdpTransport = TRUE;
 
 		settings->FastPathInput = TRUE;
 		settings->FastPathOutput = TRUE;

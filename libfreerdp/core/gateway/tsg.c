@@ -731,7 +731,10 @@ BOOL TsProxyAuthorizeTunnelReadResponse(rdpTsg* tsg, RPC_PDU* pdu)
 	packetResponse = (PTSG_PACKET_RESPONSE) calloc(1, sizeof(TSG_PACKET_RESPONSE));
 
 	if (!packetResponse)
+	{
+		free(packet);
 		return FALSE;
+	}
 
 	packet->tsgPacket.packetResponse = packetResponse;
 	Pointer = *((UINT32*) &buffer[offset + 8]); /* PacketResponsePtr (4 bytes) */
@@ -881,7 +884,10 @@ BOOL TsProxyMakeTunnelCallReadResponse(rdpTsg* tsg, RPC_PDU* pdu)
 	packetMsgResponse = (PTSG_PACKET_MSG_RESPONSE) calloc(1, sizeof(TSG_PACKET_MSG_RESPONSE));
 
 	if (!packetMsgResponse)
+	{
+		free(packet);
 		return FALSE;
+	}
 
 	packet->tsgPacket.packetMsgResponse = packetMsgResponse;
 	Pointer = *((UINT32*) &buffer[offset + 8]); /* PacketMsgResponsePtr (4 bytes) */
@@ -896,7 +902,10 @@ BOOL TsProxyMakeTunnelCallReadResponse(rdpTsg* tsg, RPC_PDU* pdu)
 			packetStringMessage = (PTSG_PACKET_STRING_MESSAGE) calloc(1, sizeof(TSG_PACKET_STRING_MESSAGE));
 
 			if (!packetStringMessage)
-				return FALSE;
+			{
+				status = FALSE;
+				goto out;
+			}
 
 			packetMsgResponse->messagePacket.consentMessage = packetStringMessage;
 			Pointer = *((UINT32*) &buffer[offset + 28]); /* ConsentMessagePtr (4 bytes) */
@@ -916,7 +925,10 @@ BOOL TsProxyMakeTunnelCallReadResponse(rdpTsg* tsg, RPC_PDU* pdu)
 			packetStringMessage = (PTSG_PACKET_STRING_MESSAGE) calloc(1, sizeof(TSG_PACKET_STRING_MESSAGE));
 
 			if (!packetStringMessage)
-				return FALSE;
+			{
+				status = FALSE;
+				goto out;
+			}
 
 			packetMsgResponse->messagePacket.serviceMessage = packetStringMessage;
 			Pointer = *((UINT32*) &buffer[offset + 28]); /* ServiceMessagePtr (4 bytes) */
@@ -936,7 +948,10 @@ BOOL TsProxyMakeTunnelCallReadResponse(rdpTsg* tsg, RPC_PDU* pdu)
 			packetReauthMessage = (PTSG_PACKET_REAUTH_MESSAGE) calloc(1, sizeof(TSG_PACKET_REAUTH_MESSAGE));
 
 			if (!packetReauthMessage)
-				return FALSE;
+			{
+				status = FALSE;
+				goto out;
+			}
 
 			packetMsgResponse->messagePacket.reauthMessage = packetReauthMessage;
 			Pointer = *((UINT32*) &buffer[offset + 28]); /* ReauthMessagePtr (4 bytes) */
@@ -952,6 +967,7 @@ BOOL TsProxyMakeTunnelCallReadResponse(rdpTsg* tsg, RPC_PDU* pdu)
 			break;
 	}
 
+out:
 	if (packet)
 	{
 		if (packet->tsgPacket.packetMsgResponse)
@@ -1704,7 +1720,7 @@ BOOL tsg_connect(rdpTsg* tsg, const char* hostname, UINT16 port, int timeout)
 
 	while (tsg->state != TSG_STATE_PIPE_CREATED)
 	{
-		WaitForMultipleObjects(nCount, events, FALSE, 100);
+		WaitForMultipleObjects(nCount, events, FALSE, 250);
 
 		if (tsg_check_event_handles(tsg) < 0)
 		{
@@ -1897,10 +1913,11 @@ static int transport_bio_tsg_write(BIO* bio, const char* buf, int num)
 	if (status < 0)
 	{
 		BIO_clear_flags(bio, BIO_FLAGS_SHOULD_RETRY);
+		return -1;
 	}
 	else if (status == 0)
 	{
-		BIO_set_flags(bio, BIO_FLAGS_SHOULD_RETRY);
+		BIO_set_flags(bio, BIO_FLAGS_WRITE);
 		WSASetLastError(WSAEWOULDBLOCK);
 	}
 	else
@@ -1923,10 +1940,11 @@ static int transport_bio_tsg_read(BIO* bio, char* buf, int size)
 	if (status < 0)
 	{
 		BIO_clear_flags(bio, BIO_FLAGS_SHOULD_RETRY);
+		return -1;
 	}
 	else if (status == 0)
 	{
-		BIO_set_flags(bio, BIO_FLAGS_SHOULD_RETRY);
+		BIO_set_flags(bio, BIO_FLAGS_READ);
 		WSASetLastError(WSAEWOULDBLOCK);
 	}
 	else
