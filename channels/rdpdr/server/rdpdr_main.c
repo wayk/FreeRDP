@@ -196,7 +196,7 @@ static int rdpdr_server_write_general_capability_set(RdpdrServerContext* context
     
 	header.CapabilityType = CAP_GENERAL_TYPE;
 	header.CapabilityLength = RDPDR_CAPABILITY_HEADER_LENGTH + 36;
-	if(!Stream_EnsureRemainingCapacity(s, header.CapabilityLength))
+	if (!Stream_EnsureRemainingCapacity(s, header.CapabilityLength))
 		return -1;
 
 	header.CapabilityType = CAP_GENERAL_TYPE;
@@ -260,7 +260,7 @@ static int rdpdr_server_write_printer_capability_set(RdpdrServerContext* context
 	header.CapabilityLength = RDPDR_CAPABILITY_HEADER_LENGTH;
 	header.Version = PRINT_CAPABILITY_VERSION_01;
 
-    if(!Stream_EnsureRemainingCapacity(s, header.CapabilityLength))
+    if (!Stream_EnsureRemainingCapacity(s, header.CapabilityLength))
 		return -1;
 
 	rdpdr_server_write_capability_set_header(s, &header);
@@ -281,7 +281,7 @@ static int rdpdr_server_write_port_capability_set(RdpdrServerContext* context, w
 	header.CapabilityLength = RDPDR_CAPABILITY_HEADER_LENGTH;
 	header.Version = PORT_CAPABILITY_VERSION_01;
 
-    if(!Stream_EnsureRemainingCapacity(s, header.CapabilityLength))
+    if (!Stream_EnsureRemainingCapacity(s, header.CapabilityLength))
 		return -1;
 
 	rdpdr_server_write_capability_set_header(s, &header);
@@ -302,7 +302,7 @@ static int rdpdr_server_write_drive_capability_set(RdpdrServerContext* context, 
 	header.CapabilityLength = RDPDR_CAPABILITY_HEADER_LENGTH;
 	header.Version = DRIVE_CAPABILITY_VERSION_02;
 
-    if(!Stream_EnsureRemainingCapacity(s, header.CapabilityLength))
+    if (!Stream_EnsureRemainingCapacity(s, header.CapabilityLength))
 		return -1;
 
 	rdpdr_server_write_capability_set_header(s, &header);
@@ -323,7 +323,7 @@ static int rdpdr_server_write_smartcard_capability_set(RdpdrServerContext* conte
 	header.CapabilityLength = RDPDR_CAPABILITY_HEADER_LENGTH;
 	header.Version = SMARTCARD_CAPABILITY_VERSION_01;
 
-    if(!Stream_EnsureRemainingCapacity(s, header.CapabilityLength))
+    if (!Stream_EnsureRemainingCapacity(s, header.CapabilityLength))
 		return -1;
 
 	rdpdr_server_write_capability_set_header(s, &header);
