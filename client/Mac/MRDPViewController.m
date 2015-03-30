@@ -423,7 +423,7 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 		argv[i++] = cptr;
 	}
 	
-	status = freerdp_client_settings_parse_command_line(context->settings, argc, argv);
+	status = freerdp_client_settings_parse_command_line(context->settings, argc, argv, FALSE);
     
 	return status;
 }
