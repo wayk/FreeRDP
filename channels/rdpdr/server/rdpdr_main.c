@@ -334,7 +334,7 @@ static int rdpdr_server_write_smartcard_capability_set(RdpdrServerContext* conte
 static int rdpdr_server_send_core_capability_request(RdpdrServerContext* context)
 {
 	wStream* s;
-	BOOL status;
+	BOOL status = FALSE;
 	RDPDR_HEADER header;
 	UINT16 numCapabilities;
 	ULONG written;
