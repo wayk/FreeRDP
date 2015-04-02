@@ -186,6 +186,14 @@ void mac_end_paint(rdpContext* context);
 	
 	pasteboard_changecount = changeCount;
 	
+	/* Since we use a timer to get the pasteboard changes on the client 
+	 if we just changed the pasteboard content with the server content 
+	 we ignore those changes */
+	if (ignoreNextPasteboardChange) {
+		ignoreNextPasteboardChange = FALSE;
+		return;
+	}
+	
 	NSArray* items = [pasteboard_rd pasteboardItems];
 	
 	if ([items count] < 1)

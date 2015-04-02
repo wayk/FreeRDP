@@ -34,6 +34,7 @@
     NSPasteboard* pasteboard_wr;
     int pasteboard_changecount;
     int pasteboard_format;
+	bool ignoreNextPasteboardChange;
 }
 
 @property(nonatomic, assign) bool is_connected;

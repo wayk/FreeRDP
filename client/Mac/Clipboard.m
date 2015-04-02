@@ -324,6 +324,8 @@ int mac_cliprdr_server_format_data_response(CliprdrClientContext* cliprdr, CLIPR
 		
 		NSArray* types = [[NSArray alloc] initWithObjects:NSStringPboardType, nil];
 		[client->pasteboard_wr declareTypes:types owner:client];
+		/* Since we use a timer to get the pasteboard changes on the client and we are about to change the pasteboard content, we ignore the next change */
+		client->ignoreNextPasteboardChange = true;
 		[client->pasteboard_wr setString:str forType:NSStringPboardType];
 	}
 	
