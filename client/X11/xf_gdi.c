@@ -346,6 +346,7 @@ BOOL xf_gdi_bitmap_update(rdpContext* context, BITMAP_UPDATE* bitmapUpdate)
 	BITMAP_DATA* bitmap;
 	rdpCodecs* codecs = context->codecs;
 	xfContext* xfc = (xfContext*) context;
+	BOOL ret = TRUE;
 
 	for (index = 0; index < bitmapUpdate->number; index++)
 	{
@@ -430,11 +431,11 @@ BOOL xf_gdi_bitmap_update(rdpContext* context, BITMAP_UPDATE* bitmapUpdate)
 
 		XFree(image);
 
-		gdi_InvalidateRegion(xfc->hdc, nXDst, nYDst, nWidth, nHeight);
+		ret = gdi_InvalidateRegion(xfc->hdc, nXDst, nYDst, nWidth, nHeight);
 
 		xf_unlock_x11(xfc, FALSE);
 	}
-	return TRUE;
+	return ret;
 }
 
 static BOOL xf_gdi_palette_update(rdpContext* context, PALETTE_UPDATE* palette)
@@ -485,6 +486,7 @@ static BOOL xf_gdi_set_bounds(rdpContext* context, rdpBounds* bounds)
 static BOOL xf_gdi_dstblt(rdpContext* context, DSTBLT_ORDER* dstblt)
 {
 	xfContext* xfc = (xfContext*) context;
+	BOOL ret = TRUE;
 
 	xf_lock_x11(xfc, FALSE);
 
@@ -496,14 +498,12 @@ static BOOL xf_gdi_dstblt(rdpContext* context, DSTBLT_ORDER* dstblt)
 			dstblt->nWidth, dstblt->nHeight);
 
 	if (xfc->drawing == xfc->primary)
-	{
-		gdi_InvalidateRegion(xfc->hdc, dstblt->nLeftRect, dstblt->nTopRect, dstblt->nWidth, dstblt->nHeight);
-	}
+		ret = gdi_InvalidateRegion(xfc->hdc, dstblt->nLeftRect, dstblt->nTopRect, dstblt->nWidth, dstblt->nHeight);
 
 	XSetFunction(xfc->display, xfc->gc, GXcopy);
 
 	xf_unlock_x11(xfc, FALSE);
-	return TRUE;
+	return ret;
 }
 
 static BOOL xf_gdi_patblt(rdpContext* context, PATBLT_ORDER* patblt)
@@ -513,6 +513,7 @@ static BOOL xf_gdi_patblt(rdpContext* context, PATBLT_ORDER* patblt)
 	UINT32 foreColor;
 	UINT32 backColor;
 	xfContext* xfc = (xfContext*) context;
+	BOOL ret = TRUE;
 
 	xf_lock_x11(xfc, FALSE);
 
@@ -584,19 +585,18 @@ static BOOL xf_gdi_patblt(rdpContext* context, PATBLT_ORDER* patblt)
 	}
 
 	if (xfc->drawing == xfc->primary)
-	{
-		gdi_InvalidateRegion(xfc->hdc, patblt->nLeftRect, patblt->nTopRect, patblt->nWidth, patblt->nHeight);
-	}
+		ret = gdi_InvalidateRegion(xfc->hdc, patblt->nLeftRect, patblt->nTopRect, patblt->nWidth, patblt->nHeight);
 
 	XSetFunction(xfc->display, xfc->gc, GXcopy);
 
 	xf_unlock_x11(xfc, FALSE);
-	return TRUE;
+	return ret;
 }
 
 static BOOL xf_gdi_scrblt(rdpContext* context, SCRBLT_ORDER* scrblt)
 {
 	xfContext* xfc = (xfContext*) context;
+	BOOL ret = TRUE;
 
 	xf_lock_x11(xfc, FALSE);
 
@@ -606,20 +606,19 @@ static BOOL xf_gdi_scrblt(rdpContext* context, SCRBLT_ORDER* scrblt)
 			scrblt->nWidth, scrblt->nHeight, scrblt->nLeftRect, scrblt->nTopRect);
 
 	if (xfc->drawing == xfc->primary)
-	{
-		gdi_InvalidateRegion(xfc->hdc, scrblt->nLeftRect, scrblt->nTopRect, scrblt->nWidth, scrblt->nHeight);
-	}
+		ret = gdi_InvalidateRegion(xfc->hdc, scrblt->nLeftRect, scrblt->nTopRect, scrblt->nWidth, scrblt->nHeight);
 
 	XSetFunction(xfc->display, xfc->gc, GXcopy);
 
 	xf_unlock_x11(xfc, FALSE);
-	return TRUE;
+	return ret;
 }
 
 BOOL xf_gdi_opaque_rect(rdpContext* context, OPAQUE_RECT_ORDER* opaque_rect)
 {
 	UINT32 color;
 	xfContext* xfc = (xfContext*) context;
+	BOOL ret = TRUE;
 
 	xf_lock_x11(xfc, FALSE);
 
@@ -634,13 +633,11 @@ BOOL xf_gdi_opaque_rect(rdpContext* context, OPAQUE_RECT_ORDER* opaque_rect)
 			opaque_rect->nWidth, opaque_rect->nHeight);
 
 	if (xfc->drawing == xfc->primary)
-	{
-		gdi_InvalidateRegion(xfc->hdc, opaque_rect->nLeftRect, opaque_rect->nTopRect,
+		ret = gdi_InvalidateRegion(xfc->hdc, opaque_rect->nLeftRect, opaque_rect->nTopRect,
 				opaque_rect->nWidth, opaque_rect->nHeight);
-	}
 
 	xf_unlock_x11(xfc, FALSE);
-	return TRUE;
+	return ret;
 }
 
 BOOL xf_gdi_multi_opaque_rect(rdpContext* context, MULTI_OPAQUE_RECT_ORDER* multi_opaque_rect)
@@ -649,6 +646,7 @@ BOOL xf_gdi_multi_opaque_rect(rdpContext* context, MULTI_OPAQUE_RECT_ORDER* mult
 	UINT32 color;
 	DELTA_RECT* rectangle;
 	xfContext* xfc = (xfContext*) context;
+	BOOL ret = TRUE;
 
 	xf_lock_x11(xfc, FALSE);
 
@@ -667,13 +665,11 @@ BOOL xf_gdi_multi_opaque_rect(rdpContext* context, MULTI_OPAQUE_RECT_ORDER* mult
 				rectangle->width, rectangle->height);
 
 		if (xfc->drawing == xfc->primary)
-		{
-			gdi_InvalidateRegion(xfc->hdc, rectangle->left, rectangle->top, rectangle->width, rectangle->height);
-		}
+			ret = gdi_InvalidateRegion(xfc->hdc, rectangle->left, rectangle->top, rectangle->width, rectangle->height);
 	}
 
 	xf_unlock_x11(xfc, FALSE);
-	return TRUE;
+	return ret;
 }
 
 void xf_gdi_draw_nine_grid(rdpContext* context, DRAW_NINE_GRID_ORDER* draw_nine_grid)
@@ -685,6 +681,7 @@ BOOL xf_gdi_line_to(rdpContext* context, LINE_TO_ORDER* line_to)
 {
 	UINT32 color;
 	xfContext* xfc = (xfContext*) context;
+	BOOL ret = TRUE;
 
 	xf_lock_x11(xfc, FALSE);
 
@@ -707,18 +704,19 @@ BOOL xf_gdi_line_to(rdpContext* context, LINE_TO_ORDER* line_to)
 		w = abs(line_to->nXEnd - line_to->nXStart) + 1;
 		h = abs(line_to->nYEnd - line_to->nYStart) + 1;
 
-		gdi_InvalidateRegion(xfc->hdc, x, y, w, h);
+		ret = gdi_InvalidateRegion(xfc->hdc, x, y, w, h);
 	}
 
 	XSetFunction(xfc->display, xfc->gc, GXcopy);
 
 	xf_unlock_x11(xfc, FALSE);
-	return TRUE;
+	return ret;
 }
 
-static void xf_gdi_invalidate_poly_region(xfContext* xfc, XPoint* points, int npoints, BOOL autoclose)
+static BOOL xf_gdi_invalidate_poly_region(xfContext* xfc, XPoint* points, int npoints, BOOL autoclose)
 {
 	int i, x, y, x1, y1, x2, y2, w, h;
+	BOOL ret = TRUE;
 
 	x1 = points[0].x;
 	y1 = points[0].y;
@@ -751,8 +749,9 @@ static void xf_gdi_invalidate_poly_region(xfContext* xfc, XPoint* points, int np
 		x1 = x2;
 		y1 = y2;
 
-		gdi_InvalidateRegion(xfc->hdc, x, y, w, h);
+		ret = gdi_InvalidateRegion(xfc->hdc, x, y, w, h);
 	}
+	return ret;
 }
 
 BOOL xf_gdi_polyline(rdpContext* context, POLYLINE_ORDER* polyline)
@@ -762,6 +761,7 @@ BOOL xf_gdi_polyline(rdpContext* context, POLYLINE_ORDER* polyline)
 	UINT32 color;
 	XPoint* points;
 	xfContext* xfc = (xfContext*) context;
+	BOOL ret = TRUE;
 
 	xf_lock_x11(xfc, FALSE);
 
@@ -794,20 +794,22 @@ BOOL xf_gdi_polyline(rdpContext* context, POLYLINE_ORDER* polyline)
 
 	if (xfc->drawing == xfc->primary)
 	{
-		xf_gdi_invalidate_poly_region(xfc, points, npoints, FALSE);
+		if (!xf_gdi_invalidate_poly_region(xfc, points, npoints, FALSE))
+			ret = FALSE;
 	}
 
 	XSetFunction(xfc->display, xfc->gc, GXcopy);
 	free(points);
 
 	xf_unlock_x11(xfc, FALSE);
-	return TRUE;
+	return ret;
 }
 
 BOOL xf_gdi_memblt(rdpContext* context, MEMBLT_ORDER* memblt)
 {
 	xfBitmap* bitmap;
 	xfContext* xfc = (xfContext*) context;
+	BOOL ret = TRUE;
 
 	xf_lock_x11(xfc, FALSE);
 
@@ -819,14 +821,12 @@ BOOL xf_gdi_memblt(rdpContext* context, MEMBLT_ORDER* memblt)
 			memblt->nLeftRect, memblt->nTopRect);
 
 	if (xfc->drawing == xfc->primary)
-	{
-		gdi_InvalidateRegion(xfc->hdc, memblt->nLeftRect, memblt->nTopRect, memblt->nWidth, memblt->nHeight);
-	}
+		ret = gdi_InvalidateRegion(xfc->hdc, memblt->nLeftRect, memblt->nTopRect, memblt->nWidth, memblt->nHeight);
 
 	XSetFunction(xfc->display, xfc->gc, GXcopy);
 
 	xf_unlock_x11(xfc, FALSE);
-	return TRUE;
+	return ret;
 }
 
 BOOL xf_gdi_mem3blt(rdpContext* context, MEM3BLT_ORDER* mem3blt)
@@ -837,6 +837,7 @@ BOOL xf_gdi_mem3blt(rdpContext* context, MEM3BLT_ORDER* mem3blt)
 	UINT32 backColor;
 	Pixmap pattern = 0;
 	xfContext* xfc = (xfContext*) context;
+	BOOL ret = TRUE;
 
 	xf_lock_x11(xfc, FALSE);
 
@@ -885,9 +886,7 @@ BOOL xf_gdi_mem3blt(rdpContext* context, MEM3BLT_ORDER* mem3blt)
 			mem3blt->nLeftRect, mem3blt->nTopRect);
 
 	if (xfc->drawing == xfc->primary)
-	{
-		gdi_InvalidateRegion(xfc->hdc, mem3blt->nLeftRect, mem3blt->nTopRect, mem3blt->nWidth, mem3blt->nHeight);
-	}
+		ret = gdi_InvalidateRegion(xfc->hdc, mem3blt->nLeftRect, mem3blt->nTopRect, mem3blt->nWidth, mem3blt->nHeight);
 
 	XSetFillStyle(xfc->display, xfc->gc, FillSolid);
 	XSetTSOrigin(xfc->display, xfc->gc, 0, 0);
@@ -898,7 +897,7 @@ BOOL xf_gdi_mem3blt(rdpContext* context, MEM3BLT_ORDER* mem3blt)
 	XSetFunction(xfc->display, xfc->gc, GXcopy);
 
 	xf_unlock_x11(xfc, FALSE);
-	return TRUE;
+	return ret;
 }
 
 BOOL xf_gdi_polygon_sc(rdpContext* context, POLYGON_SC_ORDER* polygon_sc)
@@ -907,6 +906,7 @@ BOOL xf_gdi_polygon_sc(rdpContext* context, POLYGON_SC_ORDER* polygon_sc)
 	XPoint* points;
 	UINT32 brush_color;
 	xfContext* xfc = (xfContext*) context;
+	BOOL ret = TRUE;
 
 	xf_lock_x11(xfc, FALSE);
 
@@ -953,14 +953,15 @@ BOOL xf_gdi_polygon_sc(rdpContext* context, POLYGON_SC_ORDER* polygon_sc)
 
 	if (xfc->drawing == xfc->primary)
 	{
-		xf_gdi_invalidate_poly_region(xfc, points, npoints, TRUE);
+		if (!xf_gdi_invalidate_poly_region(xfc, points, npoints, TRUE))
+			ret = FALSE;
 	}
 
 	XSetFunction(xfc->display, xfc->gc, GXcopy);
 	free(points);
 
 	xf_unlock_x11(xfc, FALSE);
-	return TRUE;
+	return ret;
 }
 
 BOOL xf_gdi_polygon_cb(rdpContext* context, POLYGON_CB_ORDER* polygon_cb)
@@ -972,6 +973,7 @@ BOOL xf_gdi_polygon_cb(rdpContext* context, POLYGON_CB_ORDER* polygon_cb)
 	UINT32 foreColor;
 	UINT32 backColor;
 	xfContext* xfc = (xfContext*) context;
+	BOOL ret = TRUE;
 
 	xf_lock_x11(xfc, FALSE);
 
@@ -1047,7 +1049,8 @@ BOOL xf_gdi_polygon_cb(rdpContext* context, POLYGON_CB_ORDER* polygon_cb)
 
 		if (xfc->drawing == xfc->primary)
 		{
-			xf_gdi_invalidate_poly_region(xfc, points, npoints, TRUE);
+			if (!xf_gdi_invalidate_poly_region(xfc, points, npoints, TRUE))
+				ret = FALSE;
 		}
 	}
 	else
@@ -1059,7 +1062,7 @@ BOOL xf_gdi_polygon_cb(rdpContext* context, POLYGON_CB_ORDER* polygon_cb)
 	free(points);
 
 	xf_unlock_x11(xfc, FALSE);
-	return TRUE;
+	return ret;
 }
 
 BOOL xf_gdi_ellipse_sc(rdpContext* context, ELLIPSE_SC_ORDER* ellipse_sc)
@@ -1083,8 +1086,10 @@ BOOL xf_gdi_surface_frame_marker(rdpContext* context, SURFACE_FRAME_MARKER* surf
 {
 	rdpSettings* settings;
 	xfContext* xfc = (xfContext*) context;
+	BOOL ret = TRUE;
 
 	settings = xfc->instance->settings;
+
 
 	xf_lock_x11(xfc, FALSE);
 
@@ -1101,10 +1106,8 @@ BOOL xf_gdi_surface_frame_marker(rdpContext* context, SURFACE_FRAME_MARKER* surf
 		case SURFACECMD_FRAMEACTION_END:
 			xfc->frame_begin = FALSE;
 			if ((xfc->frame_x2 > xfc->frame_x1) && (xfc->frame_y2 > xfc->frame_y1))
-			{
-				gdi_InvalidateRegion(xfc->hdc, xfc->frame_x1, xfc->frame_y1,
+				ret = gdi_InvalidateRegion(xfc->hdc, xfc->frame_x1, xfc->frame_y1,
 					xfc->frame_x2 - xfc->frame_x1, xfc->frame_y2 - xfc->frame_y1);
-			}
 			if (settings->FrameAcknowledge > 0)
 			{
 				IFCALL(xfc->instance->update->SurfaceFrameAcknowledge, context, surface_frame_marker->frameId);
@@ -1113,11 +1116,12 @@ BOOL xf_gdi_surface_frame_marker(rdpContext* context, SURFACE_FRAME_MARKER* surf
 	}
 
 	xf_unlock_x11(xfc, FALSE);
-	return TRUE;
+	return ret;
 }
 
-static void xf_gdi_surface_update_frame(xfContext* xfc, UINT16 tx, UINT16 ty, UINT16 width, UINT16 height)
+static BOOL xf_gdi_surface_update_frame(xfContext* xfc, UINT16 tx, UINT16 ty, UINT16 width, UINT16 height)
 {
+	BOOL ret = TRUE;
 	if (!xfc->remote_app)
 	{
 		if (xfc->frame_begin)
@@ -1139,13 +1143,14 @@ static void xf_gdi_surface_update_frame(xfContext* xfc, UINT16 tx, UINT16 ty, UI
 		}
 		else
 		{
-			gdi_InvalidateRegion(xfc->hdc, tx, ty, width, height);
+			ret = gdi_InvalidateRegion(xfc->hdc, tx, ty, width, height);
 		}
 	}
 	else
 	{
-		gdi_InvalidateRegion(xfc->hdc, tx, ty, width, height);
+		ret = gdi_InvalidateRegion(xfc->hdc, tx, ty, width, height);
 	}
+	return ret;
 }
 
 BOOL xf_gdi_surface_bits(rdpContext* context, SURFACE_BITS_COMMAND* cmd)
@@ -1156,6 +1161,7 @@ BOOL xf_gdi_surface_bits(rdpContext* context, SURFACE_BITS_COMMAND* cmd)
 	BYTE* pDstData;
 	RFX_MESSAGE* message;
 	xfContext* xfc = (xfContext*) context;
+	BOOL ret = TRUE;
 
 	xf_lock_x11(xfc, FALSE);
 
@@ -1210,7 +1216,11 @@ BOOL xf_gdi_surface_bits(rdpContext* context, SURFACE_BITS_COMMAND* cmd)
 			tx = message->rects[i].x + cmd->destLeft;
 			ty = message->rects[i].y + cmd->destTop;
 
-			xf_gdi_surface_update_frame(xfc, tx, ty, message->rects[i].width, message->rects[i].height);
+			if (!xf_gdi_surface_update_frame(xfc, tx, ty, message->rects[i].width, message->rects[i].height))
+			{
+				ret = FALSE;
+				break;
+			}
 		}
 
 		XSetClipMask(xfc->display, xfc->gc, None);
@@ -1248,7 +1258,7 @@ BOOL xf_gdi_surface_bits(rdpContext* context, SURFACE_BITS_COMMAND* cmd)
 
 		XFree(image);
 
-		xf_gdi_surface_update_frame(xfc, cmd->destLeft, cmd->destTop, cmd->width, cmd->height);
+		ret = xf_gdi_surface_update_frame(xfc, cmd->destLeft, cmd->destTop, cmd->width, cmd->height);
 
 		XSetClipMask(xfc->display, xfc->gc, None);
 	}
@@ -1280,7 +1290,7 @@ BOOL xf_gdi_surface_bits(rdpContext* context, SURFACE_BITS_COMMAND* cmd)
 				cmd->width, cmd->height);
 		XFree(image);
 
-		xf_gdi_surface_update_frame(xfc, cmd->destLeft, cmd->destTop, cmd->width, cmd->height);
+		ret = xf_gdi_surface_update_frame(xfc, cmd->destLeft, cmd->destTop, cmd->width, cmd->height);
 
 		XSetClipMask(xfc->display, xfc->gc, None);
 	}
@@ -1290,7 +1300,7 @@ BOOL xf_gdi_surface_bits(rdpContext* context, SURFACE_BITS_COMMAND* cmd)
 	}
 
 	xf_unlock_x11(xfc, FALSE);
-	return TRUE;
+	return ret;
 }
 
 void xf_gdi_register_update_callbacks(rdpUpdate* update)
