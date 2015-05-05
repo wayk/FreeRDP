@@ -1416,10 +1416,9 @@ void* xf_client_thread(void* param)
 	/* Connection succeeded. --authonly ? */
 	if (instance->settings->AuthenticationOnly || !status)
 	{
-		freerdp_disconnect(instance);
 		WLog_ERR(TAG, "Authentication only, exit status %d", !status);
 		exit_code = XF_EXIT_CONN_FAILED;
-		ExitThread(exit_code);
+		goto disconnect;
 	}
 
 	channels = context->channels;
@@ -1431,8 +1430,18 @@ void* xf_client_thread(void* param)
 	}
 	else
 	{
-		inputThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE) xf_input_thread, instance, 0, NULL);
-		inputEvent = freerdp_get_message_queue_event_handle(instance, FREERDP_INPUT_MESSAGE_QUEUE);
+		if (!(inputEvent = freerdp_get_message_queue_event_handle(instance, FREERDP_INPUT_MESSAGE_QUEUE)))
+		{
+			WLog_ERR(TAG, "async input: failed to get input event handle");
+			exit_code = XF_EXIT_UNKNOWN;
+			goto disconnect;
+		}
+		if (!(inputThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE) xf_input_thread, instance, 0, NULL)))
+		{
+			WLog_ERR(TAG, "async input: failed to create input thread");
+			exit_code = XF_EXIT_UNKNOWN;
+			goto disconnect;
+		}
 	}
 
 	while (!xfc->disconnect && !freerdp_shall_disconnect(instance))
@@ -1511,8 +1520,8 @@ void* xf_client_thread(void* param)
 	if (!exit_code)
 		exit_code = freerdp_error_info(instance);
 
+disconnect:
 	freerdp_disconnect(instance);
-
 	ExitThread(exit_code);
 	return NULL;
 }
@@ -1622,9 +1631,13 @@ static int xfreerdp_client_start(rdpContext* context)
 
 	xfc->disconnect = FALSE;
 
-	xfc->thread = CreateThread(NULL, 0,
+	if (!(xfc->thread = CreateThread(NULL, 0,
 			(LPTHREAD_START_ROUTINE) xf_client_thread,
-			context->instance, 0, NULL);
+			context->instance, 0, NULL)))
+	{
+		WLog_ERR(TAG, "failed to create client thread");
+		return -1;
+	}
 
 	return 0;
 }
