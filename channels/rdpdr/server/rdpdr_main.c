@@ -1798,6 +1798,5 @@ void rdpdr_server_context_free(RdpdrServerContext* context)
 			free(context->priv);
 		}
 
-		free(context);
 	}
 }
