@@ -148,6 +148,11 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 {
     NSLog(@"configure");
     
+	if (delegate && [delegate respondsToSelector:@selector(initializeLogging)])
+	{
+		[delegate initializeLogging];
+	}
+	
     forwardedServerDrives = [[NSMutableArray alloc] init];
     
     int status;
@@ -232,7 +237,7 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
     [[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPClientDidPostErrorInfoNotification object:nil];
     [[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPClientDidConnectWithResultNotification object:nil];
     [[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPClientDidPostEmbedNotification object:nil];
-    
+
     [mrdpClient pause];
     
     // Tear down the context
@@ -259,7 +264,7 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
     // Don't resubscribe the view embedded event, we're already embedded
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidPostError:) name:MRDPClientDidPostErrorInfoNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidConnect:) name:MRDPClientDidConnectWithResultNotification object:nil];
-    
+	
     // Reassign the view back to the context
     mfContext* mfc = (mfContext*)context;
     mfc->client = mrdpClient;
@@ -426,6 +431,19 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 	status = freerdp_client_settings_parse_command_line(context->settings, argc, argv, FALSE);
     
 	return status;
+}
+
+- (void) initLoggingWithFilter:(NSString *)filter filePath:(NSString *)filePath fileName:(NSString *)fileName
+{
+	if(([filter length] == 0) || ([filePath length] == 0) || ([fileName length] == 0))
+		return;
+	
+	SetEnvironmentVariableA("WLOG_APPENDER", "FILE");
+	SetEnvironmentVariableA("WLOG_FILEAPPENDER_OUTPUT_FILE_PATH", filePath.UTF8String);
+	SetEnvironmentVariableA("WLOG_FILEAPPENDER_OUTPUT_FILE_NAME", fileName.UTF8String);
+	SetEnvironmentVariableA("WLOG_FILTER", filter.UTF8String);
+	
+	WLog_Init();
 }
 
 @end

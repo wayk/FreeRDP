@@ -132,8 +132,13 @@ void mac_desktop_resize(rdpContext* context);
 - (void)applicationDidResignActivate:(NSNotification *)notification
 {
     mfContext* mfCtx = (mfContext*)instance->context;
+	if(mfCtx == nil)
+		return;
+	
     MRDPClient* client = (MRDPClient *)mfCtx->client;
-    
+	if(client == nil)
+		return;
+	
     [client performSelector:@selector(resignActive) withObject:nil afterDelay:0.0];
 }
 

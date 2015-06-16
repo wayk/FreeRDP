@@ -111,7 +111,10 @@ void mac_end_paint(rdpContext* context);
     }
     else
     {
-        gdi_free(context->instance);
+		if (is_connected)
+		{
+			gdi_free(context->instance);
+		}
     }
     
     [delegate releaseResources];

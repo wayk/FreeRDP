@@ -50,5 +50,6 @@
 - (int)setDoubleSettingForIdentifier:(int)identifier withValue:(double)value;
 - (NSString *)getErrorInfoString:(int)code;
 - (void)sendCtrlAltDelete;
+- (void)initLoggingWithFilter:(NSString *)filter filePath:(NSString *)filePath fileName:(NSString *)fileName;
 
 @end

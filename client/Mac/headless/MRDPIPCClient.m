@@ -78,6 +78,12 @@ NSMutableArray *forwardedServerDrives;
 
 - (void)configureInternal
 {
+	id delegate = [serverProxy delegate];
+	if (delegate && [delegate respondsToSelector:@selector(initializeLogging)])
+	{
+		[delegate initializeLogging];
+	}
+	
     if(context == nil)
     {
         [self createContext];
@@ -88,6 +94,19 @@ NSMutableArray *forwardedServerDrives;
     
     PubSub_SubscribeConnectionResult(context->pubSub, ConnectionResultEventHandler);
     PubSub_SubscribeErrorInfo(context->pubSub, ErrorInfoEventHandler);
+}
+
+- (void) initLoggingWithFilter:(NSString *)filter filePath:(NSString *)filePath fileName:(NSString *)fileName
+{
+	if(([filter length] == 0) || ([filePath length] == 0) || ([fileName length] == 0))
+		return;
+	
+	SetEnvironmentVariableA("WLOG_APPENDER", "FILE");
+	SetEnvironmentVariableA("WLOG_FILEAPPENDER_OUTPUT_FILE_PATH", filePath.UTF8String);
+	SetEnvironmentVariableA("WLOG_FILEAPPENDER_OUTPUT_FILE_NAME", fileName.UTF8String);
+	SetEnvironmentVariableA("WLOG_FILTER", filter.UTF8String);
+	
+	WLog_Init();
 }
 
 - (void)start
