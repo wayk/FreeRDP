@@ -241,9 +241,13 @@ static BOOL android_post_connect(freerdp* instance)
 
 	instance->context->cache = cache_new(settings);
 
-	gdi_init(instance, CLRCONV_ALPHA |
-			((instance->settings->ColorDepth > 16) ? CLRBUF_32BPP : CLRBUF_16BPP),
-			NULL);
+	if (instance->settings->ColorDepth > 16)
+		gdi_flags = CLRBUF_32BPP | CLRCONV_ALPHA | CLRCONV_INVERT;
+	else
+		gdi_flags = CLRBUF_16BPP;
+
+	if (!gdi_init(instance, gdi_flags, NULL))
+		return FALSE;
 
 	instance->update->BeginPaint = android_begin_paint;
 	instance->update->EndPaint = android_end_paint;

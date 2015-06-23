@@ -42,14 +42,14 @@ static void input_activity_cb(freerdp* instance);
 
 DWORD mac_client_thread(void* param);
 
-void mf_Pointer_New(rdpContext* context, rdpPointer* pointer);
+BOOL mf_Pointer_New(rdpContext* context, rdpPointer* pointer);
 void mf_Pointer_Free(rdpContext* context, rdpPointer* pointer);
-void mf_Pointer_Set(rdpContext* context, rdpPointer* pointer);
-void mf_Pointer_SetNull(rdpContext* context);
-void mf_Pointer_SetDefault(rdpContext* context);
+BOOL mf_Pointer_Set(rdpContext* context, rdpPointer* pointer);
+BOOL mf_Pointer_SetNull(rdpContext* context);
+BOOL mf_Pointer_SetDefault(rdpContext* context);
 
-void mac_begin_paint(rdpContext* context);
-void mac_end_paint(rdpContext* context);
+BOOL mac_begin_paint(rdpContext* context);
+BOOL mac_end_paint(rdpContext* context);
 
 @implementation MRDPClient
 
@@ -92,7 +92,11 @@ void mac_end_paint(rdpContext* context);
         [self addServerDrive:forwardedDrive];
     }
     
-    mfc->thread = CreateThread(NULL, 0, mac_client_thread, (void*) context, 0, &mfc->mainThreadId);
+    if (!(mfc->thread = CreateThread(NULL, 0, mac_client_thread, (void*) context, 0, &mfc->mainThreadId)))
+    {
+        WLog_ERR(TAG, "failed to create client thread");
+        return -1;
+    }
     
     return 0;
 }
@@ -606,7 +610,6 @@ DWORD mac_client_thread(void* param)
         HANDLE inputEvent;
         HANDLE inputThread;
         HANDLE updateEvent;
-        HANDLE updateThread;
         HANDLE channelsEvent;
         
         DWORD nCount;
@@ -637,7 +640,11 @@ DWORD mac_client_thread(void* param)
         
         if (settings->AsyncInput)
         {
-            inputThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE) mac_client_input_thread, context, 0, NULL);
+            if (!(inputThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE) mac_client_input_thread, context, 0, NULL)))
+            {
+                WLog_ERR(TAG,  "failed to create async input thread");
+                goto disconnect;
+            }
         }
         else
         {
@@ -652,7 +659,6 @@ DWORD mac_client_thread(void* param)
             
             if (WaitForSingleObject(mfc->stopEvent, 0) == WAIT_OBJECT_0)
             {
-                freerdp_disconnect(instance);
                 break;
             }
             
@@ -677,22 +683,20 @@ DWORD mac_client_thread(void* param)
                 freerdp_channels_process_pending_messages(instance);
             }
         }
+
+disconnect:
         
-        if (settings->AsyncUpdate)
-        {
-            wMessageQueue* updateQueue = freerdp_get_message_queue(instance, FREERDP_UPDATE_MESSAGE_QUEUE);
-            MessageQueue_PostQuit(updateQueue, 0);
-            WaitForSingleObject(updateThread, INFINITE);
-            CloseHandle(updateThread);
-        }
+        freerdp_disconnect(instance);
         
-        if (settings->AsyncInput)
+        if (settings->AsyncInput && inputThread)
         {
             wMessageQueue* inputQueue = freerdp_get_message_queue(instance, FREERDP_INPUT_MESSAGE_QUEUE);
-            MessageQueue_PostQuit(inputQueue, 0);
-            WaitForSingleObject(inputThread, INFINITE);
-            CloseHandle(inputThread);
-        }
+            if (inputQueue)
+            {
+                MessageQueue_PostQuit(inputQueue, 0);
+                WaitForSingleObject(inputThread, INFINITE);
+            }
+            CloseHandle(inputThread);        }
         
         ExitThread(0);
         return 0;
@@ -795,7 +799,8 @@ BOOL mac_post_connect(freerdp* instance)
     
     if(![view renderToBuffer])
     {
-         gdi_init(instance, flags, NULL);
+        if (!gdi_init(instance, flags, NULL))
+            return FALSE;
     }
     else
     {
@@ -872,22 +877,25 @@ BOOL mac_post_connect(freerdp* instance)
         client->pasteboard_timer = [NSTimer scheduledTimerWithTimeInterval:0.5 target:client selector:@selector(onPasteboardTimerFired:) userInfo:nil repeats:YES];
     });
     
+    [client resume];
+    
     mfc->appleKeyboardType = mac_detect_keyboard_type();
     
     return TRUE;
 }
 
-void mac_begin_paint(rdpContext* context)
+BOOL mac_begin_paint(rdpContext* context)
 {
     rdpGdi* gdi = context->gdi;
     
     if (!gdi)
-        return;
+        return FALSE;
     
     gdi->primary->hdc->hwnd->invalid->null = 1;
+    return TRUE;
 }
 
-void mac_end_paint(rdpContext* context)
+BOOL mac_end_paint(rdpContext* context)
 {
     rdpGdi* gdi;
     HGDI_RGN invalid;
@@ -900,7 +908,7 @@ void mac_end_paint(rdpContext* context)
     gdi = context->gdi;
     
     if (!gdi)
-        return;
+        return FALSE;
     
     ww = view.frame.size.width;
     wh = view.frame.size.height;
@@ -908,10 +916,10 @@ void mac_end_paint(rdpContext* context)
     dh = mfc->context.settings->DesktopHeight;
     
     if ((!context) || (!context->gdi))
-        return;
+        return FALSE;
     
     if (context->gdi->primary->hdc->hwnd->invalid->null)
-        return;
+        return TRUE;
     
     invalid = gdi->primary->hdc->hwnd->invalid;
     
@@ -940,6 +948,8 @@ void mac_end_paint(rdpContext* context)
     [view setNeedsDisplayInRect:newDrawRect];
     
     gdi->primary->hdc->hwnd->ninvalid = 0;
+    
+    return TRUE;
 }
 
 /**
@@ -1002,7 +1012,7 @@ void mac_OnChannelDisconnectedEventHandler(rdpContext* context, ChannelDisconnec
     }
 }
 
-void mf_Pointer_New(rdpContext* context, rdpPointer* pointer)
+BOOL mf_Pointer_New(rdpContext* context, rdpPointer* pointer)
 {
     NSRect rect;
     NSImage* image;
@@ -1021,6 +1031,8 @@ void mf_Pointer_New(rdpContext* context, rdpPointer* pointer)
     rect.origin.y = pointer->yPos;
     
     cursor_data = (BYTE*) malloc(rect.size.width * rect.size.height * 4);
+    if (!cursor_data)
+        return FALSE;
     mrdpCursor->cursor_data = cursor_data;
     
     freerdp_image_copy_from_pointer_data(cursor_data, PIXEL_FORMAT_ARGB32,
@@ -1060,6 +1072,8 @@ void mf_Pointer_New(rdpContext* context, rdpPointer* pointer)
     [ma addObject:mrdpCursor];
     
     [mrdpCursor release];
+    
+    return TRUE;
 }
 
 void mf_Pointer_Free(rdpContext* context, rdpPointer* pointer)
@@ -1082,7 +1096,7 @@ void mf_Pointer_Free(rdpContext* context, rdpPointer* pointer)
     }
 }
 
-void mf_Pointer_Set(rdpContext* context, rdpPointer* pointer)
+BOOL mf_Pointer_Set(rdpContext* context, rdpPointer* pointer)
 {
     mfContext* mfc = (mfContext*) context;
     MRDPClient* client = (MRDPClient *)mfc->client;
@@ -1100,19 +1114,22 @@ void mf_Pointer_Set(rdpContext* context, rdpPointer* pointer)
     }
     
     NSLog(@"Cursor not found");
+    return TRUE;
 }
 
-void mf_Pointer_SetNull(rdpContext* context)
+BOOL mf_Pointer_SetNull(rdpContext* context)
 {
-    
+    return TRUE;
 }
 
-void mf_Pointer_SetDefault(rdpContext* context)
+BOOL mf_Pointer_SetDefault(rdpContext* context)
 {
     mfContext* mfc = (mfContext*) context;
     MRDPClient* client = (MRDPClient *)mfc->client;
     id<MRDPClientDelegate> view = (id<MRDPClientDelegate>)client.delegate;
     [view setCursor:nil];
+    
+    return TRUE;
 }
 
 static void update_activity_cb(freerdp* instance)
@@ -1196,7 +1213,9 @@ BOOL mac_authenticate(freerdp* instance, char** username, char** password, char*
                                                                      userName:userName
                                                                   andPassword:userPass];
     
-    if([view provideServerCredentials:&credential] == TRUE)
+    BOOL ok = [view provideServerCredentials:&credential];
+    
+    if(ok)
     {
         const char* submittedUsername = [credential.username cStringUsingEncoding:NSUTF8StringEncoding];
         *username = malloc((strlen(submittedUsername) + 1) * sizeof(char));
@@ -1213,10 +1232,10 @@ BOOL mac_authenticate(freerdp* instance, char** username, char** password, char*
     
     [credential release];
     
-    return TRUE;
+    return ok;
 }
 
-void mac_desktop_resize(rdpContext* context)
+BOOL mac_desktop_resize(rdpContext* context)
 {
     mfContext *mfc = (mfContext *)context;
     MRDPClient* client = (MRDPClient *)mfc->client;
@@ -1228,13 +1247,15 @@ void mac_desktop_resize(rdpContext* context)
      * put on the update message queue to be able to properly flush pending updates,
      * resize, and then continue with post-resizing graphical updates.
      */
+    [view willResizeDesktop];
     
     mfc->width = settings->DesktopWidth;
     mfc->height = settings->DesktopHeight;
     
-    gdi_resize(context->gdi, mfc->width, mfc->height);
+    if (!gdi_resize(context->gdi, mfc->width, mfc->height))
+        return FALSE;
 
-    [view resizeDesktop];
+    return [view didResizeDesktop];
 }
 
 BOOL mac_verify_certificate(freerdp* instance, char* subject, char* issuer, char* fingerprint)

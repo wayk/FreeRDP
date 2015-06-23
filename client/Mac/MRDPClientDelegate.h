@@ -30,7 +30,8 @@
 - (void)pause;
 - (void)resume;
 - (void)releaseResources;
-- (void)resizeDesktop;
+- (void)willResizeDesktop;
+- (BOOL)didResizeDesktop;
 - (BOOL)provideServerCredentials:(ServerCredential **)credentials;
 - (BOOL)validateCertificate:(ServerCertificate *)certificate;
 - (BOOL)validateX509Certificate:(X509Certificate *)certificate;

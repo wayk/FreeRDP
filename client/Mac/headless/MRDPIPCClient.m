@@ -458,9 +458,15 @@ NSMutableArray *forwardedServerDrives;
     return [serverProxy pixelDataAvailable:framebufferSize];
 }
 
-- (void)resizeDesktop
+- (void)willResizeDesktop
+{
+    
+}
+
+- (BOOL)didResizeDesktop
 {
     [serverProxy desktopResized];
+    return TRUE;
 }
 
 - (void)pause

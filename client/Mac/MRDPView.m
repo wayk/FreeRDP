@@ -47,7 +47,8 @@
 
 #define TAG CLIENT_TAG("mac")
 
-void mac_desktop_resize(rdpContext* context);
+
+BOOL mac_desktop_resize(rdpContext* context);
 
 @implementation MRDPView
 
@@ -480,13 +481,19 @@ void mac_desktop_resize(rdpContext* context);
     return true;
 }
 
-- (void)resizeDesktop
+- (void)willResizeDesktop
 {
     CGContextRef old_context = bitmap_context;
     bitmap_context = NULL;
     CGContextRelease(old_context);
-    
+}
+
+- (BOOL)didResizeDesktop
+{
     bitmap_context = mac_create_bitmap_context(context);
+    if (!bitmap_context)
+        return FALSE;
+    return TRUE;
 }
 
 - (BOOL)provideServerCredentials:(ServerCredential **)credentials

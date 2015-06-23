@@ -226,7 +226,7 @@ static BOOL rdpdr_server_write_general_capability_set(RdpdrServerContext* contex
 	UINT32 extraFlags1;
 	UINT32 SpecialTypeDeviceCap;
 	RDPDR_CAPABILITY_HEADER header;
-    
+
 	header.CapabilityType = CAP_GENERAL_TYPE;
 	header.CapabilityLength = RDPDR_CAPABILITY_HEADER_LENGTH + 36;
 	if (!Stream_EnsureRemainingCapacity(s, header.CapabilityLength))
@@ -2105,5 +2105,7 @@ void rdpdr_server_context_free(RdpdrServerContext* context)
 			free(context->priv);
 		}
 
+		free(context);
 	}
 }
+
