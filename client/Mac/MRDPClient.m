@@ -1109,7 +1109,7 @@ BOOL mf_Pointer_Set(rdpContext* context, rdpPointer* pointer)
         if (cursor->pointer == pointer)
         {
             [view setCursor:cursor];
-            return;
+            return TRUE;
         }
     }
     

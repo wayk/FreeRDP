@@ -14,14 +14,14 @@
 @synthesize hostname;
 @synthesize port;
 
-- (id)initWithData:(NSData *)data hostname:(NSString *)hostname andPort:(int)port
+- (id)initWithData:(NSData *)newData hostname:(NSString *)newHostName andPort:(int)newPort
 {
     self = [super init];
     if(self)
     {
-        self.data = data;
-        self.hostname = hostname;
-        self.port = port;
+        self.data = newData;
+        self.hostname = newHostName;
+        self.port = newPort;
     }
     
     return self;

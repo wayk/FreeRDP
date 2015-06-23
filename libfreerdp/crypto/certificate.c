@@ -194,8 +194,6 @@ static int certificate_data_match_legacy(rdpCertificateStore* certificate_store,
 	}
 
 	return match;
-
->>>>>>> upstream/master
 }
 
 static int certificate_data_match_raw(rdpCertificateStore* certificate_store,

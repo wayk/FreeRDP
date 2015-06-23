@@ -63,9 +63,6 @@
 - (void)mouseDragged:(NSPoint)coord;
 - (void)rightMouseDragged:(NSPoint)coord;
 - (void)otherMouseDragged:(NSPoint)coord;
-- (void)becomeFirstResponder;
-- (void)resignFirstResponder;
-- (BOOL)performKeyEquivalent:(NSEvent *)theEvent;
 - (void)resignActive;
 
 

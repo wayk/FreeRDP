@@ -13,13 +13,13 @@
 @synthesize name;
 @synthesize path;
 
-- (id)initWithName:(NSString *)name andPath:(NSString *)path
+- (id)initWithName:(NSString *)newName andPath:(NSString *)newPath
 {
     self = [super init];
     if(self)
     {
-        self.name = name;
-        self.path = path;
+        self.name = newName;
+        self.path = newPath;
     }
     
     return self;

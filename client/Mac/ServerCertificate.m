@@ -14,14 +14,14 @@
 @synthesize issuer;
 @synthesize fingerprint;
 
-- (id)initWithSubject:(NSString *)subject issuer:(NSString *)issuer andFingerprint:(NSString *)fingerprint
+- (id)initWithSubject:(NSString *)newSubject issuer:(NSString *)newIssuer andFingerprint:(NSString *)newFingerprint
 {
     self = [super init];
     if(self)
     {
-        self.subject = subject;
-        self.issuer = issuer;
-        self.fingerprint = fingerprint;
+        self.subject = newSubject;
+        self.issuer = newIssuer;
+        self.fingerprint = newFingerprint;
     }
     
     return self;

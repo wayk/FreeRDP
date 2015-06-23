@@ -15,15 +15,15 @@
 @synthesize password;
 @synthesize domain;
 
-- (id)initWithHostName:(NSString *)hostName domain:(NSString*)domain userName:(NSString *)userName andPassword:(NSString *)password;
+- (id)initWithHostName:(NSString *)hostName domain:(NSString*)newDomain userName:(NSString *)userName andPassword:(NSString *)newPassword;
 {
     self = [super init];
     if(self)
     {
         self.serverHostname = hostName;
         self.username = userName;
-        self.password = password;
-        self.domain = domain;
+        self.password = newPassword;
+        self.domain = newDomain;
     }
     
     return self;
