@@ -31,8 +31,6 @@
 #include <freerdp/channels/log.h>
 #include <freerdp/codec/zgfx.h>
 
-#define TAG CHANNELS_TAG("rdpgfx.client")
-
 struct _RDPGFX_CHANNEL_CALLBACK
 {
 	IWTSVirtualChannelCallback iface;
@@ -60,7 +58,6 @@ struct _RDPGFX_PLUGIN
 	IWTSListener* listener;
 	RDPGFX_LISTENER_CALLBACK* listener_callback;
 
-	wLog* log;
 	rdpSettings* settings;
 
 	BOOL ThinClient;
@@ -72,6 +69,7 @@ struct _RDPGFX_PLUGIN
 	ZGFX_CONTEXT* zgfx;
 	UINT32 UnacknowledgedFrames;
 	UINT32 TotalDecodedFrames;
+	BOOL suspendFrameAcks;
 
 	wHashTable* SurfaceTable;
 
