@@ -14,6 +14,8 @@
 #import "../MRDPClientNotifications.h"
 #import "../MRDPCursor.h"
 
+#define TAG CLIENT_TAG("mac")
+
 void EmbedWindowEventHandler(void* context, EmbedWindowEventArgs* e);
 void ConnectionResultEventHandler(void* context, ConnectionResultEventArgs* e);
 void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
@@ -107,6 +109,8 @@ NSMutableArray *forwardedServerDrives;
 	SetEnvironmentVariableA("WLOG_FILTER", filter.UTF8String);
 	
 	WLog_Init();
+    
+    WLog_INFO(TAG, "Log initialized headless");
 }
 
 - (void)start
