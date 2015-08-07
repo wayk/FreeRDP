@@ -85,6 +85,7 @@ int rpc_client_receive_pipe_write(rdpRpc* rpc, const BYTE* buffer, size_t length
 
 	EnterCriticalSection(&(rpc->client->PipeLock));
 
+    WLog_VRB(TAG, "ringbuffer_write");
 	if (ringbuffer_write(&(client->ReceivePipe), buffer, length))
 		status += (int) length;
 
@@ -115,7 +116,10 @@ int rpc_client_receive_pipe_read(rdpRpc* rpc, BYTE* buffer, size_t length)
 	}
 
 	if (status > 0)
+    {
+        WLog_VRB(TAG, "ringbuffer_commit_read_bytes");
 		ringbuffer_commit_read_bytes(&(client->ReceivePipe), status);
+    }
 
 	if (ringbuffer_used(&(client->ReceivePipe)) < 1)
 		ResetEvent(client->PipeEvent);

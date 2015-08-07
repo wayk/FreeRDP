@@ -140,13 +140,9 @@ BOOL reconnecting = false;
 
 - (void) applicationWillTerminate:(NSNotification*)notification
 {
-	NSLog(@"Stopping...\n");
-	freerdp_client_stop(context);
-
-	[mrdpClient releaseResources];
-	_singleDelegate = nil;
-
-	NSLog(@"Stopped.\n");
+    if (mrdpViewController) {
+        [self stop:self];
+    }
 }
 
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender

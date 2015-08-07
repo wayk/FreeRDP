@@ -363,6 +363,7 @@ int transport_read_layer(rdpTransport* transport, BYTE* data, int bytes)
 	if (!transport->frontBio)
 	{
 		transport->layer = TRANSPORT_LAYER_CLOSED;
+        WLog_DBG(TAG, "Invalid Transport Front Bio");
 		return -1;
 	}
 
@@ -373,11 +374,14 @@ int transport_read_layer(rdpTransport* transport, BYTE* data, int bytes)
 		if (status <= 0)
 		{
 			if (!transport->frontBio || !BIO_should_retry(transport->frontBio))
-			{
-				/* something unexpected happened, let's close */
-				transport->layer = TRANSPORT_LAYER_CLOSED;
-				return -1;
-			}
+            {
+                WLog_DBG(TAG, "layer %d - something unexpected happened, let's close - should not retry", (int)transport->layer);
+                /* something unexpected happened, let's close */
+                transport->layer = TRANSPORT_LAYER_CLOSED;
+                return -1;
+            }
+            
+            WLog_VRB(TAG, "layer %d - retry", (int)transport->layer);
 
 			/* non blocking will survive a partial read */
 			if (!transport->blocking)
@@ -396,6 +400,7 @@ int transport_read_layer(rdpTransport* transport, BYTE* data, int bytes)
 #ifdef HAVE_VALGRIND_MEMCHECK_H
 		VALGRIND_MAKE_MEM_DEFINED(data + read, bytes - read);
 #endif
+        WLog_VRB(TAG, "layer %d - read successful", (int)transport->layer);
 		read += status;
 	}
 
@@ -452,20 +457,32 @@ int transport_read_pdu(rdpTransport* transport, wStream* s)
 	pduLength = 0;
 
 	if (!transport)
+    {
+        WLog_DBG(TAG, "transport is null");
 		return -1;
+    }
 
 	if (!s)
+    {
+        WLog_DBG(TAG, "stream is null");
 		return -1;
+    }
 
 	position = Stream_GetPosition(s);
 	/* Make sure there is enough space for the longest header within the stream */
 	if (!Stream_EnsureCapacity(s, 4))
+    {
+        WLog_DBG(TAG, "stream has not enough space");
 		return -1;
+    }
 
 	/* Make sure at least two bytes are read for further processing */
 	if (position < 2 && (status = transport_read_layer_bytes(transport, s, 2 - position)) != 1)
 	{
 		/* No data available at the moment */
+        if (status < 0)
+            WLog_DBG(TAG, "transport_read_layer_bytes failed");
+        
 		return status;
 	}
 
@@ -491,7 +508,13 @@ int transport_read_pdu(rdpTransport* transport, wStream* s)
 					/* check for header bytes already was readed in previous calls */
 					if (position < 3
 							&& (status = transport_read_layer_bytes(transport, s, 3 - position)) != 1)
+                    {
+                        if(status < 0)
+                        {
+                            WLog_DBG(TAG, "check for header bytes already was readed in previous calls failed");
+                        }
 						return status;
+                    }
 
 					pduLength = header[2];
 					pduLength += 3;
@@ -501,7 +524,13 @@ int transport_read_pdu(rdpTransport* transport, wStream* s)
 					/* check for header bytes already was readed in previous calls */
 					if (position < 4
 							&& (status = transport_read_layer_bytes(transport, s, 4 - position)) != 1)
+                    {
+                        if(status < 0)
+                        {
+                            WLog_DBG(TAG, "second check for header bytes already was readed in previous calls failed");
+                        }
 						return status;
+                    }
 
 					pduLength = (header[2] << 8) | header[3];
 					pduLength += 4;
@@ -527,7 +556,14 @@ int transport_read_pdu(rdpTransport* transport, wStream* s)
 			/* check for header bytes already was readed in previous calls */
 			if (position < 4
 					&& (status = transport_read_layer_bytes(transport, s, 4 - position)) != 1)
+            {
+                if(status < 0)
+                {
+                    WLog_DBG(TAG, "TPKT header check for header bytes already was readed in previous calls failed");
+                }
+                
 				return status;
+            }
 
 			pduLength = (header[2] << 8) | header[3];
 
@@ -546,7 +582,14 @@ int transport_read_pdu(rdpTransport* transport, wStream* s)
 				/* check for header bytes already was readed in previous calls */
 				if (position < 3
 						&& (status = transport_read_layer_bytes(transport, s, 3 - position)) != 1)
+                {
+                    if(status < 0)
+                    {
+                        WLog_DBG(TAG, "Fast-Path header check for header bytes already was readed in previous calls failed");
+                    }
+                    
 					return status;
+                }
 
 				pduLength = ((header[1] & 0x7F) << 8) | header[2];
 			}
@@ -567,11 +610,22 @@ int transport_read_pdu(rdpTransport* transport, wStream* s)
 	}
 
 	if (!Stream_EnsureCapacity(s, Stream_GetPosition(s) + pduLength))
+    {
+        WLog_DBG(TAG, "stream remaining capacity is not enough");
 		return -1;
+    }
+    
 	status = transport_read_layer_bytes(transport, s, pduLength - Stream_GetPosition(s));
 
 	if (status != 1)
-		return status;
+    {
+        if(status < 0)
+        {
+            WLog_DBG(TAG, "read failed");
+        }
+        
+        return status;
+    }
 
 	if (Stream_GetPosition(s) >= pduLength)
 		WLog_Packet(WLog_Get(TAG), WLOG_TRACE, Stream_Buffer(s), pduLength, WLOG_PACKET_INBOUND);
@@ -600,6 +654,7 @@ int transport_write(rdpTransport* transport, wStream* s)
 
 	while (length > 0)
 	{
+        WLog_VRB(TAG, "BIO_write");
 		status = BIO_write(transport->frontBio, Stream_Pointer(s), length);
 
 		if (status <= 0)
@@ -777,7 +832,7 @@ int transport_check_fds(rdpTransport* transport)
 		if ((status = transport_read_pdu(transport, transport->ReceiveBuffer)) <= 0)
 		{
 			if (status < 0)
-				WLog_DBG(TAG, "transport_check_fds: transport_read_pdu() - %i", status);
+				WLog_DBG(TAG, "transport_read_pdu() - %i", status);
 			return status;
 		}
 
@@ -801,7 +856,7 @@ int transport_check_fds(rdpTransport* transport)
 
 		if (recv_status < 0)
 		{
-			WLog_ERR(TAG, "transport_check_fds: transport->ReceiveCallback() - %i", recv_status);
+			WLog_ERR(TAG, "transport->ReceiveCallback() - %i", recv_status);
 			return -1;
 		}
 	}

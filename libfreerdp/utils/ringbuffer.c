@@ -292,6 +292,7 @@ void ringbuffer_commit_read_bytes(RingBuffer* rb, size_t sz)
 	if (sz < 1)
 		return;
 	
+    DEBUG_RINGBUFFER("ringbuffer_commit_read_bytes assert (%p): %d - %d >= %d", rb, rb->size, rb->freeSize, sz);
 	assert(rb->size - rb->freeSize >= sz);
 
 	rb->readPtr = (rb->readPtr + sz) % rb->size;

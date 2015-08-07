@@ -479,8 +479,10 @@ static int transport_bio_buffered_write(BIO* bio, const char* buf, int num)
 	int nchunks;
 	int committedBytes;
 	DataChunk chunks[2];
+    DataChunk chunks[2];
 	WINPR_BIO_BUFFERED_SOCKET* ptr = (WINPR_BIO_BUFFERED_SOCKET*) bio->ptr;
 
+    WLog_VRB(TAG, "transport_bio_buffered_write %p", &ptr->xmitBuffer);
 	ret = num;
 	ptr->writeBlocked = FALSE;
 	BIO_clear_flags(bio, BIO_FLAGS_WRITE);
@@ -496,7 +498,7 @@ static int transport_bio_buffered_write(BIO* bio, const char* buf, int num)
 
 	committedBytes = 0;
 	nchunks = ringbuffer_peek(&ptr->xmitBuffer, chunks, ringbuffer_used(&ptr->xmitBuffer));
-
+    WLog_VRB(TAG, "transport_bio_buffered_write - space before wirte %d", (&ptr->xmitBuffer)->size - (&ptr->xmitBuffer)->freeSize);
 	for (i = 0; i < nchunks; i++)
 	{
 		while (chunks[i].size)
@@ -507,6 +509,7 @@ static int transport_bio_buffered_write(BIO* bio, const char* buf, int num)
 			{
 				if (!BIO_should_retry(bio->next_bio))
 				{
+                    WLog_DBG(TAG, "transport_bio_buffered_write - write failed no retry");
 					BIO_clear_flags(bio, BIO_FLAGS_SHOULD_RETRY);
 					ret = -1; /* fatal error */
 					goto out;
@@ -514,6 +517,7 @@ static int transport_bio_buffered_write(BIO* bio, const char* buf, int num)
 
 				if (BIO_should_write(bio->next_bio))
 				{
+                    WLog_DBG(TAG, "transport_bio_buffered_write - write failed b;ocking");
 					BIO_set_flags(bio, BIO_FLAGS_WRITE);
 					ptr->writeBlocked = TRUE;
 					goto out; /* EWOULDBLOCK */
@@ -527,6 +531,8 @@ static int transport_bio_buffered_write(BIO* bio, const char* buf, int num)
 	}
 
 out:
+    WLog_VRB(TAG, "transport_bio_buffered_write - space after wirte %d", (&ptr->xmitBuffer)->size - (&ptr->xmitBuffer)->freeSize);
+    WLog_VRB(TAG, "transport_bio_buffered_write - ringbuffer_commit_read_bytes(%p, %d)", &ptr->xmitBuffer, committedBytes);
 	ringbuffer_commit_read_bytes(&ptr->xmitBuffer, committedBytes);
 
 	return ret;
@@ -585,7 +591,10 @@ static long transport_bio_buffered_ctrl(BIO* bio, int cmd, long arg1, void* arg2
 			if (!ringbuffer_used(&ptr->xmitBuffer))
 				status = 1;
 			else
+            {
+                WLog_VRB(TAG, "transport_bio_buffered_ctrl");
 				status = (transport_bio_buffered_write(bio, NULL, 0) >= 0) ? 1 : -1;
+            }
 			break;
 
 		case BIO_CTRL_WPENDING:

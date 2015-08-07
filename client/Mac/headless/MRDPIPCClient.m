@@ -85,6 +85,7 @@ NSMutableArray *forwardedServerDrives;
 	{
 		[delegate initializeLogging];
 	}
+    WLog_DBG(TAG, "configureInternal");
 	
     if(context == nil)
     {
@@ -360,6 +361,7 @@ NSMutableArray *forwardedServerDrives;
         
         if(e->result == 0)
         {
+            WLog_DBG(TAG, "viewDidConnect");
             if([serverProxy delegate] && [[serverProxy delegate] respondsToSelector:@selector(didConnect)])
             {
                 [[serverProxy delegate] performSelectorOnMainThread:@selector(didConnect) withObject:nil waitUntilDone:true];
@@ -367,6 +369,7 @@ NSMutableArray *forwardedServerDrives;
         }
         else
         {
+            WLog_DBG(TAG, "viewDidConnect");
             if([serverProxy delegate] && [[serverProxy delegate] respondsToSelector:@selector(didFailToConnectWithError:)])
             {
                 NSNumber *connectErrorCode =  [NSNumber numberWithUnsignedInt:freerdp_get_last_error(ctx)];
@@ -387,6 +390,7 @@ NSMutableArray *forwardedServerDrives;
         ErrorInfoEventArgs *e = nil;
         [[[notification userInfo] valueForKey:@"errorArgs"] getValue:&e];
         
+        WLog_DBG(TAG, "viewDidPostError");
         if([serverProxy delegate] && [[serverProxy delegate] respondsToSelector:@selector(didErrorWithCode:)])
         {
             [[serverProxy delegate] performSelectorOnMainThread:@selector(didErrorWithCode:) withObject:[NSNumber numberWithInt:e->code] waitUntilDone:true];
@@ -402,11 +406,13 @@ NSMutableArray *forwardedServerDrives;
 
 - (NSString*)renderBufferName
 {
+    WLog_DBG(TAG, "renderBufferName");
     return [NSString stringWithFormat:@"/%@", [serverProxy proxyID]];
 }
 
 - (NSRect)frame
 {
+    WLog_DBG(TAG, "renderBufferName");
     // Cheating a bit because I don't want to add "viewFrame" to the interface
     NSValue* boxedFrame = (NSValue *)[[serverProxy delegate] performSelector:NSSelectorFromString(@"viewFrame")];
     return [boxedFrame rectValue];
@@ -430,7 +436,7 @@ NSMutableArray *forwardedServerDrives;
 - (void)setNeedsDisplayInRect:(NSRect)newDrawRect
 {
     NSValue* boxed = [NSValue valueWithRect:newDrawRect];
-    
+    WLog_DBG(TAG, "setNeedsDisplayInRect");
     [serverProxy performSelector:@selector(pixelDataUpdated:) withObject:boxed afterDelay:0.0];
 }
 
@@ -446,7 +452,7 @@ NSMutableArray *forwardedServerDrives;
     }
     
     NSValue* boxedHotspot = [NSValue valueWithPoint:hotspot];
-    
+    WLog_DBG(TAG, "setCursor");
     [serverProxy cursorUpdated:cursorData hotspot:boxedHotspot];
 }
 
@@ -458,7 +464,7 @@ NSMutableArray *forwardedServerDrives;
 - (bool)postConnect:(freerdp*)rdpInstance;
 {
     int framebufferSize = mrdpClient->frameBuffer->fbScanline * mrdpClient->frameBuffer->fbHeight;
-    
+    WLog_DBG(TAG, "postConnect");
     return [serverProxy pixelDataAvailable:framebufferSize];
 }
 
@@ -469,6 +475,7 @@ NSMutableArray *forwardedServerDrives;
 
 - (BOOL)didResizeDesktop
 {
+    WLog_DBG(TAG, "didResizeDesktop");
     [serverProxy desktopResized];
     return TRUE;
 }
@@ -490,6 +497,7 @@ NSMutableArray *forwardedServerDrives;
 
 - (BOOL)provideServerCredentials:(ServerCredential **)credentials
 {
+    WLog_DBG(TAG, "provideServerCredentials");
     bool result = [serverProxy provideServerCredentials:[*credentials serverHostname] username:[*credentials username] password:[*credentials password] domain:[*credentials domain]];
     
     [*credentials setUsername:[[serverProxy serverCredential] username]];
@@ -501,11 +509,13 @@ NSMutableArray *forwardedServerDrives;
 
 - (BOOL)validateCertificate:(ServerCertificate *)certificate
 {
+    WLog_DBG(TAG, "validateCertificate");
     return [serverProxy validateCertificate:certificate.subject issuer:certificate.issuer fingerprint:certificate.fingerprint];
 }
 
 - (BOOL)validateX509Certificate:(X509Certificate *)certificate
 {
+    WLog_DBG(TAG, "validateX509Certificate");
     return [serverProxy validateX509Certificate:certificate.data hostname:certificate.hostname port:certificate.port];
 }
 

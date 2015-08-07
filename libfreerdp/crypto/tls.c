@@ -183,6 +183,7 @@ static int bio_rdp_tls_puts(BIO* bio, const char* str)
 		return 0;
 
 	size = strlen(str);
+    WLog_VRB(TAG, "BIO_write");
 	status = BIO_write(bio, str, size);
 
 	return status;
@@ -909,6 +910,7 @@ int tls_write_all(rdpTls* tls, const BYTE* data, int length)
 	int offset = 0;
 	BIO* bio = tls->bio;
 
+    WLog_VRB(TAG, "tls_write_all %p, %d", tls->ssl, length - offset);
 	while (offset < length)
 	{
 		status = BIO_write(bio, &data[offset], length - offset);

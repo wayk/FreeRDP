@@ -8,8 +8,7 @@
 
 #import <Foundation/Foundation.h>
 
-// TODO! Fix references...
-#import "../MRDPViewController.h"
+#import "../MRDPClient.h"
 #import "../MRDPClientDelegate.h"
 #import "../ServerCertificate.h"
 #import "../X509Certificate.h"

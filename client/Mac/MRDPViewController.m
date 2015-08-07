@@ -50,6 +50,7 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 
 - (void)viewDidConnect:(NSNotification *)notification
 {
+    WLog_DBG(TAG, "viewDidConnect");
     rdpContext *ctx;
 
     [[[notification userInfo] valueForKey:@"context"] getValue:&ctx];
@@ -84,16 +85,17 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 
 - (void)viewDidPostError:(NSNotification *)notification
 {
+    WLog_DBG(TAG, "viewDidPostError");
     rdpContext *ctx;
     [[[notification userInfo] valueForKey:@"context"] getValue:&ctx];
     
     if(ctx == self->context)
     {
-        NSLog(@"viewDidPostError:");
+        
         
         ErrorInfoEventArgs *e = nil;
         [[[notification userInfo] valueForKey:@"errorArgs"] getValue:&e];
-        
+        NSLog(@"viewDidPostError: %d", e->code);
         if(delegate && [delegate respondsToSelector:@selector(didErrorWithCode:)])
         {
             [delegate performSelectorOnMainThread:@selector(didErrorWithCode:) withObject:[NSNumber numberWithInt:e->code] waitUntilDone:true];

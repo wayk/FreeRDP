@@ -321,6 +321,7 @@ SECURITY_STATUS schannel_openssl_client_process_tokens(SCHANNEL_OPENSSL* context
 			if (!pBuffer)
 				return SEC_E_INVALID_TOKEN;
 
+            WLog_VRB(TAG, "BIO_write");
 			status = BIO_write(context->bioRead, pBuffer->pvBuffer, pBuffer->cbBuffer);
 		}
 
@@ -380,6 +381,7 @@ SECURITY_STATUS schannel_openssl_server_process_tokens(SCHANNEL_OPENSSL* context
 		if (!pBuffer)
 			return SEC_E_INVALID_TOKEN;
 
+        WLog_VRB(TAG, "BIO_write");
 		status = BIO_write(context->bioRead, pBuffer->pvBuffer, pBuffer->cbBuffer);
 		status = SSL_accept(context->ssl);
 
@@ -478,6 +480,7 @@ SECURITY_STATUS schannel_openssl_decrypt_message(SCHANNEL_OPENSSL* context, PSec
 	if (!pBuffer)
 		return SEC_E_INVALID_TOKEN;
 
+    WLog_VRB(TAG, "BIO_write");
 	status = BIO_write(context->bioRead, pBuffer->pvBuffer, pBuffer->cbBuffer);
 	status = SSL_read(context->ssl, pBuffer->pvBuffer, pBuffer->cbBuffer);
 
