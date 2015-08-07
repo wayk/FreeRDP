@@ -478,7 +478,6 @@ static int transport_bio_buffered_write(BIO* bio, const char* buf, int num)
 	int status;
 	int nchunks;
 	int committedBytes;
-	DataChunk chunks[2];
     DataChunk chunks[2];
 	WINPR_BIO_BUFFERED_SOCKET* ptr = (WINPR_BIO_BUFFERED_SOCKET*) bio->ptr;
 
