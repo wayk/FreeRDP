@@ -678,7 +678,10 @@ disconnect:
 	    
 	client.is_connected = 0;
         freerdp_disconnect(instance);
-        
+	
+	freerdp_channels_disconnect(context->channels, instance);
+	gdi_free(instance);
+	    
         if (settings->AsyncInput && inputThread)
         {
             wMessageQueue* inputQueue = freerdp_get_message_queue(instance, FREERDP_INPUT_MESSAGE_QUEUE);
