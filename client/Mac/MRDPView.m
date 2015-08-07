@@ -56,12 +56,12 @@ BOOL mac_desktop_resize(rdpContext* context);
 
 - (bool)renderToBuffer
 {
-    return false;
+	return false;
 }
 
 - (NSString*)renderBufferName
 {
-    return nil;
+	return nil;
 }
 
 - (id)initWithFrame:(NSRect)frame
@@ -69,21 +69,19 @@ BOOL mac_desktop_resize(rdpContext* context);
 	self = [super initWithFrame:frame];
 	
 	if (self)
-	{        
-        return self;
-	}
+		return self;
 	
-    return nil;
+	return nil;
 }
 
 - (NSArray *)getForwardedServerDrives
 {
-    if(delegate && [delegate respondsToSelector:@selector(getForwardedServerDrives)])
-    {
-        return [delegate getForwardedServerDrives];
-    }
+	if(delegate && [delegate respondsToSelector:@selector(getForwardedServerDrives)])
+	{
+		return [delegate getForwardedServerDrives];
+	}
     
-    return [NSArray array];
+	return [NSArray array];
 }
 
 - (void)initialise:(rdpContext *)rdpContext
@@ -231,189 +229,198 @@ BOOL mac_desktop_resize(rdpContext* context);
 {
 	[super mouseMoved:event];
 	
-    mfContext* mfCtx = (mfContext*)instance->context;
-    MRDPClient* client = (MRDPClient *)mfCtx->client;
+	mfContext* mfCtx = (mfContext*)instance->context;
+	MRDPClient* client = (MRDPClient *)mfCtx->client;
     
 	if (!client.is_connected)
 		return;
 	
-    NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
+	NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
     
-    [client mouseMoved:loc];
+	[client mouseMoved:loc];
 }
 
 - (void)mouseDown:(NSEvent *) event
 {
 	[super mouseDown:event];
 	
-    mfContext* mfCtx = (mfContext*)instance->context;
-    MRDPClient* client = (MRDPClient *)mfCtx->client;
+	mfContext* mfCtx = (mfContext*)instance->context;
+	MRDPClient* client = (MRDPClient *)mfCtx->client;
     
 	if (!client.is_connected)
 		return;
 	
-    NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
+	NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
     
-    [client mouseDown:loc];
+	[client mouseDown:loc];
 }
 
 - (void)mouseUp:(NSEvent *) event
 {
 	[super mouseUp:event];
 	
-    mfContext* mfCtx = (mfContext*)instance->context;
-    MRDPClient* client = (MRDPClient *)mfCtx->client;
+	mfContext* mfCtx = (mfContext*)instance->context;
+	MRDPClient* client = (MRDPClient *)mfCtx->client;
     
 	if (!client.is_connected)
 		return;
 	
-    NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
+	NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
     
-    [client mouseUp:loc];
+	[client mouseUp:loc];
 }
 
 - (void)rightMouseDown:(NSEvent *)event
 {
 	[super rightMouseDown:event];
 	
-    mfContext* mfCtx = (mfContext*)instance->context;
-    MRDPClient* client = (MRDPClient *)mfCtx->client;
+	mfContext* mfCtx = (mfContext*)instance->context;
+	MRDPClient* client = (MRDPClient *)mfCtx->client;
     
 	if (!client.is_connected)
 		return;
 	
-    NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
+	NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
     
-    [client rightMouseDown:loc];
+	[client rightMouseDown:loc];
 }
 
 - (void)rightMouseUp:(NSEvent *)event
 {
 	[super rightMouseUp:event];
 	
-    mfContext* mfCtx = (mfContext*)instance->context;
-    MRDPClient* client = (MRDPClient *)mfCtx->client;
+	mfContext* mfCtx = (mfContext*)instance->context;
+	MRDPClient* client = (MRDPClient *)mfCtx->client;
     
 	if (!client.is_connected)
 		return;
 	
-    NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
+	NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
     
-    [client rightMouseUp:loc];
+	[client rightMouseUp:loc];
 }
 
 - (void)otherMouseDown:(NSEvent *)event
 {
 	[super otherMouseDown:event];
 	
-    mfContext* mfCtx = (mfContext*)instance->context;
-    MRDPClient* client = (MRDPClient *)mfCtx->client;
+	mfContext* mfCtx = (mfContext*)instance->context;
+	MRDPClient* client = (MRDPClient *)mfCtx->client;
     
 	if (!client.is_connected)
 		return;
 	
-    NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
+	NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
     
-    [client otherMouseDown:loc];
+	[client otherMouseDown:loc];
 }
 
 - (void)otherMouseUp:(NSEvent *)event
 {
 	[super otherMouseUp:event];
 	
-    mfContext* mfCtx = (mfContext*)instance->context;
-    MRDPClient* client = (MRDPClient *)mfCtx->client;
+	mfContext* mfCtx = (mfContext*)instance->context;
+	MRDPClient* client = (MRDPClient *)mfCtx->client;
     
 	if (!client.is_connected)
 		return;
 	
-    NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
+	NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
     
-    [client otherMouseUp:loc];
+	[client otherMouseUp:loc];
 }
 
 - (void)scrollWheel:(NSEvent *)event
 {
 	[super scrollWheel:event];
 
-    mfContext* mfCtx = (mfContext*)instance->context;
-    MRDPClient* client = (MRDPClient *)mfCtx->client;
+	mfContext* mfCtx = (mfContext*)instance->context;
+	MRDPClient* client = (MRDPClient *)mfCtx->client;
     
 	if (!client.is_connected)
 		return;
 	
-    NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
+	NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
     
-    [client scrollWheelCoordinates:loc deltaY:event.deltaY];
+	[client scrollWheelCoordinates:loc deltaY:event.deltaY];
 }
 
 - (void)mouseDragged:(NSEvent *)event
 {
 	[super mouseDragged:event];
 	
-    mfContext* mfCtx = (mfContext*)instance->context;
-    MRDPClient* client = (MRDPClient *)mfCtx->client;
+	mfContext* mfCtx = (mfContext*)instance->context;
+	MRDPClient* client = (MRDPClient *)mfCtx->client;
     
 	if (!client.is_connected)
 		return;
 	
-    NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
+	NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
     
-    [client mouseDragged:loc];
+	[client mouseDragged:loc];
 }
 
 - (void)rightMouseDragged:(NSEvent *)event
 {
-    [super rightMouseDragged:event];
+	[super rightMouseDragged:event];
     
-    mfContext* mfCtx = (mfContext*)instance->context;
-    MRDPClient* client = (MRDPClient *)mfCtx->client;
+	mfContext* mfCtx = (mfContext*)instance->context;
+	MRDPClient* client = (MRDPClient *)mfCtx->client;
     
-    if (!client.is_connected)
-        return;
+	if (!client.is_connected)
+		return;
     
-    NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
+	NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
     
-    [client rightMouseDragged:loc];
+	[client rightMouseDragged:loc];
 }
 
 - (void)otherMouseDragged:(NSEvent *)event
 {
-    [super otherMouseDragged:event];
+	[super otherMouseDragged:event];
     
-    mfContext* mfCtx = (mfContext*)instance->context;
-    MRDPClient* client = (MRDPClient *)mfCtx->client;
+	mfContext* mfCtx = (mfContext*)instance->context;
+	MRDPClient* client = (MRDPClient *)mfCtx->client;
     
-    if (!client.is_connected)
-        return;
+	if (!client.is_connected)
+		return;
     
-    NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
+	NSPoint loc = [self convertPoint:[event locationInWindow] fromView: nil];
     
-    [client otherMouseDragged:loc];
+	[client otherMouseDragged:loc];
 }
 
 - (void)keyDown:(NSEvent *)event
 {
-    mfContext* mfCtx = (mfContext*)instance->context;
-    MRDPClient* client = (MRDPClient *)mfCtx->client;
-    
-    [client keyDown:event];
+	mfContext* mfCtx = (mfContext*)instance->context;
+	MRDPClient* client = (MRDPClient *)mfCtx->client;
+	
+	if (!client.is_connected)
+		return;
+	
+	[client keyDown:event];
 }
 
 - (void)keyUp:(NSEvent *) event
 {
-    mfContext* mfCtx = (mfContext*)instance->context;
-    MRDPClient* client = (MRDPClient *)mfCtx->client;
-    
-    [client keyUp:event];
+	mfContext* mfCtx = (mfContext*)instance->context;
+	MRDPClient* client = (MRDPClient *)mfCtx->client;
+	
+	if (!client.is_connected)
+		return;
+	
+	[client keyUp:event];
 }
 
 - (void)flagsChanged:(NSEvent*) event
 {
-    mfContext* mfCtx = (mfContext*)instance->context;
-    MRDPClient* client = (MRDPClient *)mfCtx->client;
-    
-    [client flagsChanged:event];
+	mfContext* mfCtx = (mfContext*)instance->context;
+	MRDPClient* client = (MRDPClient *)mfCtx->client;
+	
+	if (!client.is_connected)
+		return;
+	
+	[client flagsChanged:event];
 }
 
 - (BOOL)isFirstResponder
@@ -472,87 +479,89 @@ BOOL mac_desktop_resize(rdpContext* context);
 
 - (bool)postConnect:(freerdp*)rdpInstance;
 {
-    mfContext* mfCtx = (mfContext*)rdpInstance->context;
-    MRDPClient* client = (MRDPClient *)mfCtx->client;
-    MRDPView* view = (MRDPView*)client.delegate;
+	mfContext* mfCtx = (mfContext*)rdpInstance->context;
+	MRDPClient* client = (MRDPClient *)mfCtx->client;
+	MRDPView* view = (MRDPView*)client.delegate;
 
-    view->bitmap_context = mac_create_bitmap_context(rdpInstance->context);
+	view->bitmap_context = mac_create_bitmap_context(rdpInstance->context);
     
-    return true;
+	return true;
 }
 
 - (void)willResizeDesktop
 {
-    CGContextRef old_context = bitmap_context;
-    bitmap_context = NULL;
-    CGContextRelease(old_context);
+	CGContextRef old_context = bitmap_context;
+	bitmap_context = NULL;
+	CGContextRelease(old_context);
 }
 
 - (BOOL)didResizeDesktop
 {
-    bitmap_context = mac_create_bitmap_context(context);
-    if (!bitmap_context)
-        return FALSE;
-    return TRUE;
+	bitmap_context = mac_create_bitmap_context(context);
+	
+	if (!bitmap_context)
+		return FALSE;
+	
+	return TRUE;
 }
 
 - (BOOL)provideServerCredentials:(ServerCredential **)credentials
 {
-    if(delegate && [delegate respondsToSelector:@selector(provideServerCredentials:)])
-    {
-        return [delegate provideServerCredentials:credentials];
-    }
+	if(delegate && [delegate respondsToSelector:@selector(provideServerCredentials:)])
+	{
+		return [delegate provideServerCredentials:credentials];
+	}
     
-    return false;
+	return FALSE;
 }
 
 - (BOOL)validateCertificate:(ServerCertificate *)certificate
 {
-    BOOL result = false;
+	BOOL result = FALSE;
     
-    if(delegate && [delegate respondsToSelector:@selector(validateCertificate:)])
-    {
-        result = [delegate validateCertificate:certificate];
-    }
+	if(delegate && [delegate respondsToSelector:@selector(validateCertificate:)])
+	{
+		result = [delegate validateCertificate:certificate];
+	}
     
-    return result;
+	return result;
 }
 
 - (BOOL)validateX509Certificate:(X509Certificate *)certificate
 {
-    BOOL result = false;
+	BOOL result = FALSE;
     
-    if(delegate && [delegate respondsToSelector:@selector(validateX509Certificate:)])
-    {
-        result = [delegate validateX509Certificate:certificate];
-    }
+	if(delegate && [delegate respondsToSelector:@selector(validateX509Certificate:)])
+	{
+		result = [delegate validateX509Certificate:certificate];
+	}
     
-    return result;
+	return result;
 }
 
 CGContextRef mac_create_bitmap_context(rdpContext* context)
 {
-    CGContextRef bitmap_context;
-    rdpGdi* gdi = context->gdi;
+	CGContextRef bitmap_context;
+	rdpGdi* gdi = context->gdi;
     
-    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+	CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
     
-    if (gdi->bytesPerPixel == 2)
-    {
-        bitmap_context = CGBitmapContextCreate(gdi->primary_buffer,
-                                               gdi->width, gdi->height, 5, gdi->width * gdi->bytesPerPixel,
-                                               colorSpace, kCGBitmapByteOrder16Little | kCGImageAlphaNoneSkipFirst);
-    }
-    else
-    {
-        bitmap_context = CGBitmapContextCreate(gdi->primary_buffer,
+	if (gdi->bytesPerPixel == 2)
+	{
+		bitmap_context = CGBitmapContextCreate(gdi->primary_buffer,
+						gdi->width, gdi->height, 5, gdi->width * gdi->bytesPerPixel,
+						colorSpace, kCGBitmapByteOrder16Little | kCGImageAlphaNoneSkipFirst);
+	}
+	else
+	{
+		bitmap_context = CGBitmapContextCreate(gdi->primary_buffer,
                                                gdi->width, gdi->height, 8, gdi->width * gdi->bytesPerPixel,
                                                colorSpace, kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst);
-    }
+	}
     
-    CGColorSpaceRelease(colorSpace);
+	CGColorSpaceRelease(colorSpace);
     
-    return bitmap_context;
+	return bitmap_context;
 }
 
 @end

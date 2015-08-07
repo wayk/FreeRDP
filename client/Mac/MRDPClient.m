@@ -33,8 +33,6 @@
 #import "freerdp/client/cmdline.h"
 #import "freerdp/log.h"
 
-#import "FreeRDS.h"
-
 #define TAG CLIENT_TAG("mac")
 
 static void update_activity_cb(freerdp* instance);
@@ -610,7 +608,6 @@ DWORD mac_client_thread(void* param)
         HANDLE inputEvent;
         HANDLE inputThread;
         HANDLE updateEvent;
-        HANDLE channelsEvent;
         
         DWORD nCount;
         rdpContext* context = (rdpContext*) param;
@@ -650,9 +647,7 @@ DWORD mac_client_thread(void* param)
         {
             events[nCount++] = inputEvent = freerdp_get_message_queue_event_handle(instance, FREERDP_INPUT_MESSAGE_QUEUE);
         }
-        
-        events[nCount++] = channelsEvent = freerdp_channels_get_event_handle(instance);
-        
+	    
         while (1)
         {
             status = WaitForMultipleObjects(nCount, events, FALSE, INFINITE);
@@ -677,15 +672,11 @@ DWORD mac_client_thread(void* param)
                     input_activity_cb(instance);
                 }
             }
-            
-            if (WaitForSingleObject(channelsEvent, 0) == WAIT_OBJECT_0)
-            {
-                freerdp_channels_process_pending_messages(instance);
-            }
         }
 
 disconnect:
-        
+	    
+	client.is_connected = 0;
         freerdp_disconnect(instance);
         
         if (settings->AsyncInput && inputThread)
@@ -696,7 +687,8 @@ disconnect:
                 MessageQueue_PostQuit(inputQueue, 0);
                 WaitForSingleObject(inputThread, INFINITE);
             }
-            CloseHandle(inputThread);        }
+            CloseHandle(inputThread);
+	}
         
         ExitThread(0);
         return 0;
@@ -791,11 +783,7 @@ BOOL mac_post_connect(freerdp* instance)
     settings = instance->settings;
     
     flags = CLRCONV_ALPHA | CLRCONV_RGB555;
-    
-    //if (settings->ColorDepth > 16)
     flags |= CLRBUF_32BPP;
-    //else
-    //	flags |= CLRBUF_16BPP;
     
     if(![view renderToBuffer])
     {

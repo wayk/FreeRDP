@@ -15,6 +15,8 @@
 #include <freerdp/client/channels.h>
 #include <freerdp/client/cmdline.h>
 
+#include <winpr/environment.h>
+
 #include <pthread.h>
 
 #define TAG CLIENT_TAG("mac")
@@ -35,84 +37,81 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 
 - (BOOL)isConnected
 {
-    return self->mrdpClient.is_connected;
+	return self->mrdpClient.is_connected;
 }
 
 - (NSView *)rdpView
 {
-    return (NSView *)self->mrdpClient->delegate;
+	return (NSView *)self->mrdpClient->delegate;
 }
 
 - (NSArray *)getForwardedServerDrives
 {
-    return [NSArray arrayWithArray:forwardedServerDrives];
+	return [NSArray arrayWithArray:forwardedServerDrives];
 }
 
 - (void)viewDidConnect:(NSNotification *)notification
 {
-    WLog_DBG(TAG, "viewDidConnect");
-    rdpContext *ctx;
+	WLog_DBG(TAG, "viewDidConnect");
+	rdpContext *ctx;
 
-    [[[notification userInfo] valueForKey:@"context"] getValue:&ctx];
+	[[[notification userInfo] valueForKey:@"context"] getValue:&ctx];
     
-    if(ctx == self->context)
-    {
-        NSLog(@"viewDidConnect:");
+	if(ctx == self->context)
+	{
+		NSLog(@"viewDidConnect:");
         
-        ConnectionResultEventArgs *e = nil;
-        [[[notification userInfo] valueForKey:@"connectionArgs"] getValue:&e];
+		ConnectionResultEventArgs *e = nil;
+		[[[notification userInfo] valueForKey:@"connectionArgs"] getValue:&e];
         
-        if(e->result == 0)
-        {
-            if(delegate && [delegate respondsToSelector:@selector(didConnect)])
-            {
-                // Better to replace this (and others in this class) with dispatch_async(dispatch_get_main_queue(), ^{ ... }) ?
-                // It doesn't care about run loop modes...
-                [delegate performSelectorOnMainThread:@selector(didConnect) withObject:nil waitUntilDone:true];
-            }
-        }
-        else
-        {
-            if(delegate && [delegate respondsToSelector:@selector(didFailToConnectWithError:)])
-            {
-                NSNumber *connectErrorCode =  [NSNumber numberWithUnsignedInt:freerdp_get_last_error(ctx)];
-                
-                [delegate performSelectorOnMainThread:@selector(didFailToConnectWithError:) withObject:connectErrorCode waitUntilDone:true];
-            }
-        }
-    }
+		if(e->result == 0)
+		{
+			if(delegate && [delegate respondsToSelector:@selector(didConnect)])
+			{
+				// Better to replace this (and others in this class) with dispatch_async(dispatch_get_main_queue(), ^{ ... }) ?
+				// It doesn't care about run loop modes...
+				[delegate performSelectorOnMainThread:@selector(didConnect) withObject:nil waitUntilDone:true];
+			}
+		}
+		else
+		{
+			if(delegate && [delegate respondsToSelector:@selector(didFailToConnectWithError:)])
+			{
+				NSNumber *connectErrorCode =  [NSNumber numberWithUnsignedInt:freerdp_get_last_error(ctx)];
+				[delegate performSelectorOnMainThread:@selector(didFailToConnectWithError:) withObject:connectErrorCode waitUntilDone:true];
+			}
+		}
+	}
 }
 
 - (void)viewDidPostError:(NSNotification *)notification
 {
-    WLog_DBG(TAG, "viewDidPostError");
-    rdpContext *ctx;
-    [[[notification userInfo] valueForKey:@"context"] getValue:&ctx];
+	WLog_DBG(TAG, "viewDidPostError");
+	rdpContext *ctx;
+	[[[notification userInfo] valueForKey:@"context"] getValue:&ctx];
     
-    if(ctx == self->context)
-    {
-        
-        
-        ErrorInfoEventArgs *e = nil;
-        [[[notification userInfo] valueForKey:@"errorArgs"] getValue:&e];
-        NSLog(@"viewDidPostError: %d", e->code);
-        if(delegate && [delegate respondsToSelector:@selector(didErrorWithCode:)])
-        {
-            [delegate performSelectorOnMainThread:@selector(didErrorWithCode:) withObject:[NSNumber numberWithInt:e->code] waitUntilDone:true];
-        }
-    }
+	if(ctx == self->context)
+	{
+		ErrorInfoEventArgs *e = nil;
+		[[[notification userInfo] valueForKey:@"errorArgs"] getValue:&e];
+		NSLog(@"viewDidPostError: %d", e->code);
+		if(delegate && [delegate respondsToSelector:@selector(didErrorWithCode:)])
+		{
+			[delegate performSelectorOnMainThread:@selector(didErrorWithCode:) withObject:[NSNumber numberWithInt:e->code] waitUntilDone:true];
+		}
+	}
 }
 
 - (void)viewDidEmbed:(NSNotification *)notification
 {
-    rdpContext *ctx;
-    [[[notification userInfo] valueForKey:@"context"] getValue:&ctx];
+	rdpContext *ctx;
+	[[[notification userInfo] valueForKey:@"context"] getValue:&ctx];
     
-    if(ctx == self->context)
-    {
-        mfContext* mfc = (mfContext*)context;
-        self->mrdpClient = mfc->client;
-    }
+	if(ctx == self->context)
+	{
+		mfContext* mfc = (mfContext*)context;
+		self->mrdpClient = mfc->client;
+	}
 }
 
 - (void)dealloc
@@ -145,137 +144,137 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 
 - (BOOL)configure
 {
-    return [self configure:[NSArray array]];
+	return [self configure:[NSArray array]];
 }
 
 - (BOOL)configure:(NSArray *)arguments
 {
-    NSLog(@"configure");
+	NSLog(@"configure");
     
 	if (delegate && [delegate respondsToSelector:@selector(initializeLogging)])
 	{
 		[delegate initializeLogging];
 	}
 	
-    forwardedServerDrives = [[NSMutableArray alloc] init];
+	forwardedServerDrives = [[NSMutableArray alloc] init];
     
-    int status;
-    mfContext* mfc;
+	int status;
+	mfContext* mfc;
     
-    if(self.context == nil)
-    {
-        [self createContext];
-    }
+	if(self.context == nil)
+	{
+		[self createContext];
+	}
     
-    if(arguments && [arguments count] > 0)
-    {
-        status = [self parseCommandLineArguments:arguments];
-    }
-    else
-    {
-        status = 0;
-    }
+	if(arguments && [arguments count] > 0)
+	{
+		status = [self parseCommandLineArguments:arguments];
+	}
+	else
+	{
+		status = 0;
+	}
     
-    mfc = (mfContext*)context;
-    mfc->client = (void*)mrdpClient;
+	mfc = (mfContext*)context;
+	mfc->client = (void*)mrdpClient;
     
-    if (status < 0)
-    {
-        return false;
-    }
-    else
-    {
-        PubSub_SubscribeConnectionResult(context->pubSub, ConnectionResultEventHandler);
-    	PubSub_SubscribeErrorInfo(context->pubSub, ErrorInfoEventHandler);
-        PubSub_SubscribeEmbedWindow(context->pubSub, EmbedWindowEventHandler);
-    }
+	if (status < 0)
+	{
+		return false;
+	}
+	else
+	{
+		PubSub_SubscribeConnectionResult(context->pubSub, ConnectionResultEventHandler);
+		PubSub_SubscribeErrorInfo(context->pubSub, ErrorInfoEventHandler);
+		PubSub_SubscribeEmbedWindow(context->pubSub, EmbedWindowEventHandler);
+	}
 
-    return true;
+	return true;
 }
 
 - (void)start
 {
-    NSLog(@"start");
+	NSLog(@"start");
     
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidPostError:) name:MRDPClientDidPostErrorInfoNotification object:nil];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidConnect:) name:MRDPClientDidConnectWithResultNotification object:nil];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidEmbed:) name:MRDPClientDidPostEmbedNotification object:nil];
+	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidPostError:) name:MRDPClientDidPostErrorInfoNotification object:nil];
+	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidConnect:) name:MRDPClientDidConnectWithResultNotification object:nil];
+	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidEmbed:) name:MRDPClientDidPostEmbedNotification object:nil];
     
-    MRDPView *view = [[MRDPView alloc] initWithFrame : NSMakeRect(0, 0, context->settings->DesktopWidth, context->settings->DesktopHeight)];
-    view.delegate = self;
+	MRDPView *view = [[MRDPView alloc] initWithFrame : NSMakeRect(0, 0, context->settings->DesktopWidth, context->settings->DesktopHeight)];
+	view.delegate = self;
     
-    MRDPClient *client = [[MRDPClient alloc] init];
-    client.delegate = view;
+	MRDPClient *client = [[MRDPClient alloc] init];
+	client.delegate = view;
     
-    mfContext* mfc = (mfContext*)context;
-    mfc->client = client;
+	mfContext* mfc = (mfContext*)context;
+	mfc->client = client;
     
-    freerdp_client_start(context);
+	freerdp_client_start(context);
 }
 
 - (void)stop
 {
-    NSLog(@"stop");
+	NSLog(@"stop");
     
-    [[NSNotificationCenter defaultCenter] removeObserver:self];
+	[[NSNotificationCenter defaultCenter] removeObserver:self];
     
-    [mrdpClient pause];
+	[mrdpClient pause];
     
-    freerdp_client_stop(context);
+	freerdp_client_stop(context);
     
-    PubSub_UnsubscribeConnectionResult(context->pubSub, ConnectionResultEventHandler);
-    PubSub_UnsubscribeErrorInfo(context->pubSub, ErrorInfoEventHandler);
-    PubSub_UnsubscribeEmbedWindow(context->pubSub, EmbedWindowEventHandler);
+	PubSub_UnsubscribeConnectionResult(context->pubSub, ConnectionResultEventHandler);
+	PubSub_UnsubscribeErrorInfo(context->pubSub, ErrorInfoEventHandler);
+	PubSub_UnsubscribeEmbedWindow(context->pubSub, EmbedWindowEventHandler);
 }
 
 - (void)restart
 {
-    [self restart:[NSArray array]];
+	[self restart:[NSArray array]];
 }
 
 - (void)restart:(NSArray *)arguments
 {
-    NSLog(@"restart");
+	NSLog(@"restart");
     
-    // Prevent any notifications from firing
-    [[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPClientDidPostErrorInfoNotification object:nil];
-    [[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPClientDidConnectWithResultNotification object:nil];
-    [[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPClientDidPostEmbedNotification object:nil];
+	// Prevent any notifications from firing
+	[[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPClientDidPostErrorInfoNotification object:nil];
+	[[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPClientDidConnectWithResultNotification object:nil];
+	[[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPClientDidPostEmbedNotification object:nil];
 
-    [mrdpClient pause];
+	[mrdpClient pause];
     
-    // Tear down the context
-    freerdp_client_stop(context);
+	// Tear down the context
+	freerdp_client_stop(context);
     
-    PubSub_UnsubscribeConnectionResult(context->pubSub, ConnectionResultEventHandler);
-    PubSub_UnsubscribeErrorInfo(context->pubSub, ErrorInfoEventHandler);
-    PubSub_UnsubscribeEmbedWindow(context->pubSub, EmbedWindowEventHandler);
+	PubSub_UnsubscribeConnectionResult(context->pubSub, ConnectionResultEventHandler);
+	PubSub_UnsubscribeErrorInfo(context->pubSub, ErrorInfoEventHandler);
+	PubSub_UnsubscribeEmbedWindow(context->pubSub, EmbedWindowEventHandler);
     
-    freerdp_client_context_free(context);
+	freerdp_client_context_free(context);
 	context = nil;
     
-    [self createContext];
+	[self createContext];
     
-    // Let the delegate change the configuration
-    if(delegate && [delegate respondsToSelector:@selector(willReconnect)])
-    {
-        [delegate performSelectorOnMainThread:@selector(willReconnect) withObject:nil waitUntilDone:true];
-    }
+	// Let the delegate change the configuration
+	if(delegate && [delegate respondsToSelector:@selector(willReconnect)])
+	{
+		[delegate performSelectorOnMainThread:@selector(willReconnect) withObject:nil waitUntilDone:true];
+	}
     
-    // Recreate the context
-    [self configure:arguments];
+	// Recreate the context
+	[self configure:arguments];
     
-    // Don't resubscribe the view embedded event, we're already embedded
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidPostError:) name:MRDPClientDidPostErrorInfoNotification object:nil];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidConnect:) name:MRDPClientDidConnectWithResultNotification object:nil];
+	// Don't resubscribe the view embedded event, we're already embedded
+	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidPostError:) name:MRDPClientDidPostErrorInfoNotification object:nil];
+	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidConnect:) name:MRDPClientDidConnectWithResultNotification object:nil];
 	
-    // Reassign the view back to the context
-    mfContext* mfc = (mfContext*)context;
-    mfc->client = mrdpClient;
+	// Reassign the view back to the context
+	mfContext* mfc = (mfContext*)context;
+	mfc->client = mrdpClient;
     
-    freerdp_client_start(context);
+	freerdp_client_start(context);
 
-    [mrdpClient resume];
+	[mrdpClient resume];
 }
 
 -(void)sendCtrlAltDelete
@@ -448,8 +447,8 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 	SetEnvironmentVariableA("WLOG_FILTER", filter.UTF8String);
 	
 	WLog_Init();
-    NSLog(@"Log initialized inline");
-    WLog_INFO(TAG, "Log initialized inline");
+	NSLog(@"Log initialized inline");
+	WLog_INFO(TAG, "Log initialized inline");
 }
 
 @end

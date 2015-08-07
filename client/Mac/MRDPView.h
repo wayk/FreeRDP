@@ -28,7 +28,7 @@
 
 @interface MRDPView : NSView<MRDPClientDelegate>
 {
-    NSMutableArray* windows;
+	NSMutableArray* windows;
 	NSCursor* currentCursor;
 	freerdp* instance;
 	rdpContext* context;
@@ -36,7 +36,7 @@
 	BOOL initialized;
 	
 @public
-    NSObject<MRDPViewDelegate> *delegate;
+	NSObject<MRDPViewDelegate> *delegate;
 }
 
 - (void)setCursor:(MRDPCursor*) cursor;

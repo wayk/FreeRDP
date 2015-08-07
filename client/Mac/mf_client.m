@@ -81,11 +81,11 @@ BOOL mfreerdp_client_new(freerdp* instance, rdpContext* context)
 
 	mfc->stopEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
 
-    context->instance->PreConnect = mac_pre_connect;
-    context->instance->PostConnect = mac_post_connect;    
-    context->instance->Authenticate = mac_authenticate;
-    context->instance->VerifyCertificate = mac_verify_certificate;
-    context->instance->VerifyX509Certificate = mac_verify_x509certificate;
+	context->instance->PreConnect = mac_pre_connect;
+	context->instance->PostConnect = mac_post_connect;
+	context->instance->Authenticate = mac_authenticate;
+	context->instance->VerifyCertificate = mac_verify_certificate;
+	context->instance->VerifyX509Certificate = mac_verify_x509certificate;
 
 	context->channels = freerdp_channels_new();
 
@@ -123,16 +123,16 @@ void freerdp_client_mouse_event(rdpContext* cfc, DWORD flags, int x, int y)
 	if (y >= height)
 		y = height - 1;
 
-	input->MouseEvent(input, flags, x, y);
+	freerdp_input_send_mouse_event(input, flags, x, y);
 }
 
 void mf_scale_mouse_event(void* context, rdpInput* input, UINT16 flags, UINT16 x, UINT16 y)
 {
 	mfContext* mfc = (mfContext*) context;
-    MRDPClient *client = (MRDPClient *)mfc->client;
+	MRDPClient *client = (MRDPClient *)mfc->client;
 	id<MRDPClientDelegate> view = (id<MRDPClientDelegate>)client->delegate;
 
-    int ww, wh, dw, dh;
+	int ww, wh, dw, dh;
 
 	ww = view.frame.size.width;
 	wh = view.frame.size.height;
@@ -152,12 +152,12 @@ void mf_scale_mouse_event(void* context, rdpInput* input, UINT16 flags, UINT16 x
 			y -= (dh - wh);
 		}
 		
-		input->MouseEvent(input, flags, x + mfc->xCurrentScroll, y);
+		freerdp_input_send_mouse_event(input, flags, x + mfc->xCurrentScroll, y);
 	}
 	else
 	{
 		y = y * dh / wh + mfc->yCurrentScroll;
-		input->MouseEvent(input, flags, x * dw / ww + mfc->xCurrentScroll, y);
+		freerdp_input_send_mouse_event(input, flags, x * dw / ww + mfc->xCurrentScroll, y);
 	}
 }
 

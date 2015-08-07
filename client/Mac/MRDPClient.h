@@ -11,29 +11,41 @@
 
 #import "mfreerdp.h"
 
-#import "FreeRDS.h"
+struct _RDS_FRAMEBUFFER
+{
+	int fbWidth;
+	int fbHeight;
+	int fbAttached;
+	int fbScanline;
+	int fbSegmentId;
+	int fbBitsPerPixel;
+	int fbBytesPerPixel;
+	BYTE* fbSharedMemory;
+	void* image;
+};
+typedef struct _RDS_FRAMEBUFFER RDS_FRAMEBUFFER;
 
 #import "MRDPClientDelegate.h"
 #import "ServerDrive.h"
 
 @interface MRDPClient : NSObject
 {
-    mfContext* mfc;
-    freerdp* instance;
-    rdpContext* context;
-    NSMutableArray* cursors;
-    NSTimer* pasteboard_timer;
-    DWORD kbdModFlags;
+	mfContext* mfc;
+	freerdp* instance;
+	rdpContext* context;
+	NSMutableArray* cursors;
+	NSTimer* pasteboard_timer;
+	DWORD kbdModFlags;
         
-    @public
-    bool is_connected;
-    bool altTabKeyPressed;
-    RDS_FRAMEBUFFER* frameBuffer;
-    id<MRDPClientDelegate> delegate;
-    NSPasteboard* pasteboard_rd;
-    NSPasteboard* pasteboard_wr;
-    int pasteboard_changecount;
-    int pasteboard_format;
+	@public
+	bool is_connected;
+	bool altTabKeyPressed;
+	RDS_FRAMEBUFFER* frameBuffer;
+	id<MRDPClientDelegate> delegate;
+	NSPasteboard* pasteboard_rd;
+	NSPasteboard* pasteboard_wr;
+	int pasteboard_changecount;
+	int pasteboard_format;
 	bool ignoreNextPasteboardChange;
 }
 

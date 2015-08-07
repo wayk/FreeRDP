@@ -68,7 +68,6 @@ set(${MODULE_PREFIX}_HEADERS
        Keyboard.h
        MRDPClientDelegate.h
        Clipboard.h
-       FreeRDS.h
        MRDPClientNotifications.h)
 
 set(${MODULE_PREFIX}_RESOURCES "en.lproj/InfoPlist.strings")

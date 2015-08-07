@@ -187,7 +187,6 @@ BOOL reconnecting = false;
 	status = freerdp_client_settings_command_line_status_print(context->settings, status, context->argc, context->argv);
     
 	return status;
-    
 }
 
 - (void) CreateContext
@@ -213,7 +212,7 @@ BOOL reconnecting = false;
     
 	[client releaseResources];
 	[client release];
-    mfc->client = nil;
+	mfc->client = nil;
     
 	freerdp_client_context_free(context);
 	context = nil;
