@@ -412,7 +412,7 @@ NSMutableArray *forwardedServerDrives;
 
 - (NSRect)frame
 {
-    WLog_DBG(TAG, "renderBufferName");
+    WLog_DBG(TAG, "frame");
     // Cheating a bit because I don't want to add "viewFrame" to the interface
     NSValue* boxedFrame = (NSValue *)[[serverProxy delegate] performSelector:NSSelectorFromString(@"viewFrame")];
     return [boxedFrame rectValue];
