@@ -122,12 +122,19 @@ BOOL mac_end_paint(rdpContext* context);
     [delegate releaseResources];
 }
 
+- (void)invalidatePasteboardTimer
+{
+    // Invalidate the timer on the thread it was created on
+    dispatch_async(dispatch_get_main_queue(), ^{
+        WLog_DBG(TAG, "timer stop");
+        [self->pasteboard_timer invalidate];
+        self->pasteboard_timer = nil;
+    });
+}
+
 - (void)pause
 {
-	// Invalidate the timer on the thread it was created on
-	dispatch_async(dispatch_get_main_queue(), ^{
-		[self->pasteboard_timer invalidate];
-	});
+    [self invalidatePasteboardTimer];
 	
 	[delegate pause];
 }
@@ -135,6 +142,11 @@ BOOL mac_end_paint(rdpContext* context);
 - (void)resume
 {
     dispatch_async(dispatch_get_main_queue(), ^{
+        WLog_DBG(TAG, "timer resume");
+        if(self->pasteboard_timer)
+        {
+            return;
+        }
         self->pasteboard_timer = [NSTimer scheduledTimerWithTimeInterval:0.5 target:self selector:@selector(onPasteboardTimerFired:) userInfo:nil repeats:YES];
     });
 
@@ -175,6 +187,12 @@ BOOL mac_end_paint(rdpContext* context);
 
 - (void)onPasteboardTimerFired:(NSTimer*) timer
 {
+    WLog_DBG(TAG, "onPasteboardTimerFired %b", self.is_connected);
+    if (!self.is_connected)
+    {
+        return;
+    }
+    
 	BYTE* data;
 	UINT32 size;
 	UINT32 formatId;
@@ -675,12 +693,13 @@ DWORD mac_client_thread(void* param)
         }
 
 disconnect:
-	    
-	client.is_connected = 0;
+        WLog_DBG(TAG, "Disconnect");
+        client.is_connected = 0;
+        [client invalidatePasteboardTimer];
         freerdp_disconnect(instance);
 	
-	freerdp_channels_disconnect(context->channels, instance);
-	gdi_free(instance);
+        freerdp_channels_disconnect(context->channels, instance);
+        gdi_free(instance);
 	    
         if (settings->AsyncInput && inputThread)
         {
@@ -691,7 +710,7 @@ disconnect:
                 WaitForSingleObject(inputThread, INFINITE);
             }
             CloseHandle(inputThread);
-	}
+        }
         
         ExitThread(0);
         return 0;
@@ -865,6 +884,7 @@ BOOL mac_post_connect(freerdp* instance)
     dispatch_async(dispatch_get_main_queue(), ^{
         client->pasteboard_rd = [NSPasteboard generalPasteboard];
         client->pasteboard_changecount = -1;
+        WLog_DBG(TAG, "timer start");
         client->pasteboard_timer = [NSTimer scheduledTimerWithTimeInterval:0.5 target:client selector:@selector(onPasteboardTimerFired:) userInfo:nil repeats:YES];
     });
     
