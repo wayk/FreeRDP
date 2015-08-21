@@ -834,6 +834,7 @@ BOOL mac_post_connect(freerdp* instance)
                 if (client->frameBuffer->fbSharedMemory != MAP_FAILED)
                 {
                     gdi_init(instance, flags, client->frameBuffer->fbSharedMemory);
+					WLog_DBG(TAG, "gdi initilialized with sahred memory %p", client->frameBuffer->fbSharedMemory);
                 }
                 else
                 {
@@ -1252,6 +1253,7 @@ BOOL mac_desktop_resize(rdpContext* context)
     MRDPClient* client = (MRDPClient *)mfc->client;
     id<MRDPClientDelegate> view = (id<MRDPClientDelegate>)client.delegate;
     rdpSettings* settings = context->settings;
+	WLog_DBG(TAG, "mac_desktop_resize %d x %d", settings->DesktopWidth, settings->DesktopHeight);
     
     /**
      * TODO: Fix resizing race condition. We should probably implement a message to be
