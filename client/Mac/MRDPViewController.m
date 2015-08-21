@@ -124,8 +124,7 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
     
     MRDPView *view = (MRDPView *)self.mrdpClient.delegate;
     view.delegate = nil;
-    [view release];
-    
+	
     self.delegate = nil;
     
     freerdp_client_stop(context);
@@ -135,6 +134,8 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
     MRDPClient* client = (MRDPClient *)mfc->client;
     [client releaseResources];
     [client release];
+	// the view is the delegate for the client it needs to be released after the client
+	[view release];
     mfc->client = nil;
     
     [self releaseContext];
