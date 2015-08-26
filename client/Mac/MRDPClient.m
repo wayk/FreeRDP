@@ -187,7 +187,6 @@ BOOL mac_end_paint(rdpContext* context);
 
 - (void)onPasteboardTimerFired:(NSTimer*) timer
 {
-    WLog_DBG(TAG, "onPasteboardTimerFired %b", self.is_connected);
     if (!self.is_connected)
     {
         return;
@@ -826,6 +825,7 @@ BOOL mac_post_connect(freerdp* instance)
         
         if (client->frameBuffer->fbSegmentId >= 0)
         {
+			BOOL error = false;
             if (ftruncate(client->frameBuffer->fbSegmentId, shmemSize) == 0)
             {
                 client->frameBuffer->fbSharedMemory = mmap(NULL, shmemSize, (PROT_READ | PROT_WRITE), MAP_SHARED,
@@ -834,22 +834,30 @@ BOOL mac_post_connect(freerdp* instance)
                 if (client->frameBuffer->fbSharedMemory != MAP_FAILED)
                 {
                     gdi_init(instance, flags, client->frameBuffer->fbSharedMemory);
-					WLog_DBG(TAG, "gdi initilialized with sahred memory %p", client->frameBuffer->fbSharedMemory);
+					WLog_DBG(TAG, "gdi initilialized with shared memory %p", client->frameBuffer->fbSharedMemory);
                 }
                 else
                 {
                     NSLog(@"Failed to map shared memory object: %s (%d)", strerror(errno), errno);
-                    return false;
+                    error = true;
                 }
             }
             else
             {
                 NSLog(@"Failed to truncate shared memory object");
-                return false;
+                error = true;
             }
             
             // Note: sharedMemory still valid until munmap() called
             close(client->frameBuffer->fbSegmentId);
+			if(error)
+			{
+				if(shm_unlink([view.renderBufferName UTF8String]) != 0)
+				{
+					NSLog(@"Failed to unlink shared memory object: %s (%d)", strerror(errno), errno);
+				}
+				return false;
+			}
         }
         else
         {

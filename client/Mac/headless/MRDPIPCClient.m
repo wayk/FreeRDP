@@ -436,7 +436,7 @@ NSMutableArray *forwardedServerDrives;
 - (void)setNeedsDisplayInRect:(NSRect)newDrawRect
 {	
     NSValue* boxed = [NSValue valueWithRect:newDrawRect];
-    WLog_DBG(TAG, "setNeedsDisplayInRect");
+    WLog_DBG(TAG, "setNeedsDisplayInRect shm: %p", self->mrdpClient->frameBuffer->fbSharedMemory);
     [serverProxy performSelector:@selector(pixelDataUpdated:) withObject:boxed afterDelay:0.0];
 }
 
