@@ -334,6 +334,31 @@ static BOOL android_verify_certificate(freerdp* instance, char* subject, char* i
 	return ((res == JNI_TRUE) ? TRUE : FALSE);
 }
 
+BOOL android_verify_x509_certificate(freerdp* instance, BYTE* data, int length, const char* hostname, int port, DWORD flags)
+{
+	JNIEnv* env;
+	jboolean isCopy;
+	jboolean attached = jni_attach_thread(&env);
+	jstring jstr1 = (*env)->NewStringUTF(env, hostname);
+	jbyteArray jBuff = (*env)->NewByteArray(env, length);
+
+	void *buf = (*env)->GetPrimitiveArrayCritical(env, (jarray)jBuff, &isCopy);
+	if(buf != NULL)
+		memcpy(buf, data, length);
+	else
+		length = 0;
+	(*env)->ReleasePrimitiveArrayCritical(env, jBuff, buf, 0);
+
+	jboolean res = freerdp_callback_bool_result("OnVerifyX509Certificate", "(I[BILjava/lang/String;II)Z", instance, jBuff, length, jstr1, port, flags);
+	
+	(*env)->DeleteLocalRef(env, jBuff);
+
+	if(attached == JNI_TRUE)
+		jni_detach_thread();
+
+	return ((res == JNI_TRUE) ? TRUE : FALSE);
+}
+
 static BOOL android_verify_changed_certificate(freerdp* instance, char* subject, char* issuer, char* new_fingerprint, char* old_fingerprint)
 {
 	return android_verify_certificate(instance, subject, issuer, new_fingerprint);
@@ -674,6 +699,7 @@ JNIEXPORT jint JNICALL jni_freerdp_new(JNIEnv *env, jclass cls)
 	instance->PostDisconnect = android_post_disconnect;
 	instance->Authenticate = android_authenticate;
 	instance->VerifyCertificate = android_verify_certificate;
+	instance->VerifyX509Certificate = android_verify_x509_certificate;
 	instance->VerifyChangedCertificate = android_verify_changed_certificate;
 
 	// create context
@@ -986,6 +1012,7 @@ JNIEXPORT jboolean JNICALL jni_freerdp_set_advanced_settings(JNIEnv *env, jclass
 	settings->AsyncChannels = async_channel;
 	settings->AsyncTransport = async_transport;
 	settings->AsyncInput = async_input;
+	settings->ExternalCertificateManagement = TRUE;
 
 	if (remote_program && strlen(remote_program) > 0)
 	{
