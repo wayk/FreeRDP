@@ -108,6 +108,7 @@ NSMutableArray *forwardedServerDrives;
 	SetEnvironmentVariableA("WLOG_FILEAPPENDER_OUTPUT_FILE_PATH", filePath.UTF8String);
 	SetEnvironmentVariableA("WLOG_FILEAPPENDER_OUTPUT_FILE_NAME", fileName.UTF8String);
 	SetEnvironmentVariableA("WLOG_FILTER", filter.UTF8String);
+	SetEnvironmentVariableA("WLOG_PREFIX", "[%hr:%mi:%se:%ml] [%pid:%tid] [%lv][%mn] %fn %ln - ");
 	
 	WLog_Init();
     
