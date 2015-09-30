@@ -1055,9 +1055,17 @@ BOOL mf_Pointer_New(rdpContext* context, rdpPointer* pointer)
         return FALSE;
     mrdpCursor->cursor_data = cursor_data;
     
-    freerdp_image_copy_from_pointer_data(cursor_data, PIXEL_FORMAT_ARGB32,
-                                         pointer->width * 4, 0, 0, pointer->width, pointer->height,
-                                         pointer->xorMaskData, pointer->andMaskData, pointer->xorBpp, NULL);
+	if (freerdp_image_copy_from_pointer_data(
+											 cursor_data, PIXEL_FORMAT_ARGB32,
+											 pointer->width * 4, 0, 0, pointer->width, pointer->height,
+											 pointer->xorMaskData, pointer->lengthXorMask,
+											 pointer->andMaskData, pointer->lengthAndMask,
+											 pointer->xorBpp, NULL) < 0)
+	{
+		free(cursor_data);
+		mrdpCursor->cursor_data = NULL;
+		return FALSE;
+	}
     
     /* store cursor bitmap image in representation - required by NSImage */
     bmiRep = [[NSBitmapImageRep alloc] initWithBitmapDataPlanes:(unsigned char **) &cursor_data

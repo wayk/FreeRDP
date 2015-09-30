@@ -511,7 +511,7 @@ BOOL mac_desktop_resize(rdpContext* context);
 	{
 		return [delegate provideServerCredentials:credentials];
 	}
-    
+	
 	return FALSE;
 }
 
