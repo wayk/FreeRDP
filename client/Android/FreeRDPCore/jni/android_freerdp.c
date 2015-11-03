@@ -751,24 +751,24 @@ JNIEXPORT jboolean JNICALL jni_freerdp_disconnect(JNIEnv *env, jclass cls, jint 
 {
 	freerdp* inst = (freerdp*)instance;
 	androidContext* ctx = (androidContext*)inst->context;
-	ANDROID_EVENT* event = (ANDROID_EVENT*)android_event_disconnect_new();
-	if (!event)
-		return JNI_FALSE;
+	// ANDROID_EVENT* event = (ANDROID_EVENT*)android_event_disconnect_new();
+	// if (!event)
+	// 	return JNI_FALSE;
 
 	DEBUG_ANDROID("DISCONNECT!");
 
 	assert(inst);
 	assert(ctx);
-	assert(event);
+	// assert(event);
 
-	if (!android_push_event(inst, event))
-	{
-		android_event_disconnect_free(event);
-		return JNI_FALSE;
-	}
+	// if (!android_push_event(inst, event))
+	// {
+	// 	android_event_disconnect_free(event);
+	// 	return JNI_FALSE;
+	// }
 
-	WaitForSingleObject(ctx->thread, INFINITE);
-	CloseHandle(ctx->thread);
+	// WaitForSingleObject(ctx->thread, INFINITE);
+	// CloseHandle(ctx->thread);
 	ctx->thread = NULL;
 
 	freerdp_callback("OnDisconnecting", "(I)V", instance);
