@@ -767,11 +767,13 @@ JNIEXPORT jboolean JNICALL jni_freerdp_disconnect(JNIEnv *env, jclass cls, jint 
 	// 	return JNI_FALSE;
 	// }
 
-	// WaitForSingleObject(ctx->thread, INFINITE);
-	// CloseHandle(ctx->thread);
+	SetEvent(inst->context->abortEvent);
+
+	WaitForSingleObject(ctx->thread, INFINITE);
+	CloseHandle(ctx->thread);
 	ctx->thread = NULL;
 
-	freerdp_callback("OnDisconnecting", "(I)V", instance);
+	// freerdp_callback("OnDisconnecting", "(I)V", instance);
 
 	return (jboolean) JNI_TRUE;
 }
