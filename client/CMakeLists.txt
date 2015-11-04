@@ -18,6 +18,7 @@
 # Clients
 
 add_subdirectory(common)
+add_subdirectory(CSharp)
 
 if(FREERDP_VENDOR)
 	if(WIN32)

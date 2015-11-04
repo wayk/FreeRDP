@@ -164,7 +164,8 @@ WINPR_API PVOID InterlockedCompareExchangePointer(PVOID volatile *Destination, P
 
 #ifdef WINPR_INTERLOCKED_COMPARE_EXCHANGE64
 
-WINPR_API LONGLONG InterlockedCompareExchange64(LONGLONG volatile *Destination, LONGLONG Exchange, LONGLONG Comperand);
+#define InterlockedCompareExchange64 WinprInterlockedCompareExchange64
+WINPR_API LONGLONG WinprInterlockedCompareExchange64(LONGLONG volatile *Destination, LONGLONG Exchange, LONGLONG Comperand);
 
 #endif
 

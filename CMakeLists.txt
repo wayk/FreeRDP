@@ -682,6 +682,15 @@ if(ANDROID)
 	endif()
 endif()
 
+if (IOS)
+	set(CMAKE_OSX_DEPLOYMENT_TARGET "")
+	if (IOS_PLATFORM MATCHES "SIMULATOR")
+		set(CMAKE_OSX_SYSROOT "iphonesimulator")
+	else()
+		set(CMAKE_OSX_SYSROOT "iphoneos")
+	endif()
+endif()
+
 # Unit Tests
 
 include(CTest)
@@ -716,15 +725,6 @@ endif()
 add_subdirectory(include)
 
 add_subdirectory(libfreerdp)
-
-if (IOS)
-	set(CMAKE_OSX_DEPLOYMENT_TARGET "")
-	if (IOS_PLATFORM MATCHES "SIMULATOR")
-		set(CMAKE_OSX_SYSROOT "iphonesimulator")
-	else()
-		set(CMAKE_OSX_SYSROOT "iphoneos")
-	endif()
-endif()
 
 # RdTk
 include_directories("${CMAKE_SOURCE_DIR}/rdtk/include")

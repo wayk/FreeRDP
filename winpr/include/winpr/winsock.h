@@ -308,7 +308,9 @@ WINPR_API int WSAIoctl(SOCKET s, DWORD dwIoControlCode, LPVOID lpvInBuffer,
 
 WINPR_API SOCKET _accept(SOCKET s, struct sockaddr* addr, int* addrlen);
 WINPR_API int _bind(SOCKET s, const struct sockaddr* addr, int namelen);
-WINPR_API int closesocket(SOCKET s);
+
+#define closesocket winprclosesocket
+WINPR_API int winprclosesocket(SOCKET s);
 WINPR_API int _connect(SOCKET s, const struct sockaddr* name, int namelen);
 WINPR_API int _ioctlsocket(SOCKET s, long cmd, u_long* argp);
 WINPR_API int _getpeername(SOCKET s, struct sockaddr* name, int* namelen);
