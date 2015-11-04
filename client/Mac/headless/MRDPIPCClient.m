@@ -520,6 +520,14 @@ NSMutableArray *forwardedServerDrives;
     return [serverProxy validateX509Certificate:certificate.data hostname:certificate.hostname port:certificate.port];
 }
 
+- (void)setIsReadOnly:(bool)isReadOnly
+{
+	if ((mrdpClient == nil) && (!mrdpClient.is_connected))
+		return;
+	
+	mrdpClient.isReadOnly = isReadOnly;
+}
+
 @end
 
 void ConnectionResultEventHandler(void* ctx, ConnectionResultEventArgs* e)

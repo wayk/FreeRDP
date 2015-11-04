@@ -36,9 +36,10 @@ typedef struct _RDS_FRAMEBUFFER RDS_FRAMEBUFFER;
 	NSMutableArray* cursors;
 	NSTimer* pasteboard_timer;
 	DWORD kbdModFlags;
-        
+	        
 	@public
 	bool is_connected;
+	bool isReadOnly;
 	bool altTabKeyPressed;
 	RDS_FRAMEBUFFER* frameBuffer;
 	id<MRDPClientDelegate> delegate;
@@ -50,6 +51,7 @@ typedef struct _RDS_FRAMEBUFFER RDS_FRAMEBUFFER;
 }
 
 @property(nonatomic, assign) bool is_connected;
+@property(nonatomic, assign) bool isReadOnly;
 @property(nonatomic) RDS_FRAMEBUFFER* frameBuffer;
 @property(nonatomic, assign) id<MRDPClientDelegate> delegate;
 
