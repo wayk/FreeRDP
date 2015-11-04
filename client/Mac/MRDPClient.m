@@ -52,16 +52,18 @@ BOOL mac_end_paint(rdpContext* context);
 @implementation MRDPClient
 
 @synthesize is_connected;
+@synthesize isReadOnly;
 @synthesize frameBuffer;
 @synthesize delegate;
 
 - (id)init
 {
     self = [super init];
-    if(self)
+    if (self)
     {
         cursors = [[NSMutableArray alloc] initWithCapacity:10];
         frameBuffer = (RDS_FRAMEBUFFER *) malloc(sizeof(RDS_FRAMEBUFFER));
+		self.isReadOnly = false;
     }
     
     return self;
@@ -101,10 +103,10 @@ BOOL mac_end_paint(rdpContext* context);
 
 - (void)releaseResources
 {
-    if(delegate.renderToBuffer)
+    if (delegate.renderToBuffer)
     {
         size_t shmemSize = frameBuffer->fbScanline * frameBuffer->fbHeight;
-        if(munmap(frameBuffer->fbSharedMemory, shmemSize) != 0)
+        if (munmap(frameBuffer->fbSharedMemory, shmemSize) != 0)
         {
             NSLog(@"Failed to unmap shared memory object: %s (%d)", strerror(errno), errno);
         }
@@ -141,16 +143,16 @@ BOOL mac_end_paint(rdpContext* context);
 
 - (void)resume
 {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        WLog_DBG(TAG, "timer resume");
-        if(self->pasteboard_timer)
-        {
-            return;
-        }
-        self->pasteboard_timer = [NSTimer scheduledTimerWithTimeInterval:0.5 target:self selector:@selector(onPasteboardTimerFired:) userInfo:nil repeats:YES];
-    });
-
-    [delegate resume];
+	dispatch_async(dispatch_get_main_queue(), ^{
+		WLog_DBG(TAG, "timer resume");
+		if (self->pasteboard_timer)
+		{
+			return;
+		}
+		self->pasteboard_timer = [NSTimer scheduledTimerWithTimeInterval:0.5 target:self selector:@selector(onPasteboardTimerFired:) userInfo:nil repeats:YES];
+	});
+	
+	[delegate resume];
 }
 
 - (NSString*)getErrorInfoString:(int)code
@@ -161,6 +163,9 @@ BOOL mac_end_paint(rdpContext* context);
 
 -(void)sendCtrlAltDelete
 {
+	if (self.isReadOnly)
+		return;
+	
     freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_DOWN, 0x1D); /* VK_LCONTROL, DOWN */
     freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_DOWN, 0x38); /* VK_LMENU, DOWN */
     freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_DOWN | KBD_FLAGS_EXTENDED, 0x53); /* VK_DELETE, DOWN */
@@ -187,7 +192,7 @@ BOOL mac_end_paint(rdpContext* context);
 
 - (void)onPasteboardTimerFired:(NSTimer*) timer
 {
-    if (!self.is_connected)
+    if ((!self.is_connected) || self.isReadOnly)
     {
         return;
     }
@@ -263,41 +268,65 @@ BOOL mac_end_paint(rdpContext* context);
 
 - (void)mouseMoved:(NSPoint)coord
 {
+	if (self.isReadOnly)
+		return;
+	
     mf_scale_mouse_event(context, instance->input, PTR_FLAGS_MOVE, coord.x, coord.y);
 }
 
 - (void)mouseDown:(NSPoint)coord
 {
+	if (self.isReadOnly)
+		return;
+	
     mf_scale_mouse_event(context, instance->input, PTR_FLAGS_DOWN | PTR_FLAGS_BUTTON1, coord.x, coord.y);
 }
 
 - (void)mouseUp:(NSPoint)coord
 {
+	if (self.isReadOnly)
+		return;
+	
     mf_scale_mouse_event(context, instance->input, PTR_FLAGS_BUTTON1, coord.x, coord.y);
 }
 
 - (void)rightMouseDown:(NSPoint)coord
 {
+	if (self.isReadOnly)
+		return;
+	
     mf_scale_mouse_event(context, instance->input, PTR_FLAGS_DOWN | PTR_FLAGS_BUTTON2, coord.x, coord.y);
 }
 
 - (void)rightMouseUp:(NSPoint)coord
 {
+	if (self.isReadOnly)
+		return;
+	
     mf_scale_mouse_event(context, instance->input, PTR_FLAGS_BUTTON2, coord.x, coord.y);
 }
 
 - (void)otherMouseDown:(NSPoint)coord
 {
+	if (self.isReadOnly)
+		return;
+	
     mf_scale_mouse_event(context, instance->input, PTR_FLAGS_DOWN | PTR_FLAGS_BUTTON3, coord.x, coord.y);
 }
 
 - (void)otherMouseUp:(NSPoint)coord
 {
+	if (self.isReadOnly)
+		return;
+	
     mf_scale_mouse_event(context, instance->input, PTR_FLAGS_BUTTON3, coord.x, coord.y);
 }
 
 - (void)scrollWheelCoordinates:(NSPoint)coord deltaY:(CGFloat)deltaY
 {
+	if (self.isReadOnly)
+		return;
+	
     UINT16 flags = PTR_FLAGS_WHEEL;
     
     /* 1 event = 120 units */
@@ -316,16 +345,25 @@ BOOL mac_end_paint(rdpContext* context);
 
 - (void)mouseDragged:(NSPoint)coord
 {
+	if (self.isReadOnly)
+		return;
+	
     mf_scale_mouse_event(context, instance->input, PTR_FLAGS_MOVE, coord.x, coord.y);
 }
 
 - (void)rightMouseDragged:(NSPoint)coord
 {
+	if (self.isReadOnly)
+		return;
+	
     mf_scale_mouse_event(context, instance->input, PTR_FLAGS_MOVE | PTR_FLAGS_BUTTON2, coord.x, coord.y);
 }
 
 - (void)otherMouseDragged:(NSPoint)coord
 {
+	if (self.isReadOnly)
+		return;
+	
     mf_scale_mouse_event(context, instance->input, PTR_FLAGS_MOVE | PTR_FLAGS_BUTTON3, coord.x, coord.y);
 }
 
@@ -340,7 +378,7 @@ BOOL mac_end_paint(rdpContext* context);
     NSUInteger modifierFlags;
     bool releaseKey = false;
     
-    if (!self.is_connected)
+    if ((!self.is_connected) || self.isReadOnly)
         return;
     
     keyFlags = KBD_FLAGS_DOWN;
@@ -364,7 +402,7 @@ BOOL mac_end_paint(rdpContext* context);
     // For VK_A, VK_C, VK_V or VK_X
     if ((vkcode == 0x43 || vkcode == 0x56 || vkcode == 0x41 || vkcode == 0x58) && modifierFlags & NSCommandKeyMask)
     {
-        if(context->settings->EnableWinKeyCutPaste)
+        if (context->settings->EnableWinKeyCutPaste)
         {
             releaseKey = true;
             freerdp_input_send_keyboard_event(instance->input, KBD_FLAGS_RELEASE, 0x5B); /* VK_LWIN, RELEASE */
@@ -378,9 +416,9 @@ BOOL mac_end_paint(rdpContext* context);
              keyCode, scancode, vkcode, keyFlags, GetVirtualKeyName(vkcode));
 #endif
     
-    if(altTabKeyPressed)
+    if (altTabKeyPressed)
     {
-        if(vkcode == VK_TAB)
+        if (vkcode == VK_TAB)
         {
             altTabKeyPressed = false;
         }
@@ -409,7 +447,7 @@ BOOL mac_end_paint(rdpContext* context);
     unichar keyChar;
     NSString* characters;
     
-    if (!self.is_connected)
+    if ((!self.is_connected) || self.isReadOnly)
         return;
     
     keyFlags = KBD_FLAGS_RELEASE;
@@ -445,7 +483,7 @@ BOOL mac_end_paint(rdpContext* context);
     DWORD scancode;
     DWORD modFlags;
     
-    if (!self.is_connected)
+    if ((!self.is_connected) || self.isReadOnly)
         return;
     
     keyFlags = 0;
@@ -503,7 +541,7 @@ BOOL mac_end_paint(rdpContext* context);
     else if (!(modFlags & NSAlternateKeyMask) && (kbdModFlags & NSAlternateKeyMask))
         freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_RELEASE, scancode);
     
-    if(context->settings->EnableWindowsKey)
+    if (context->settings->EnableWindowsKey)
     {
         if ((modFlags & NSCommandKeyMask) && !(kbdModFlags & NSCommandKeyMask))
         {
@@ -511,7 +549,7 @@ BOOL mac_end_paint(rdpContext* context);
         }
         else if (!(modFlags & NSCommandKeyMask) && (kbdModFlags & NSCommandKeyMask))
         {
-            if(altTabKeyPressed)
+            if (altTabKeyPressed)
             {
                 freerdp_input_send_keyboard_event(instance->input, 256 | KBD_FLAGS_DOWN, 0x005B);
                 altTabKeyPressed = false;
@@ -806,7 +844,7 @@ BOOL mac_post_connect(freerdp* instance)
     flags = CLRCONV_ALPHA | CLRCONV_RGB555;
     flags |= CLRBUF_32BPP;
     
-    if(![view renderToBuffer])
+    if (![view renderToBuffer])
     {
         if (!gdi_init(instance, flags, NULL))
             return FALSE;
@@ -850,9 +888,9 @@ BOOL mac_post_connect(freerdp* instance)
             
             // Note: sharedMemory still valid until munmap() called
             close(client->frameBuffer->fbSegmentId);
-			if(error)
+			if (error)
 			{
-				if(shm_unlink([view.renderBufferName UTF8String]) != 0)
+				if (shm_unlink([view.renderBufferName UTF8String]) != 0)
 				{
 					NSLog(@"Failed to unlink shared memory object: %s (%d)", strerror(errno), errno);
 				}
@@ -868,15 +906,15 @@ BOOL mac_post_connect(freerdp* instance)
     
     bool result = [view postConnect:instance];
     
-    if([view renderToBuffer])
+    if ([view renderToBuffer])
     {
-        if(shm_unlink([view.renderBufferName UTF8String]) != 0)
+        if (shm_unlink([view.renderBufferName UTF8String]) != 0)
         {
             NSLog(@"Failed to unlink shared memory object: %s (%d)", strerror(errno), errno);
         }
     }
     
-    if(!result)
+    if (!result)
     {
         return result;
     }
@@ -1221,17 +1259,17 @@ BOOL mac_authenticate(freerdp* instance, char** username, char** password, char*
     NSString *userPass = nil;
     NSString *userDomain = nil;
     
-    if(*username)
+    if (*username)
     {
         userName = [NSString stringWithCString:*username encoding:NSUTF8StringEncoding];
     }
     
-    if(*password)
+    if (*password)
     {
         userPass = [NSString stringWithCString:*password encoding:NSUTF8StringEncoding];
     }
     
-    if(*domain)
+    if (*domain)
     {
         userDomain = [NSString stringWithCString:*domain encoding:NSUTF8StringEncoding];
     }
@@ -1243,7 +1281,7 @@ BOOL mac_authenticate(freerdp* instance, char** username, char** password, char*
     
     BOOL ok = [view provideServerCredentials:&credential];
     
-    if(ok)
+    if (ok)
     {
         const char* submittedUsername = [credential.username cStringUsingEncoding:NSUTF8StringEncoding];
         *username = malloc((strlen(submittedUsername) + 1) * sizeof(char));
@@ -1297,17 +1335,17 @@ BOOL mac_verify_certificate(freerdp* instance, char* subject, char* issuer, char
     NSString *certIssuer = nil;
     NSString *certFingerprint = nil;
     
-    if(*subject)
+    if (*subject)
     {
         certSubject = [NSString stringWithUTF8String:subject];
     }
     
-    if(*issuer)
+    if (*issuer)
     {
         certIssuer = [NSString stringWithUTF8String:issuer];
     }
     
-    if(*fingerprint)
+    if (*fingerprint)
     {
         certFingerprint = [NSString stringWithUTF8String:fingerprint];
     }
@@ -1329,7 +1367,7 @@ int mac_verify_x509certificate(freerdp* instance, BYTE* data, int length, const 
     
     BOOL result = false;
     
-    if(length > 0 && *hostname)
+    if (length > 0 && *hostname)
     {
         NSData *certificateData = [NSData dataWithBytes:data length:length];
         NSString *certificateHostname = [NSString stringWithUTF8String:hostname];

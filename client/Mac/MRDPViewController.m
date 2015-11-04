@@ -453,6 +453,14 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 	WLog_INFO(TAG, "Log initialized inline");
 }
 
+- (void) setIsReadOnly:(bool)isReadOnly
+{
+	if ((mrdpClient == nil) && (!mrdpClient.is_connected))
+		return;
+		
+	mrdpClient.isReadOnly = isReadOnly;
+}
+
 @end
 
 void EmbedWindowEventHandler(void* ctx, EmbedWindowEventArgs* e)

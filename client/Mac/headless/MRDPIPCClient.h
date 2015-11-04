@@ -29,5 +29,6 @@
 - (id)initWithServer:(NSString *)registeredName;
 - (void)configure;
 - (void)initLoggingWithFilter:(NSString *)filter filePath:(NSString *)filePath fileName:(NSString *)fileName;
+- (void)setIsReadOnly:(bool)isReadOnly;
 
 @end
