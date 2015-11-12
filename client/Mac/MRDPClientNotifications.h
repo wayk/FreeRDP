@@ -12,5 +12,6 @@
 static NSString *MRDPClientDidPostErrorInfoNotification = @"MRDPClientDidPostErrorInfoNotification";
 static NSString *MRDPClientDidConnectWithResultNotification = @"MRDPClientDidConnectWithResultNotification";
 static NSString *MRDPClientDidPostEmbedNotification = @"MRDPClientDidPostEmbedNotification";
+static NSString *MRDPClientDidResizeNotification = @"MRDPClientDidResizeNotification";
 
 #endif

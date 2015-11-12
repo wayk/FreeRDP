@@ -18,6 +18,7 @@
 - (void)didConnect;
 - (void)didFailToConnectWithError:(NSNumber *)connectErrorCode;
 - (void)didErrorWithCode:(NSNumber *)code;
+
 - (BOOL)provideServerCredentials:(ServerCredential **)credentials;
 - (BOOL)validateCertificate:(ServerCertificate *)certificate;
 - (BOOL)validateX509Certificate:(X509Certificate *)certificate;
