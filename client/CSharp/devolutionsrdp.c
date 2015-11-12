@@ -4,6 +4,7 @@
 #include <freerdp/client/cmdline.h>
 #include <freerdp/gdi/gdi.h>
 #include <assert.h>
+#include <freerdp/log.h>
 
 struct csharp_context
 {
@@ -19,6 +20,108 @@ typedef struct csharp_context csContext;
 ////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+static int cs_get_vk_code(int character)
+{
+    int _virtual_key_map[256] = {0};
+    
+    _virtual_key_map['0'] = VK_KEY_0;
+    _virtual_key_map['1'] = VK_KEY_1;
+    _virtual_key_map['2'] = VK_KEY_2;
+    _virtual_key_map['3'] = VK_KEY_3;
+    _virtual_key_map['4'] = VK_KEY_4;
+    _virtual_key_map['5'] = VK_KEY_5;
+    _virtual_key_map['6'] = VK_KEY_6;
+    _virtual_key_map['7'] = VK_KEY_7;
+    _virtual_key_map['8'] = VK_KEY_8;
+    _virtual_key_map['9'] = VK_KEY_9;
+    
+    _virtual_key_map['a'] = VK_KEY_A;
+    _virtual_key_map['b'] = VK_KEY_B;
+    _virtual_key_map['c'] = VK_KEY_C;
+    _virtual_key_map['d'] = VK_KEY_D;
+    _virtual_key_map['e'] = VK_KEY_E;
+    _virtual_key_map['f'] = VK_KEY_F;
+    _virtual_key_map['g'] = VK_KEY_G;
+    _virtual_key_map['h'] = VK_KEY_H;
+    _virtual_key_map['i'] = VK_KEY_I;
+    _virtual_key_map['j'] = VK_KEY_J;
+    _virtual_key_map['k'] = VK_KEY_K;
+    _virtual_key_map['l'] = VK_KEY_L;
+    _virtual_key_map['m'] = VK_KEY_M;
+    _virtual_key_map['n'] = VK_KEY_N;
+    _virtual_key_map['o'] = VK_KEY_O;
+    _virtual_key_map['p'] = VK_KEY_P;
+    _virtual_key_map['q'] = VK_KEY_Q;
+    _virtual_key_map['r'] = VK_KEY_R;
+    _virtual_key_map['s'] = VK_KEY_S;
+    _virtual_key_map['t'] = VK_KEY_T;
+    _virtual_key_map['u'] = VK_KEY_U;
+    _virtual_key_map['v'] = VK_KEY_V;
+    _virtual_key_map['w'] = VK_KEY_W;
+    _virtual_key_map['x'] = VK_KEY_X;
+    _virtual_key_map['y'] = VK_KEY_Y;
+    _virtual_key_map['z'] = VK_KEY_Z;
+    
+    return _virtual_key_map[character];
+}
+
+static int cs_get_unicode(int character)
+{
+    int _unicode_map[256] = {0};
+    
+    _unicode_map['-'] = 45;
+    _unicode_map['/'] = 47;
+    _unicode_map[':'] = 58;
+    _unicode_map[';'] = 59;
+    _unicode_map['('] = 40;
+    _unicode_map[')'] = 41;
+    _unicode_map['&'] = 38;
+    _unicode_map['@'] = 64;
+    _unicode_map['.'] = 46;
+    _unicode_map[','] = 44;
+    _unicode_map['?'] = 63;
+    _unicode_map['!'] = 33;
+    _unicode_map['\''] = 39;
+    _unicode_map['\"'] = 34;
+    
+    _unicode_map['['] = 91;
+    _unicode_map[']'] = 93;
+    _unicode_map['{'] = 123;
+    _unicode_map['}'] = 125;
+    _unicode_map['#'] = 35;
+    _unicode_map['%'] = 37;
+    _unicode_map['^'] = 94;
+    _unicode_map['*'] = 42;
+    _unicode_map['+'] = 43;
+    _unicode_map['='] = 61;
+    
+    _unicode_map['_'] = 95;
+    _unicode_map['\\'] = 92;
+    _unicode_map['|'] = 124;
+    _unicode_map['~'] = 126;
+    _unicode_map['<'] = 60;
+    _unicode_map['>'] = 62;
+    _unicode_map['$'] = 36;
+    
+    return _unicode_map[character];
+}
+
+static void cs_send_virtual_key(freerdp* instance, int vk, BOOL down)
+{
+    int flags;
+    DWORD scancode;
+    
+    scancode = GetVirtualScanCodeFromVirtualKeyCode(vk, 4);
+    flags = (down ? KBD_FLAGS_DOWN : KBD_FLAGS_RELEASE);
+    flags |= ((scancode & KBDEXT) ? KBD_FLAGS_EXTENDED : 0);
+    freerdp_input_send_keyboard_event(instance->input, flags, scancode);
+}
+
+static void cs_send_unicode_key(freerdp* instance, int vk)
+{
+    freerdp_input_send_unicode_keyboard_event(instance->input, 0, vk);
+}
 
 static BOOL cs_context_new(freerdp* instance, rdpContext* context)
 {
@@ -376,12 +479,44 @@ BOOL csharp_check_event_handles(void* instance, void* buffer)
 	return result < 0 ? FALSE : TRUE;
 }
 
-void csharp_freerdp_send_input(void* instance, int keycode)
+void csharp_freerdp_send_input(void* instance, int character)
 {
-
+    BOOL shift_was_sent = FALSE;
+    
+    if(character >= 256)
+        return;
+    
+    int vk = cs_get_unicode(character);
+    if(vk != 0)
+    {
+        cs_send_unicode_key((freerdp*)instance, vk);
+    }
+    else
+    {
+        if(isupper(character))
+        {
+            character = tolower(character);
+            cs_send_virtual_key((freerdp*)instance, VK_LSHIFT, TRUE);
+            shift_was_sent = TRUE;
+        }
+        
+        vk = cs_get_vk_code(character);
+        if(vk == 0)
+        {
+            // send as is
+            vk = character;
+        }
+        
+        // send key pressed
+        cs_send_virtual_key((freerdp*)instance, vk, TRUE);
+        cs_send_virtual_key((freerdp*)instance, vk, FALSE);
+        
+        if(shift_was_sent)
+            cs_send_virtual_key((freerdp*)instance, VK_LSHIFT, FALSE);
+    }
 }
 
 void csharp_freerdp_send_cursor_event(void* instance, int x, int y, int flags)
 {
-
+    freerdp_input_send_mouse_event(((freerdp*)instance)->input, flags, x, y);
 }
