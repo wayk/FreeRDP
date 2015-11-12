@@ -407,21 +407,24 @@ NSMutableArray *forwardedServerDrives;
 
 - (NSString*)renderBufferName
 {
-    WLog_DBG(TAG, "renderBufferName");
     return [NSString stringWithFormat:@"/%@", [serverProxy proxyID]];
 }
 
 - (NSRect)frame
 {
-    WLog_DBG(TAG, "frame");
     // Cheating a bit because I don't want to add "viewFrame" to the interface
     NSValue* boxedFrame = (NSValue *)[[serverProxy delegate] performSelector:NSSelectorFromString(@"viewFrame")];
-    return [boxedFrame rectValue];
+	return [boxedFrame rectValue];
 }
 
 - (void)setFrame:(NSRect)frame
 {
     // no-op
+}
+
+- (void)setFrameSize:(NSSize)newSize
+{
+	[serverProxy setFrameSize:newSize];
 }
 
 - (NSArray *)getForwardedServerDrives
@@ -437,7 +440,8 @@ NSMutableArray *forwardedServerDrives;
 - (void)setNeedsDisplayInRect:(NSRect)newDrawRect
 {	
     NSValue* boxed = [NSValue valueWithRect:newDrawRect];
-    WLog_DBG(TAG, "setNeedsDisplayInRect shm: %p", self->mrdpClient->frameBuffer->fbSharedMemory);
+    WLog_DBG(TAG, "setNeedsDisplayInRect shm: %p x:%f y:%f w:%f h:%f", self->mrdpClient->frameBuffer->fbSharedMemory,
+			 newDrawRect.origin.x, newDrawRect.origin.y, newDrawRect.size.width, newDrawRect.size.height);
     [serverProxy performSelector:@selector(pixelDataUpdated:) withObject:boxed afterDelay:0.0];
 }
 
@@ -471,13 +475,13 @@ NSMutableArray *forwardedServerDrives;
 
 - (void)willResizeDesktop
 {
-	WLog_DBG(TAG, "willResizeDesktop");
 }
 
 - (BOOL)didResizeDesktop
 {
-    WLog_DBG(TAG, "didResizeDesktop");
-    [serverProxy desktopResized];
+	int frameBufferSize = mrdpClient->frameBuffer->fbScanline * mrdpClient->frameBuffer->fbHeight;
+    WLog_DBG(TAG, "didResizeDesktop w:%d h:%d", mrdpClient->frameBuffer->fbWidth, mrdpClient->frameBuffer->fbHeight);
+	[serverProxy desktopResized:frameBufferSize];
     return TRUE;
 }
 

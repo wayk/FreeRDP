@@ -18,7 +18,8 @@
 - (void)cursorUpdated:(NSData *)cursorData hotspot:(NSValue *)hotspot;
 - (bool)pixelDataAvailable:(int)shmSize;
 - (oneway void)pixelDataUpdated:(NSValue *)dirtyRect;
-- (oneway void)desktopResized;
+- (void)desktopResized:(int)shmSize;
+- (void)setFrameSize:(NSSize)size;
 - (ServerCredential *)serverCredential;
 
 - (bool)validateCertificate:(NSString *)subject issuer:(NSString *)issuer fingerprint:(NSString *)fingerprint;

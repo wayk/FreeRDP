@@ -243,7 +243,7 @@ BOOL shadow_client_post_connect(freerdp_peer* peer)
 	if (settings->Username && settings->Password)
 		settings->AutoLogonEnabled = TRUE;
 
-	if (settings->AutoLogonEnabled && server->authentication)
+	if (server->authentication)
 	{
 		if (subsystem->Authenticate)
 		{

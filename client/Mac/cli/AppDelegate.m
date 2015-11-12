@@ -17,9 +17,10 @@
 #import "MacFreeRDP/ServerCredential.h"
 
 static AppDelegate* _singleDelegate = nil;
-void AppDelegate_EmbedWindowEventHandler(void* context, EmbedWindowEventArgs* e);
 void AppDelegate_ConnectionResultEventHandler(void* context, ConnectionResultEventArgs* e);
 void AppDelegate_ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
+void AppDelegate_EmbedWindowEventHandler(void* context, EmbedWindowEventArgs* e);
+void AppDelegate_ResizeWindowEventHandler(void* context, ResizeWindowEventArgs* e);
 void mac_set_view_size(rdpContext* context, MRDPView* view);
 
 @implementation AppDelegate
@@ -245,24 +246,6 @@ BOOL reconnecting = false;
 	[NSApp terminate:nil];
 }
 
-void AppDelegate_EmbedWindowEventHandler(void* ctx, EmbedWindowEventArgs* e)
-{
-	rdpContext* context = (rdpContext*) ctx;
-    
-	if (_singleDelegate)
-	{
-		mfContext* mfc = (mfContext*) context;
-		_singleDelegate->mrdpClient = mfc->client;
-        
-		if (_singleDelegate->window)
-		{
-			[[_singleDelegate->window contentView] addSubview:mfc->client];
-		}
-        
-		mac_set_view_size(context, mfc->client);
-	}
-}
-
 /** *********************************************************************
  * On connection error, display message and quit application
  ***********************************************************************/
@@ -303,6 +286,37 @@ void AppDelegate_ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e)
 		// Making sure this should be invoked on the main UI thread.
 		[_singleDelegate performSelectorOnMainThread:@selector(rdpConnectError:) withObject:message waitUntilDone:TRUE];
 		[message release];
+	}
+}
+
+void AppDelegate_EmbedWindowEventHandler(void* ctx, EmbedWindowEventArgs* e)
+{
+	rdpContext* context = (rdpContext*) ctx;
+	
+	if (_singleDelegate)
+	{
+		mfContext* mfc = (mfContext*) context;
+		_singleDelegate->mrdpClient = mfc->client;
+		
+		if (_singleDelegate->window)
+		{
+			[[_singleDelegate->window contentView] addSubview:mfc->client];
+		}
+		
+		mac_set_view_size(context, mfc->client);
+	}
+}
+
+void AppDelegate_ResizeWindowEventHandler(void* ctx, ResizeWindowEventArgs* e)
+{
+	rdpContext* context = (rdpContext*) ctx;
+	
+	fprintf(stderr, "ResizeWindowEventHandler: %d %d\n", e->width, e->height);
+	
+	if (_singleDelegate)
+	{
+		mfContext* mfc = (mfContext*) context;
+		mac_set_view_size(context, mfc->client);
 	}
 }
 
@@ -355,6 +369,8 @@ void mac_set_view_size(rdpContext* context, MRDPView* view)
         }
         
         [mrdpViewController setBooleanSettingForIdentifier:1415 withValue:true]; // ExternalCertificateManagement
+		[mrdpViewController setBooleanSettingForIdentifier:FreeRDP_CompressionEnabled withValue:TRUE];
+		[mrdpViewController setInt32SettingForIdentifier:FreeRDP_CompressionLevel withValue:2];
     }
     
     [mrdpViewController start];

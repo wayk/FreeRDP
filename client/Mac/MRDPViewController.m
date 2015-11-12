@@ -21,9 +21,10 @@
 
 #define TAG CLIENT_TAG("mac")
 
-void EmbedWindowEventHandler(void* context, EmbedWindowEventArgs* e);
-void ConnectionResultEventHandler(void* context, ConnectionResultEventArgs* e);
-void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
+void MRDPViewController_EmbedWindowEventHandler(void* context, EmbedWindowEventArgs* e);
+void MRDPViewController_ConnectionResultEventHandler(void* context, ConnectionResultEventArgs* e);
+void MRDPViewController_ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
+void MRDPViewController_ResizeWindowEventHandler(void* context, ResizeWindowEventArgs* e);
 
 @interface MRDPViewController ()
 
@@ -114,6 +115,11 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 	}
 }
 
+- (void)viewDidResize:(NSNotification *)notification
+{
+	
+}
+
 - (void)dealloc
 {
     NSLog(@"dealloc");
@@ -185,9 +191,10 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 	}
 	else
 	{
-		PubSub_SubscribeConnectionResult(context->pubSub, ConnectionResultEventHandler);
-		PubSub_SubscribeErrorInfo(context->pubSub, ErrorInfoEventHandler);
-		PubSub_SubscribeEmbedWindow(context->pubSub, EmbedWindowEventHandler);
+		PubSub_SubscribeConnectionResult(context->pubSub, MRDPViewController_ConnectionResultEventHandler);
+		PubSub_SubscribeErrorInfo(context->pubSub, MRDPViewController_ErrorInfoEventHandler);
+		PubSub_SubscribeEmbedWindow(context->pubSub, MRDPViewController_EmbedWindowEventHandler);
+		PubSub_SubscribeResizeWindow(context->pubSub, MRDPViewController_ResizeWindowEventHandler);
 	}
 
 	return true;
@@ -200,6 +207,7 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidPostError:) name:MRDPClientDidPostErrorInfoNotification object:nil];
 	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidConnect:) name:MRDPClientDidConnectWithResultNotification object:nil];
 	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidEmbed:) name:MRDPClientDidPostEmbedNotification object:nil];
+	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidResize:) name:MRDPClientDidResizeNotification object:nil];
     
 	MRDPView *view = [[MRDPView alloc] initWithFrame : NSMakeRect(0, 0, context->settings->DesktopWidth, context->settings->DesktopHeight)];
 	view.delegate = self;
@@ -223,9 +231,10 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
     
 	freerdp_client_stop(context);
     
-	PubSub_UnsubscribeConnectionResult(context->pubSub, ConnectionResultEventHandler);
-	PubSub_UnsubscribeErrorInfo(context->pubSub, ErrorInfoEventHandler);
-	PubSub_UnsubscribeEmbedWindow(context->pubSub, EmbedWindowEventHandler);
+	PubSub_UnsubscribeConnectionResult(context->pubSub, MRDPViewController_ConnectionResultEventHandler);
+	PubSub_UnsubscribeErrorInfo(context->pubSub, MRDPViewController_ErrorInfoEventHandler);
+	PubSub_UnsubscribeEmbedWindow(context->pubSub, MRDPViewController_EmbedWindowEventHandler);
+	PubSub_UnsubscribeResizeWindow(context->pubSub, MRDPViewController_ResizeWindowEventHandler);
 }
 
 - (void)restart
@@ -241,15 +250,17 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 	[[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPClientDidPostErrorInfoNotification object:nil];
 	[[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPClientDidConnectWithResultNotification object:nil];
 	[[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPClientDidPostEmbedNotification object:nil];
+	[[NSNotificationCenter defaultCenter] removeObserver:self name:MRDPClientDidResizeNotification object:nil];
 
 	[mrdpClient pause];
     
 	// Tear down the context
 	freerdp_client_stop(context);
     
-	PubSub_UnsubscribeConnectionResult(context->pubSub, ConnectionResultEventHandler);
-	PubSub_UnsubscribeErrorInfo(context->pubSub, ErrorInfoEventHandler);
-	PubSub_UnsubscribeEmbedWindow(context->pubSub, EmbedWindowEventHandler);
+	PubSub_UnsubscribeConnectionResult(context->pubSub, MRDPViewController_ConnectionResultEventHandler);
+	PubSub_UnsubscribeErrorInfo(context->pubSub, MRDPViewController_ErrorInfoEventHandler);
+	PubSub_UnsubscribeEmbedWindow(context->pubSub, MRDPViewController_EmbedWindowEventHandler);
+	PubSub_UnsubscribeResizeWindow(context->pubSub, MRDPViewController_ResizeWindowEventHandler);
     
 	freerdp_client_context_free(context);
 	context = nil;
@@ -463,7 +474,7 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 
 @end
 
-void EmbedWindowEventHandler(void* ctx, EmbedWindowEventArgs* e)
+void MRDPViewController_EmbedWindowEventHandler(void* ctx, EmbedWindowEventArgs* e)
 {
     @autoreleasepool
     {
@@ -475,7 +486,7 @@ void EmbedWindowEventHandler(void* ctx, EmbedWindowEventArgs* e)
     }
 }
 
-void ConnectionResultEventHandler(void* ctx, ConnectionResultEventArgs* e)
+void MRDPViewController_ConnectionResultEventHandler(void* ctx, ConnectionResultEventArgs* e)
 {
     @autoreleasepool
     {
@@ -491,7 +502,7 @@ void ConnectionResultEventHandler(void* ctx, ConnectionResultEventArgs* e)
     }
 }
 
-void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e)
+void MRDPViewController_ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e)
 {
     @autoreleasepool
     {
@@ -504,4 +515,19 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e)
 
         [[NSNotificationCenter defaultCenter] postNotificationName:MRDPClientDidPostErrorInfoNotification object:nil userInfo:userInfo];
     }
+}
+
+void MRDPViewController_ResizeWindowEventHandler(void* ctx, ResizeWindowEventArgs* e)
+{
+	@autoreleasepool
+	{
+		NSLog(@"ErrorInfoEventHandler");
+		
+		rdpContext* context = (rdpContext*) ctx;
+		
+		NSDictionary *userInfo = [NSDictionary dictionaryWithObjectsAndKeys:[NSValue valueWithPointer:context], @"context",
+								  [NSValue valueWithPointer:e], @"resizeArgs", nil];
+		
+		[[NSNotificationCenter defaultCenter] postNotificationName:MRDPClientDidResizeNotification object:nil userInfo:userInfo];
+	}
 }

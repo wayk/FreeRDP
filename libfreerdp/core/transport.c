@@ -801,7 +801,6 @@ int transport_check_fds(rdpTransport* transport)
 	int status;
 	int recv_status;
 	wStream* received;
-	HANDLE event;
 
 	if (!transport)
 		return -1;
