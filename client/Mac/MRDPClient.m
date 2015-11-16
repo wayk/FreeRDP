@@ -174,6 +174,49 @@ BOOL mac_end_paint(rdpContext* context);
     freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_RELEASE, 0x1D); /* VK_LCONTROL, RELEASE */
 }
 
+-(void)sendStart
+{
+    freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_DOWN | KBD_FLAGS_EXTENDED, 0x5B); /* VK_LWIN, DOWN */
+    freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_RELEASE | KBD_FLAGS_EXTENDED, 0x5B); /* VK_LWIN, RELEASE */
+}
+
+-(void)sendAppSwitch
+{
+    freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_DOWN | KBD_FLAGS_EXTENDED, 0x5B); /* VK_LWIN, DOWN */
+    freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_DOWN, 0x0F); /* VK_TAB, DOWN */
+    freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_RELEASE, 0x0F); /* VK_TAB, RELEASE */
+}
+
+-(void)sendKey:(UINT16)key
+{
+    //Using those keys : https://github.com/FreeRDP/FreeRDP-old/blob/master/libfreerdp-kbd/keyboard.h and not those on the Microsoft website
+    freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_DOWN, key); /* received key, DOWN */
+    freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_RELEASE, key); /* received key, RELEASE */
+}
+
+-(void)sendKey:(UINT16)key withModifier:(UINT16)modifier
+{
+    //Using those keys : https://github.com/FreeRDP/FreeRDP-old/blob/master/libfreerdp-kbd/keyboard.h and not those on the Microsoft website
+    freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_DOWN | KBD_FLAGS_EXTENDED, modifier); /* received modifier, DOWN */
+    freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_DOWN, key); /* received key, DOWN */
+    freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_RELEASE, key); /* received key, RELEASE */
+    freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_RELEASE | KBD_FLAGS_EXTENDED, modifier); /* received modifier, RELEASE */
+}
+
+-(void)sendKeystrokes:(NSString *)keys
+{
+    NSUInteger length = [keys length];
+    unichar characters[length + 1];
+    
+    [keys getCharacters:characters range:NSMakeRange(0, length)];
+    
+    for (int i = 0; i < length; i++)
+    {
+        freerdp_input_send_unicode_keyboard_event(context->input, KBD_FLAGS_DOWN, characters[i]);
+        freerdp_input_send_unicode_keyboard_event(context->input, KBD_FLAGS_RELEASE, characters[i]);
+    }
+}
+
 - (void)addServerDrive:(ServerDrive *)drive
 {
     char* d[] = { "drive", (char *)[drive.name UTF8String], (char *)[drive.path UTF8String] };

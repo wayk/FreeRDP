@@ -285,6 +285,31 @@ NSMutableArray *forwardedServerDrives;
     [mrdpClient performSelector:@selector(sendCtrlAltDelete) withObject:nil afterDelay:0.0];
 }
 
+-(void)sendStart
+{
+    [mrdpClient performSelector:@selector(sendStart) withObject:nil afterDelay:0.0];
+}
+
+-(void)sendAppSwitch
+{
+    [mrdpClient performSelector:@selector(sendAppSwitch) withObject:nil afterDelay:0.0];
+}
+
+-(void)sendKey:(UINT16)key
+{
+    [mrdpClient performSelector:@selector(sendKey:) withObject:key];
+}
+
+-(void)sendKey:(UINT16)key withModifier:(UINT16)modifier
+{
+    [mrdpClient performSelector:@selector(sendKey:withModifier:) withObject:key withObject:modifier];
+}
+
+-(void)sendKeystrokes:(NSString *)keys
+{
+    [mrdpClient performSelector:@selector(sendKeystrokes:) withObject:keys afterDelay:0.0];
+}
+
 - (oneway void)addServerDrive:(ServerDrive *)drive
 {
     [forwardedServerDrives addObject:drive];

@@ -294,6 +294,31 @@ void MRDPViewController_ResizeWindowEventHandler(void* context, ResizeWindowEven
     [mrdpClient sendCtrlAltDelete];
 }
 
+-(void)sendStart
+{
+    [mrdpClient sendStart];
+}
+
+-(void)sendAppSwitch
+{
+    [mrdpClient sendAppSwitch];
+}
+
+-(void)sendKey:(UINT16)key
+{
+    [mrdpClient sendKey:key];
+}
+
+-(void)sendKey:(UINT16)key withModifier:(UINT16)modifier
+{
+    [mrdpClient sendKey:key withModifier:modifier];
+}
+
+-(void)sendKeystrokes:(NSString *)keys
+{
+    [mrdpClient sendKeystrokes:keys];
+}
+
 - (void)addServerDrive:(ServerDrive *)drive
 {
     [forwardedServerDrives addObject:drive];
