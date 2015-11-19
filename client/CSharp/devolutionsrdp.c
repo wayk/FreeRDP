@@ -180,25 +180,16 @@ static BOOL cs_pre_connect(freerdp* instance)
 	return TRUE;
 }
 
-static void copy_pixel_buffer(UINT8* dstBuf, UINT8* srcBuf, int x, int y, int width, int height, int wBuf, int hBuf, int bpp)
+int cs_pixelformat_get_format(int bytesPerPixel)
 {
-	int i;
-	int length;
-	int scanline;
-	UINT8 *dstp, *srcp;
-
-	length = width * bpp;
-	scanline = wBuf * bpp;
-
-	srcp = &srcBuf[(scanline * y) + (x * bpp)];
-	dstp = &dstBuf[(scanline * y) + (x * bpp)];
-
-	for (i = 0; i < height; i++)
-	{
-		memcpy(dstp, srcp, length);
-		srcp += scanline;
-		dstp += scanline;
-	}
+    if (bytesPerPixel == 1)
+        return PIXEL_FORMAT_8BPP;
+    else if (bytesPerPixel == 2)
+        return PIXEL_FORMAT_RGB16;
+    else if (bytesPerPixel == 3)
+        return PIXEL_FORMAT_RGB24;
+    else
+        return PIXEL_FORMAT_XRGB32;
 }
 
 BOOL cs_begin_paint(rdpContext* context)
@@ -210,19 +201,20 @@ BOOL cs_begin_paint(rdpContext* context)
 
 BOOL cs_end_paint(rdpContext* context)
 {
-	INT32 x, y;
-	UINT32 w, h;
+//	INT32 x, y;
+//	UINT32 w, h;
 	rdpGdi* gdi = context->gdi;
 	csContext* csc = (csContext*)context;
 
 
-	x = gdi->primary->hdc->hwnd->invalid->x;
-	y = gdi->primary->hdc->hwnd->invalid->y;
-	w = gdi->primary->hdc->hwnd->invalid->w;
-	h = gdi->primary->hdc->hwnd->invalid->h;
+//	x = gdi->primary->hdc->hwnd->invalid->x;
+//	y = gdi->primary->hdc->hwnd->invalid->y;
+//	w = gdi->primary->hdc->hwnd->invalid->w;
+//	h = gdi->primary->hdc->hwnd->invalid->h;
 
 	if (gdi->primary->hdc->hwnd->invalid->null)
-		copy_pixel_buffer(csc->buffer, gdi->primary_buffer, x, y, w, h, gdi->width, gdi->height, gdi->bytesPerPixel);
+		freerdp_image_copy(csc->buffer, PIXEL_FORMAT_XRGB32, gdi->width * 4, 0, 0, gdi->width, gdi->height,
+						   gdi->primary_buffer, cs_pixelformat_get_format(gdi->bytesPerPixel), gdi->width * gdi->bytesPerPixel, 0, 0, NULL);
 
 	return TRUE;
 }
@@ -479,12 +471,17 @@ BOOL csharp_check_event_handles(void* instance, void* buffer)
 	return result < 0 ? FALSE : TRUE;
 }
 
-void csharp_freerdp_send_input(void* instance, int character)
+void csharp_freerdp_send_input(void* instance, int character, BOOL down)
 {
+    int flags;
     BOOL shift_was_sent = FALSE;
     
+    // Send as is.
     if(character >= 256)
+    {
+        cs_send_unicode_key((freerdp*)instance, character);
         return;
+    }
     
     int vk = cs_get_unicode(character);
     if(vk != 0)
@@ -496,7 +493,10 @@ void csharp_freerdp_send_input(void* instance, int character)
         if(isupper(character))
         {
             character = tolower(character);
-            cs_send_virtual_key((freerdp*)instance, VK_LSHIFT, TRUE);
+            if(down)
+            {
+                cs_send_virtual_key((freerdp*)instance, VK_LSHIFT, TRUE);
+            }
             shift_was_sent = TRUE;
         }
         
@@ -508,10 +508,9 @@ void csharp_freerdp_send_input(void* instance, int character)
         }
         
         // send key pressed
-        cs_send_virtual_key((freerdp*)instance, vk, TRUE);
-        cs_send_virtual_key((freerdp*)instance, vk, FALSE);
+        cs_send_virtual_key((freerdp*)instance, vk, down);
         
-        if(shift_was_sent)
+        if(shift_was_sent && !down)
             cs_send_virtual_key((freerdp*)instance, VK_LSHIFT, FALSE);
     }
 }
