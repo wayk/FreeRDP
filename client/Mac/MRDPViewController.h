@@ -48,6 +48,11 @@
 - (int)setStringSettingForIdentifier:(int)identifier withValue:(NSString *)value;
 - (NSString *)getErrorInfoString:(int)code;
 - (void)sendCtrlAltDelete;
+- (void)sendStart;
+- (void)sendAppSwitch;
+- (void)sendKey:(UINT16)key;
+- (void)sendKey:(UINT16)key withModifier:(UINT16)modifier;
+- (void)sendKeystrokes:(NSString *)keys;
 - (void)initLoggingWithFilter:(NSString *)filter filePath:(NSString *)filePath fileName:(NSString *)fileName;
 - (void)setIsReadOnly:(bool)isReadOnly;
 
