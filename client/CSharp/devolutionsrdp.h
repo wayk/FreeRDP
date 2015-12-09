@@ -1,16 +1,6 @@
 #include "../../include/freerdp/api.h"
 #include <freerdp/freerdp.h>
 
-//FREERDP_API void* csharp_instance_new(const char* host, UINT32 port, const char* username, const char* password, UINT32 width, UINT32 height);
-//FREERDP_API void csharp_instance_free(void* instance);
-//FREERDP_API int csharp_waitforsingleobject(void* instance);
-//FREERDP_API int csharp_check_event_handles(void* instance, void* buffer);
-//FREERDP_API int csharp_start(void* instance);
-//FREERDP_API void csharp_stop(void* instance);
-//FREERDP_API BOOL csharp_shall_disconnect(void* instance);
-//FREERDP_API void csharp_disconnect(void* instance);
-//FREERDP_API void csharp_set_paths(void* context, const char* home, const char* config);
-
 FREERDP_API void* csharp_freerdp_new();
 FREERDP_API void csharp_freerdp_free(void* instance);
 FREERDP_API BOOL csharp_freerdp_connect(void* instance);
@@ -23,3 +13,7 @@ FREERDP_API BOOL csharp_waitforsingleobject(void* instance);
 FREERDP_API BOOL csharp_check_event_handles(void* instance, void* buffer);
 FREERDP_API void csharp_freerdp_send_input(void* instance, int keycode, BOOL down);
 FREERDP_API void csharp_freerdp_send_cursor_event(void* instance, int x, int y, int flags);
+FREERDP_API UINT16 csharp_get_update_rect_x(void* instance);
+FREERDP_API UINT16 csharp_get_update_rect_y(void* instance);
+FREERDP_API UINT16 csharp_get_update_rect_width(void* instance);
+FREERDP_API UINT16 csharp_get_update_rect_height(void* instance);

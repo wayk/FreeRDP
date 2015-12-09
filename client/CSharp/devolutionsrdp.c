@@ -10,6 +10,12 @@ struct csharp_context
 {
 	rdpContext _p;
 	void* buffer;
+    
+    REGION16 updRegion;
+    
+    RECTANGLE_16 updRect;
+    
+    const RECTANGLE_16* extRect;
 };
 typedef struct csharp_context csContext;
 
@@ -201,16 +207,15 @@ BOOL cs_begin_paint(rdpContext* context)
 
 BOOL cs_end_paint(rdpContext* context)
 {
-//	INT32 x, y;
-//	UINT32 w, h;
 	rdpGdi* gdi = context->gdi;
 	csContext* csc = (csContext*)context;
-
-
-//	x = gdi->primary->hdc->hwnd->invalid->x;
-//	y = gdi->primary->hdc->hwnd->invalid->y;
-//	w = gdi->primary->hdc->hwnd->invalid->w;
-//	h = gdi->primary->hdc->hwnd->invalid->h;
+    
+    csc->updRect.left = gdi->primary->hdc->hwnd->invalid->x;
+    csc->updRect.top = gdi->primary->hdc->hwnd->invalid->y;
+    csc->updRect.right = gdi->primary->hdc->hwnd->invalid->x + gdi->primary->hdc->hwnd->invalid->w;
+    csc->updRect.bottom = gdi->primary->hdc->hwnd->invalid->y + gdi->primary->hdc->hwnd->invalid->h;
+    
+    region16_union_rect(&csc->updRegion, &csc->updRegion, &csc->updRect);
 
 	if (gdi->primary->hdc->hwnd->invalid->null)
 		freerdp_image_copy(csc->buffer, PIXEL_FORMAT_XRGB32, gdi->width * 4, 0, 0, gdi->width, gdi->height,
@@ -363,6 +368,7 @@ BOOL csharp_freerdp_set_connection_info(void* instance, const char* hostname, co
 
 	settings->SoftwareGdi = TRUE;
 	settings->BitmapCacheV3Enabled = TRUE;
+	settings->RemoteFxCodec = TRUE;
 
 	switch (security)
 	{
@@ -465,8 +471,12 @@ BOOL csharp_check_event_handles(void* instance, void* buffer)
 
 	int result = 0;
 
-	ctxt->buffer = buffer;
+    ctxt->buffer = buffer;
+    region16_init(&ctxt->updRegion);
+	
 	result = freerdp_check_event_handles(inst->context);
+    
+    ctxt->extRect = region16_extents(&ctxt->updRegion);
 
 	return result < 0 ? FALSE : TRUE;
 }
@@ -479,7 +489,7 @@ void csharp_freerdp_send_input(void* instance, int character, BOOL down)
     // Send as is.
     if(character >= 256)
     {
-        cs_send_unicode_key((freerdp*)instance, character);
+        cs_send_virtual_key((freerdp*)instance, character, down);
         return;
     }
     
@@ -518,4 +528,36 @@ void csharp_freerdp_send_input(void* instance, int character, BOOL down)
 void csharp_freerdp_send_cursor_event(void* instance, int x, int y, int flags)
 {
     freerdp_input_send_mouse_event(((freerdp*)instance)->input, flags, x, y);
+}
+
+UINT16 csharp_get_update_rect_x(void* instance)
+{
+    freerdp* inst = (freerdp*)instance;
+    csContext* ctxt = (csContext*)inst->context;
+    
+    return ctxt->extRect->left;
+}
+
+UINT16 csharp_get_update_rect_y(void* instance)
+{
+    freerdp* inst = (freerdp*)instance;
+    csContext* ctxt = (csContext*)inst->context;
+    
+    return ctxt->extRect->top;
+}
+
+UINT16 csharp_get_update_rect_width(void* instance)
+{
+    freerdp* inst = (freerdp*)instance;
+    csContext* ctxt = (csContext*)inst->context;
+    
+    return ctxt->extRect->right - ctxt->extRect->left;
+}
+
+UINT16 csharp_get_update_rect_height(void* instance)
+{
+    freerdp* inst = (freerdp*)instance;
+    csContext* ctxt = (csContext*)inst->context;
+    
+    return ctxt->extRect->bottom - ctxt->extRect->top;
 }
