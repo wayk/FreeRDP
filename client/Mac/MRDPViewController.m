@@ -35,6 +35,7 @@ void MRDPViewController_ResizeWindowEventHandler(void* context, ResizeWindowEven
 @synthesize context;
 @synthesize delegate;
 @synthesize mrdpClient;
+@synthesize invertHungarianCharacter;
 
 - (BOOL)isConnected
 {
@@ -164,6 +165,7 @@ void MRDPViewController_ResizeWindowEventHandler(void* context, ResizeWindowEven
 	}
 	
 	forwardedServerDrives = [[NSMutableArray alloc] init];
+	mrdpClient.invertHungarianCharacter = invertHungarianCharacter;
     
 	int status;
 	mfContext* mfc;

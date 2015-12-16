@@ -17,6 +17,7 @@
     NSObject<MRDPViewControllerDelegate> *delegate;
     NSView *rdpView;
 	NSMutableArray *forwardedServerDrives;
+	bool invertHungarianCharacter;
     
     @public
 	rdpContext* context;
@@ -28,6 +29,7 @@
 @property (nonatomic, readonly) BOOL isConnected;
 @property (nonatomic, assign) MRDPClient *mrdpClient;
 @property (nonatomic, readonly) NSView *rdpView;
+@property (nonatomic, assign) bool invertHungarianCharacter;
 
 - (BOOL)configure;
 - (BOOL)configure:(NSArray *)arguments;

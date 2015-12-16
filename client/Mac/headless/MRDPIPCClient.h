@@ -22,9 +22,11 @@
     MRDPClient* mrdpClient;
     bool is_stopped;
     NSRect frame;
+	bool invertHungarianCharacter;
 }
 
 @property (assign) NSRect frame;
+@property (assign) bool invertHungarianCharacter;
 
 - (id)initWithServer:(NSString *)registeredName;
 - (void)configure;

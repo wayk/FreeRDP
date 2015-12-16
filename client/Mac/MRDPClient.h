@@ -48,12 +48,14 @@ typedef struct _RDS_FRAMEBUFFER RDS_FRAMEBUFFER;
 	int pasteboard_changecount;
 	int pasteboard_format;
 	bool ignoreNextPasteboardChange;
+	bool invertHungarianCharacter;
 }
 
 @property(nonatomic, assign) bool is_connected;
 @property(nonatomic, assign) bool isReadOnly;
 @property(nonatomic) RDS_FRAMEBUFFER* frameBuffer;
 @property(nonatomic, assign) id<MRDPClientDelegate> delegate;
+@property(nonatomic, assign) bool invertHungarianCharacter;
 
 - (int)rdpStart:(rdpContext*)rdp_context;
 - (void)releaseResources;
