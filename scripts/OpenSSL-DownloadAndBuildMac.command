@@ -11,8 +11,8 @@
 USER_OS_SDK=""
 USER_SIM_SDK=""
 
-OPENSSLVERSION="1.0.2d"
-MD5SUM="38dd619b2e77cbac69b99f52a053d25a"
+OPENSSLVERSION="1.0.2e"
+MD5SUM="5262bfa25b60ed9de9f28d5d52d77fc5"
 INSTALLDIR="external"
 
 MAKEOPTS="-j $CORES"
@@ -104,10 +104,10 @@ rm -f ../../include/openssl/*.h
 mkdir -p ../../lib
 rm -f ../../lib/*.a
 
-echo "Copying header hiles ..."
-cp include/openssl/*.h ../../include/openssl/
-echo
-
 buildArch i386
+
+echo "Copying header hiles ..."
+cp -RL include/openssl/ ../../include/openssl/
+echo
 
 echo "Finished. Please verify the contens of the openssl folder in \"$INSTALLDIR\""
