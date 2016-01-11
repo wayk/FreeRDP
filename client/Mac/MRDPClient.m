@@ -55,6 +55,7 @@ BOOL mac_end_paint(rdpContext* context);
 @synthesize isReadOnly;
 @synthesize frameBuffer;
 @synthesize delegate;
+@synthesize invertHungarianCharacter;
 
 - (id)init
 {
@@ -433,7 +434,7 @@ BOOL mac_end_paint(rdpContext* context);
     if ([characters length] > 0)
     {
         keyChar = [characters characterAtIndex:0];
-        keyCode = fixKeyCode(keyCode, keyChar, mfc->appleKeyboardType);
+        keyCode = fixKeyCode(keyCode, keyChar, mfc->appleKeyboardType, invertHungarianCharacter);
     }
     
     vkcode = GetVirtualKeyCodeFromKeycode(keyCode + 8, KEYCODE_TYPE_APPLE);
@@ -501,7 +502,7 @@ BOOL mac_end_paint(rdpContext* context);
     if ([characters length] > 0)
     {
         keyChar = [characters characterAtIndex:0];
-        keyCode = fixKeyCode(keyCode, keyChar, mfc->appleKeyboardType);
+        keyCode = fixKeyCode(keyCode, keyChar, mfc->appleKeyboardType, invertHungarianCharacter);
     }
     
     vkcode = GetVirtualKeyCodeFromKeycode(keyCode + 8, KEYCODE_TYPE_APPLE);
@@ -615,7 +616,7 @@ BOOL mac_end_paint(rdpContext* context);
     kbdModFlags = modFlags;
 }
 
-DWORD fixKeyCode(DWORD keyCode, unichar keyChar, enum APPLE_KEYBOARD_TYPE type)
+DWORD fixKeyCode(DWORD keyCode, unichar keyChar, enum APPLE_KEYBOARD_TYPE type, bool invertHungarianCharacter)
 {
     /**
      * In 99% of cases, the given key code is truly keyboard independent.
@@ -639,33 +640,36 @@ DWORD fixKeyCode(DWORD keyCode, unichar keyChar, enum APPLE_KEYBOARD_TYPE type)
      * when the output character is '0' for the key code corresponding to the 'i' key.
      */
     
-#if 0
-    switch (keyChar)
-    {
-        case '0':
-        case 0x00A7: /* section sign */
-            if (keyCode == APPLE_VK_ISO_Section)
-                keyCode = APPLE_VK_ANSI_Grave;
-            break;
-            
-        case 0x00ED: /* latin small letter i with acute */
-        case 0x00CD: /* latin capital letter i with acute */
-            if (keyCode == APPLE_VK_ANSI_Grave)
-                keyCode = APPLE_VK_ISO_Section;
-            break;
-    }
-#endif
-    
-    /* Perform keycode correction for all ISO keyboards */
-    
-    if (type == APPLE_KEYBOARD_TYPE_ISO)
-    {
-        if (keyCode == APPLE_VK_ANSI_Grave)
-            keyCode = APPLE_VK_ISO_Section;
-        else if (keyCode == APPLE_VK_ISO_Section)
-            keyCode = APPLE_VK_ANSI_Grave;
-    }
-    
+	if (invertHungarianCharacter)
+	{
+		switch (keyChar)
+		{
+			case '0':
+			case 0x00A7: /* section sign */
+				if (keyCode == APPLE_VK_ISO_Section)
+					keyCode = APPLE_VK_ANSI_Grave;
+				break;
+				
+			case 0x00ED: /* latin small letter i with acute */
+			case 0x00CD: /* latin capital letter i with acute */
+				if (keyCode == APPLE_VK_ANSI_Grave)
+					keyCode = APPLE_VK_ISO_Section;
+				break;
+		}
+	}
+	else
+	{
+		/* Perform keycode correction for all ISO keyboards */
+		
+		if (type == APPLE_KEYBOARD_TYPE_ISO)
+		{
+			if (keyCode == APPLE_VK_ANSI_Grave)
+				keyCode = APPLE_VK_ISO_Section;
+			else if (keyCode == APPLE_VK_ISO_Section)
+				keyCode = APPLE_VK_ANSI_Grave;
+		}
+	}
+	
     return keyCode;
 }
 

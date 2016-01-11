@@ -22,6 +22,8 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 
 @implementation MRDPIPCClient
 
+@synthesize invertHungarianCharacter;
+
 static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
 
 NSMutableArray *forwardedServerDrives;
@@ -127,6 +129,7 @@ NSMutableArray *forwardedServerDrives;
     
     mrdpClient = [[MRDPClient alloc] init];
     mrdpClient.delegate = self;
+	mrdpClient.invertHungarianCharacter	= invertHungarianCharacter;
     
     mfContext* mfc = (mfContext*)context;
     mfc->client = mrdpClient;
