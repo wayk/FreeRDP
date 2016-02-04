@@ -310,6 +310,44 @@ static BOOL android_authenticate(freerdp* instance, char** username, char** pass
 	return ((res == JNI_TRUE) ? TRUE : FALSE);
 }
 
+BOOL android_gateway_authenticate(freerdp* instance, char** username, char** password, char** domain)
+{
+	DEBUG_ANDROID("Authenticate user:");
+	DEBUG_ANDROID("  Username: %s", *username);
+	DEBUG_ANDROID("  Domain: %s", *domain);
+
+	JNIEnv* env;
+	jboolean attached = jni_attach_thread(&env);
+	jobject jstr1 = create_string_builder(env, *username);
+	jobject jstr2 = create_string_builder(env, *domain);
+	jobject jstr3 = create_string_builder(env, *password);
+
+	jboolean res = freerdp_callback_bool_result("OnGatewayAuthenticate", "(ILjava/lang/StringBuilder;Ljava/lang/StringBuilder;Ljava/lang/StringBuilder;)Z", instance, jstr1, jstr2, jstr3);
+	if(res == JNI_TRUE)
+	{
+		// read back string values
+		if(*username != NULL)
+			free(*username);
+
+		*username = get_string_from_string_builder(env, jstr1);
+
+		if(*domain != NULL)
+			free(*domain);
+
+		*domain = get_string_from_string_builder(env, jstr2);
+
+		if(*password == NULL)
+			free(*password);
+
+		*password = get_string_from_string_builder(env, jstr3);
+	}
+
+	if(attached == JNI_TRUE)
+		jni_detach_thread();
+
+	return ((res == JNI_TRUE) ? TRUE : FALSE);
+}
+
 static BOOL android_verify_certificate(freerdp* instance, char* subject, char* issuer, char* fingerprint)
 {
 	DEBUG_ANDROID("Certificate details:");
@@ -698,6 +736,7 @@ JNIEXPORT jint JNICALL jni_freerdp_new(JNIEnv *env, jclass cls)
 	instance->PostConnect = android_post_connect;
 	instance->PostDisconnect = android_post_disconnect;
 	instance->Authenticate = android_authenticate;
+	instance->GatewayAuthenticate = android_gateway_authenticate;
 	instance->VerifyCertificate = android_verify_certificate;
 	instance->VerifyX509Certificate = android_verify_x509_certificate;
 	instance->VerifyChangedCertificate = android_verify_changed_certificate;
