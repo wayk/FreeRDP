@@ -7,6 +7,7 @@ FREERDP_API BOOL csharp_freerdp_connect(void* instance);
 FREERDP_API BOOL csharp_freerdp_disconnect(void* instance);
 FREERDP_API BOOL csharp_freerdp_set_connection_info(void* instance, const char* hostname, const char* username, const char* password, const char* domain,
                                                     UINT32 width, UINT32 height, UINT32 color_depth, UINT32 port, int security);
+FREERDP_API BOOL csharp_freerdp_set_gateway_settings(void* instance, const char* hostname, UINT32 port, const char* username, const char* password, const char* domain, BOOL bypassLocal);
 FREERDP_API BOOL csharp_freerdp_set_data_directory(void* instance, const char* directory);
 FREERDP_API BOOL csharp_shall_disconnect(void* instance);
 FREERDP_API BOOL csharp_waitforsingleobject(void* instance);
@@ -17,3 +18,4 @@ FREERDP_API UINT16 csharp_get_update_rect_x(void* instance);
 FREERDP_API UINT16 csharp_get_update_rect_y(void* instance);
 FREERDP_API UINT16 csharp_get_update_rect_width(void* instance);
 FREERDP_API UINT16 csharp_get_update_rect_height(void* instance);
+FREERDP_API BOOL csharp_get_is_buffer_updated(void* instance);

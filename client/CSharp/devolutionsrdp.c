@@ -3,13 +3,17 @@
 #include <freerdp/client/channels.h>
 #include <freerdp/client/cmdline.h>
 #include <freerdp/gdi/gdi.h>
+#include <freerdp/gdi/gfx.h>
 #include <assert.h>
 #include <freerdp/log.h>
 
 struct csharp_context
 {
 	rdpContext _p;
+    
 	void* buffer;
+    
+    BOOL updated;
     
     REGION16 updRegion;
     
@@ -129,6 +133,22 @@ static void cs_send_unicode_key(freerdp* instance, int vk)
     freerdp_input_send_unicode_keyboard_event(instance->input, 0, vk);
 }
 
+void cs_OnChannelConnectedEventHandler(rdpContext* context, ChannelConnectedEventArgs* e)
+{
+    if (strcmp(e->name, RDPGFX_DVC_CHANNEL_NAME) == 0)
+    {
+        gdi_graphics_pipeline_init(context->gdi, (RdpgfxClientContext*) e->pInterface);
+    }
+}
+
+void cs_OnChannelDisconnectedEventHandler(rdpContext* context, ChannelDisconnectedEventArgs* e)
+{
+    if (strcmp(e->name, RDPGFX_DVC_CHANNEL_NAME) == 0)
+    {
+        gdi_graphics_pipeline_uninit(context->gdi, (RdpgfxClientContext*) e->pInterface);
+    }
+}
+
 static BOOL cs_context_new(freerdp* instance, rdpContext* context)
 {
 	if (!(context->channels = freerdp_channels_new()))
@@ -149,8 +169,11 @@ static void cs_context_free(freerdp* instance, rdpContext* context)
 
 static BOOL cs_pre_connect(freerdp* instance)
 {
+    rdpContext* context = instance->context;
 	rdpSettings* settings = instance->settings;
 	BOOL bitmap_cache = settings->BitmapCacheEnabled;
+    
+    ZeroMemory(settings->OrderSupport, 32);
 	settings->OrderSupport[NEG_DSTBLT_INDEX] = TRUE;
 	settings->OrderSupport[NEG_PATBLT_INDEX] = TRUE;
 	settings->OrderSupport[NEG_SCRBLT_INDEX] = TRUE;
@@ -176,12 +199,27 @@ static BOOL cs_pre_connect(freerdp* instance)
 	settings->OrderSupport[NEG_ELLIPSE_SC_INDEX] = FALSE;
 	settings->OrderSupport[NEG_ELLIPSE_CB_INDEX] = FALSE;
 
-	settings->FrameAcknowledge = 10;
+//	settings->FrameAcknowledge = 10;
 
-	freerdp_register_addin_provider(freerdp_channels_load_static_addin_entry, 0);
-	freerdp_client_load_addins(instance->context->channels, instance->settings);
+//	freerdp_register_addin_provider(freerdp_channels_load_static_addin_entry, 0);
+//	freerdp_client_load_addins(instance->context->channels, instance->settings);
+    
+    PubSub_SubscribeChannelConnected(context->pubSub,
+                                     (pChannelConnectedEventHandler) cs_OnChannelConnectedEventHandler);
+    PubSub_SubscribeChannelDisconnected(context->pubSub,
+                                        (pChannelDisconnectedEventHandler) cs_OnChannelDisconnectedEventHandler);
 
-	freerdp_channels_pre_connect(instance->context->channels, instance);
+    freerdp_client_load_addins(context->channels, instance->settings);
+    freerdp_channels_pre_connect(context->channels, instance);
+    
+    if (!context->cache)
+    {
+        if (!(context->cache = cache_new(settings)))
+            return FALSE;
+    }
+
+    
+//	freerdp_channels_pre_connect(instance->context->channels, instance);
 
 	return TRUE;
 }
@@ -201,6 +239,9 @@ int cs_pixelformat_get_format(int bytesPerPixel)
 BOOL cs_begin_paint(rdpContext* context)
 {
 	rdpGdi* gdi = context->gdi;
+    csContext* csc = (csContext*)context;
+    
+    csc->updated = FALSE;
 	gdi->primary->hdc->hwnd->invalid->null = 1;
 	return TRUE;
 }
@@ -210,6 +251,11 @@ BOOL cs_end_paint(rdpContext* context)
 	rdpGdi* gdi = context->gdi;
 	csContext* csc = (csContext*)context;
     
+    if (gdi->primary->hdc->hwnd->invalid->null)
+        return TRUE;
+    
+    csc->updated = TRUE;
+    
     csc->updRect.left = gdi->primary->hdc->hwnd->invalid->x;
     csc->updRect.top = gdi->primary->hdc->hwnd->invalid->y;
     csc->updRect.right = gdi->primary->hdc->hwnd->invalid->x + gdi->primary->hdc->hwnd->invalid->w;
@@ -217,9 +263,8 @@ BOOL cs_end_paint(rdpContext* context)
     
     region16_union_rect(&csc->updRegion, &csc->updRegion, &csc->updRect);
 
-	if (gdi->primary->hdc->hwnd->invalid->null)
-		freerdp_image_copy(csc->buffer, PIXEL_FORMAT_XRGB32, gdi->width * 4, 0, 0, gdi->width, gdi->height,
-						   gdi->primary_buffer, cs_pixelformat_get_format(gdi->bytesPerPixel), gdi->width * gdi->bytesPerPixel, 0, 0, NULL);
+    freerdp_image_copy(csc->buffer, PIXEL_FORMAT_XRGB32, gdi->width * 4, gdi->primary->hdc->hwnd->invalid->x, gdi->primary->hdc->hwnd->invalid->y, gdi->primary->hdc->hwnd->invalid->w, gdi->primary->hdc->hwnd->invalid->h,
+                       gdi->primary_buffer, cs_pixelformat_get_format(gdi->bytesPerPixel), gdi->width * gdi->bytesPerPixel, gdi->primary->hdc->hwnd->invalid->x, gdi->primary->hdc->hwnd->invalid->y, NULL);
 
 	return TRUE;
 }
@@ -227,13 +272,13 @@ BOOL cs_end_paint(rdpContext* context)
 static BOOL cs_post_connect(freerdp* instance)
 {
 	UINT32 gdi_flags;
+    rdpUpdate* update;
 	rdpSettings *settings = instance->settings;
 
+    update = instance->context->update;
+    
 	assert(instance);
 	assert(settings);
-
-	if (!(instance->context->cache = cache_new(settings)))
-		return FALSE;
 
 	if (instance->settings->ColorDepth > 16)
 		gdi_flags = CLRBUF_32BPP | CLRCONV_ALPHA;
@@ -243,8 +288,10 @@ static BOOL cs_post_connect(freerdp* instance)
 	if (!gdi_init(instance, gdi_flags, NULL))
 		return FALSE;
 
-	instance->update->BeginPaint = cs_begin_paint;
-	instance->update->EndPaint = cs_end_paint;
+	update->BeginPaint = cs_begin_paint;
+	update->EndPaint = cs_end_paint;
+    
+//    pointer_cache_register_callbacks(update);
 
 	if (freerdp_channels_post_connect(instance->context->channels, instance) < 0)
 		return FALSE;
@@ -254,8 +301,18 @@ static BOOL cs_post_connect(freerdp* instance)
 
 static void cs_post_disconnect(freerdp* instance)
 {
+    rdpContext* context;
+    context = instance->context;
+    
+    freerdp_channels_disconnect(context->channels, instance);
+    
 	gdi_free(instance);
-	cache_free(instance->context->cache);
+    
+    if (context->cache)
+    {
+        cache_free(context->cache);
+        context->cache = NULL;
+    }
 }
 
 static BOOL cs_authenticate(freerdp* instance, char** username, char** password, char** domain)
@@ -330,6 +387,33 @@ BOOL csharp_freerdp_disconnect(void* instance)
 	return TRUE;
 }
 
+BOOL csharp_freerdp_set_gateway_settings(void* instance, const char* hostname, UINT32 port, const char* username, const char* password, const char* domain, BOOL bypassLocal)
+{
+    freerdp* inst = (freerdp*)instance;
+    rdpSettings* settings = inst->settings;
+    
+    settings->GatewayPort     = port;
+    //settings->GatewayUsageMethod = TSC_PROXY_MODE_DIRECT;
+    settings->GatewayEnabled = TRUE;
+    settings->GatewayUseSameCredentials = FALSE;
+    settings->GatewayHostname = strdup(hostname);
+    settings->GatewayUsername = strdup(username);
+    settings->GatewayPassword = strdup(password);
+    settings->GatewayDomain = strdup(domain);
+    settings->GatewayBypassLocal = bypassLocal;
+    settings->GatewayHttpTransport = TRUE;
+    settings->GatewayRpcTransport = TRUE;
+    settings->CredentialsFromStdin = FALSE;
+    
+    if (!settings->GatewayHostname || !settings->GatewayUsername ||
+        !settings->GatewayPassword || !settings->GatewayDomain)
+    {
+        return FALSE;
+    }
+    
+    return TRUE;
+}
+
 BOOL csharp_freerdp_set_connection_info(void* instance, const char* hostname, const char* username, const char* password, const char* domain,
 										UINT32 width, UINT32 height, UINT32 color_depth, UINT32 port, int security)
 {
@@ -367,8 +451,16 @@ BOOL csharp_freerdp_set_connection_info(void* instance, const char* hostname, co
 		goto out_fail_strdup;
 
 	settings->SoftwareGdi = TRUE;
-	settings->BitmapCacheV3Enabled = TRUE;
+//	settings->BitmapCacheV3Enabled = TRUE;
 	settings->RemoteFxCodec = TRUE;
+    settings->AllowFontSmoothing = TRUE;
+//    settings->BitmapCacheEnabled = TRUE;
+    settings->ColorDepth = 16;
+//    settings->CompressionEnabled = TRUE;
+//    settings->CompressionLevel = 6;
+//    settings->GfxH264 = TRUE;
+//    settings->GfxProgressive = TRUE;
+//    settings->GfxProgressiveV2 = TRUE;
 
 	switch (security)
 	{
@@ -560,4 +652,12 @@ UINT16 csharp_get_update_rect_height(void* instance)
     csContext* ctxt = (csContext*)inst->context;
     
     return ctxt->extRect->bottom - ctxt->extRect->top;
+}
+
+BOOL csharp_get_is_buffer_updated(void* instance)
+{
+    freerdp* inst = (freerdp*)instance;
+    csContext* ctxt = (csContext*)inst->context;
+    
+    return ctxt->updated;
 }
