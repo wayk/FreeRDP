@@ -76,11 +76,6 @@ static char* GetPath_HOME(void)
 
 #ifdef _WIN32
 	path = GetEnvAlloc("UserProfile");
-#elif defined(ANDROID)
-	path = malloc(2);
-	if (!path)
-		return NULL;
-	strcpy(path, "/");
 #else
 	path = GetEnvAlloc("HOME");
 #endif
@@ -147,13 +142,12 @@ static char* GetPath_XDG_CONFIG_HOME(void)
 {
 	char* path = NULL;
 
-#if defined(WIN32)
+#if defined(WIN32) && !defined(_UWP)
 	path = calloc(MAX_PATH, sizeof(char));
 	if (!path)
 		return NULL;
 
-	if (FAILED(SHGetFolderPathA(0, CSIDL_APPDATA, NULL,
-			     SHGFP_TYPE_CURRENT, path)))
+	if (FAILED(SHGetFolderPathA(0, CSIDL_APPDATA, NULL, SHGFP_TYPE_CURRENT, path)))
 	{
 		free(path);
 		return NULL;
@@ -245,13 +239,13 @@ static char* GetPath_XDG_CACHE_HOME(void)
 char* GetPath_XDG_RUNTIME_DIR(void)
 {
 	char* path = NULL;
-#if defined(WIN32)
+
+#if defined(WIN32) && !defined(_UWP)
 	path = calloc(MAX_PATH, sizeof(char));
 	if (!path)
 		return NULL;
 
-	if (FAILED(SHGetFolderPathA(0, CSIDL_LOCAL_APPDATA, NULL,
-			     SHGFP_TYPE_CURRENT, path)))
+	if (FAILED(SHGetFolderPathA(0, CSIDL_LOCAL_APPDATA, NULL, SHGFP_TYPE_CURRENT, path)))
 	{
 		free(path);
 		return NULL;
@@ -394,9 +388,9 @@ char* GetCombinedPath(const char* basePath, const char* subPath)
 	int subPathLength = 0;
 
 	if (basePath)
-		basePathLength = strlen(basePath);
+		basePathLength = (int) strlen(basePath);
 	if (subPath)
-		subPathLength = strlen(subPath);
+		subPathLength = (int) strlen(subPath);
 
 	length = basePathLength + subPathLength + 1;
 	path = (char*) malloc(length + 1);

@@ -47,9 +47,6 @@
 
 #define TAG CLIENT_TAG("mac")
 
-
-BOOL mac_desktop_resize(rdpContext* context);
-
 @implementation MRDPView
 
 @synthesize delegate;
