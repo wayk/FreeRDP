@@ -226,6 +226,14 @@ BOOL reconnecting = false;
 
 - (void) rdpConnectError : (NSString*) withMessage
 {
+	mfContext* mfc;
+	MRDPView* view;
+
+	mfc = (mfContext*) context;
+	view = (MRDPView*) mfc->client;
+
+	[view exitFullScreenModeWithOptions:nil];
+
 	NSString* message = withMessage ? withMessage : @"Error connecting to server";
     
 	NSAlert *alert = [[NSAlert alloc] init];
