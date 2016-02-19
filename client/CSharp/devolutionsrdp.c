@@ -6,6 +6,7 @@
 #include <freerdp/gdi/gfx.h>
 #include <assert.h>
 #include <freerdp/log.h>
+#include <winpr/environment.h>
 
 struct csharp_context
 {
@@ -670,4 +671,12 @@ BOOL csharp_get_is_buffer_updated(void* instance)
     csContext* ctxt = (csContext*)inst->context;
     
     return ctxt->updated;
+}
+
+void csharp_set_log_output(const char* path, const char* name)
+{
+    SetEnvironmentVariableA("WLOG_APPENDER", "FILE");
+    SetEnvironmentVariableA("WLOG_LEVEL", "DEBUG");
+    SetEnvironmentVariableA("WLOG_FILEAPPENDER_OUTPUT_FILE_PATH", path);
+    SetEnvironmentVariableA("WLOG_FILEAPPENDER_OUTPUT_FILE_NAME", name);
 }

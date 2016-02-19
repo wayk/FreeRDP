@@ -21,3 +21,4 @@ FREERDP_API UINT16 csharp_get_update_rect_y(void* instance);
 FREERDP_API UINT16 csharp_get_update_rect_width(void* instance);
 FREERDP_API UINT16 csharp_get_update_rect_height(void* instance);
 FREERDP_API BOOL csharp_get_is_buffer_updated(void* instance);
+FREERDP_API void csharp_set_log_output(const char* path, const char* name);
