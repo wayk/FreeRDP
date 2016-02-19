@@ -573,6 +573,16 @@ BOOL csharp_check_event_handles(void* instance, void* buffer)
 	return result < 0 ? FALSE : TRUE;
 }
 
+void csharp_freerdp_send_unicode(void* instance, int character)
+{
+    cs_send_unicode_key((freerdp*)instance, character);
+}
+
+void csharp_freerdp_send_vkcode(void* instance, int vkcode, BOOL down)
+{
+    cs_send_virtual_key((freerdp*)instance, vkcode, down);
+}
+
 void csharp_freerdp_send_input(void* instance, int character, BOOL down)
 {
     int flags;

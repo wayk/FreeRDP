@@ -12,6 +12,8 @@ FREERDP_API BOOL csharp_freerdp_set_data_directory(void* instance, const char* d
 FREERDP_API BOOL csharp_shall_disconnect(void* instance);
 FREERDP_API BOOL csharp_waitforsingleobject(void* instance);
 FREERDP_API BOOL csharp_check_event_handles(void* instance, void* buffer);
+FREERDP_API void csharp_freerdp_send_unicode(void* instance, int character);
+FREERDP_API void csharp_freerdp_send_vkcode(void* instance, int vkcode, BOOL down);
 FREERDP_API void csharp_freerdp_send_input(void* instance, int keycode, BOOL down);
 FREERDP_API void csharp_freerdp_send_cursor_event(void* instance, int x, int y, int flags);
 FREERDP_API UINT16 csharp_get_update_rect_x(void* instance);
