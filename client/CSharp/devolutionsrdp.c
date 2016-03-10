@@ -5,6 +5,7 @@
 #include <freerdp/gdi/gdi.h>
 #include <freerdp/gdi/gfx.h>
 #include <assert.h>
+#include <ctype.h>
 #include <freerdp/log.h>
 #include <winpr/environment.h>
 
@@ -13,14 +14,8 @@ struct csharp_context
 	rdpContext _p;
     
 	void* buffer;
-    
-    BOOL updated;
-    
-    REGION16 updRegion;
-    
-    RECTANGLE_16 updRect;
-    
-    const RECTANGLE_16* extRect;
+	
+	fnRegionUpdated regionUpdated;
 };
 typedef struct csharp_context csContext;
 
@@ -210,7 +205,7 @@ static BOOL cs_pre_connect(freerdp* instance)
     PubSub_SubscribeChannelDisconnected(context->pubSub,
                                         (pChannelDisconnectedEventHandler) cs_OnChannelDisconnectedEventHandler);
 
-    freerdp_client_load_addins(context->channels, instance->settings);
+//  freerdp_client_load_addins(context->channels, instance->settings);
     freerdp_channels_pre_connect(context->channels, instance);
     
     if (!context->cache)
@@ -240,9 +235,7 @@ int cs_pixelformat_get_format(int bytesPerPixel)
 BOOL cs_begin_paint(rdpContext* context)
 {
 	rdpGdi* gdi = context->gdi;
-    csContext* csc = (csContext*)context;
     
-    csc->updated = FALSE;
 	gdi->primary->hdc->hwnd->invalid->null = 1;
 	return TRUE;
 }
@@ -250,22 +243,18 @@ BOOL cs_begin_paint(rdpContext* context)
 BOOL cs_end_paint(rdpContext* context)
 {
 	rdpGdi* gdi = context->gdi;
-	csContext* csc = (csContext*)context;
+	csContext* csc = (csContext*)context->instance->context;
     
     if (gdi->primary->hdc->hwnd->invalid->null)
         return TRUE;
-    
-    csc->updated = TRUE;
-    
-    csc->updRect.left = gdi->primary->hdc->hwnd->invalid->x;
-    csc->updRect.top = gdi->primary->hdc->hwnd->invalid->y;
-    csc->updRect.right = gdi->primary->hdc->hwnd->invalid->x + gdi->primary->hdc->hwnd->invalid->w;
-    csc->updRect.bottom = gdi->primary->hdc->hwnd->invalid->y + gdi->primary->hdc->hwnd->invalid->h;
-    
-    region16_union_rect(&csc->updRegion, &csc->updRegion, &csc->updRect);
 
     freerdp_image_copy(csc->buffer, PIXEL_FORMAT_XRGB32, gdi->width * 4, gdi->primary->hdc->hwnd->invalid->x, gdi->primary->hdc->hwnd->invalid->y, gdi->primary->hdc->hwnd->invalid->w, gdi->primary->hdc->hwnd->invalid->h,
                        gdi->primary_buffer, cs_pixelformat_get_format(gdi->bytesPerPixel), gdi->width * gdi->bytesPerPixel, gdi->primary->hdc->hwnd->invalid->x, gdi->primary->hdc->hwnd->invalid->y, NULL);
+
+	if (csc->regionUpdated)
+	{
+		csc->regionUpdated(context->instance, gdi->primary->hdc->hwnd->invalid->x, gdi->primary->hdc->hwnd->invalid->y, gdi->primary->hdc->hwnd->invalid->w, gdi->primary->hdc->hwnd->invalid->h);
+	}
 
 	return TRUE;
 }
@@ -386,6 +375,14 @@ BOOL csharp_freerdp_disconnect(void* instance)
 	freerdp_disconnect((freerdp*)instance);
 
 	return TRUE;
+}
+
+void csharp_freerdp_set_on_region_updated(void* instance, fnRegionUpdated fn)
+{
+    freerdp* inst = (freerdp*)instance;
+    csContext* ctxt = (csContext*)inst->context;
+	
+	ctxt->regionUpdated = fn;
 }
 
 BOOL csharp_freerdp_set_gateway_settings(void* instance, const char* hostname, UINT32 port, const char* username, const char* password, const char* domain, BOOL bypassLocal)
@@ -565,12 +562,9 @@ BOOL csharp_check_event_handles(void* instance, void* buffer)
 	int result = 0;
 
     ctxt->buffer = buffer;
-    region16_init(&ctxt->updRegion);
 	
 	result = freerdp_check_event_handles(inst->context);
     
-    ctxt->extRect = region16_extents(&ctxt->updRegion);
-
 	return result < 0 ? FALSE : TRUE;
 }
 
@@ -633,50 +627,45 @@ void csharp_freerdp_send_cursor_event(void* instance, int x, int y, int flags)
     freerdp_input_send_mouse_event(((freerdp*)instance)->input, flags, x, y);
 }
 
-UINT16 csharp_get_update_rect_x(void* instance)
-{
-    freerdp* inst = (freerdp*)instance;
-    csContext* ctxt = (csContext*)inst->context;
-    
-    return ctxt->extRect->left;
-}
-
-UINT16 csharp_get_update_rect_y(void* instance)
-{
-    freerdp* inst = (freerdp*)instance;
-    csContext* ctxt = (csContext*)inst->context;
-    
-    return ctxt->extRect->top;
-}
-
-UINT16 csharp_get_update_rect_width(void* instance)
-{
-    freerdp* inst = (freerdp*)instance;
-    csContext* ctxt = (csContext*)inst->context;
-    
-    return ctxt->extRect->right - ctxt->extRect->left;
-}
-
-UINT16 csharp_get_update_rect_height(void* instance)
-{
-    freerdp* inst = (freerdp*)instance;
-    csContext* ctxt = (csContext*)inst->context;
-    
-    return ctxt->extRect->bottom - ctxt->extRect->top;
-}
-
-BOOL csharp_get_is_buffer_updated(void* instance)
-{
-    freerdp* inst = (freerdp*)instance;
-    csContext* ctxt = (csContext*)inst->context;
-    
-    return ctxt->updated;
-}
-
 void csharp_set_log_output(const char* path, const char* name)
 {
     SetEnvironmentVariableA("WLOG_APPENDER", "FILE");
     SetEnvironmentVariableA("WLOG_LEVEL", "DEBUG");
     SetEnvironmentVariableA("WLOG_FILEAPPENDER_OUTPUT_FILE_PATH", path);
     SetEnvironmentVariableA("WLOG_FILEAPPENDER_OUTPUT_FILE_NAME", name);
+}
+
+void csharp_set_on_authenticate(void* instance, pAuthenticate fn)
+{
+	freerdp* inst = (freerdp*)instance;
+	
+	inst->Authenticate = fn;
+}
+
+void csharp_set_on_gateway_authenticate(void* instance, pAuthenticate fn)
+{
+	freerdp* inst = (freerdp*)instance;
+	
+	inst->GatewayAuthenticate = fn;
+}
+
+void csharp_set_on_disconnect(void* instance, pPostDisconnect fn)
+{
+	freerdp* inst = (freerdp*)instance;
+	
+	inst->PostDisconnect = fn;
+}
+
+void csharp_set_on_verify_certificate(void* instance, pVerifyCertificate fn)
+{
+	freerdp* inst = (freerdp*)instance;
+	
+	inst->VerifyCertificate = fn;
+}
+
+void csharp_set_on_verify_x509_certificate(void* instance, pVerifyX509Certificate fn)
+{
+	freerdp* inst = (freerdp*)instance;
+	
+	inst->VerifyX509Certificate = fn;
 }
