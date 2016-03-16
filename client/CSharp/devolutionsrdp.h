@@ -2,6 +2,7 @@
 #include <freerdp/freerdp.h>
 
 typedef void (FREERDP_API *fnRegionUpdated)(void* rdp, int x, int y, int width, int height);
+typedef void (FREERDP_API *fnOnError)(void* context, int code);
 
 FREERDP_API void* csharp_freerdp_new();
 FREERDP_API void csharp_freerdp_free(void* instance);
@@ -27,3 +28,5 @@ FREERDP_API void csharp_set_on_gateway_authenticate(void* instance, pAuthenticat
 FREERDP_API void csharp_set_on_disconnect(void* instance, pPostDisconnect fn);
 FREERDP_API void csharp_set_on_verify_certificate(void* instance, pVerifyCertificate fn);
 FREERDP_API void csharp_set_on_verify_x509_certificate(void* instance, pVerifyX509Certificate fn);
+FREERDP_API void csharp_set_on_error(void* instance, fnOnError fn);
+FREERDP_API const char* csharp_get_error_info_string(int code);

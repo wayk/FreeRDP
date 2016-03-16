@@ -2,6 +2,7 @@
 #include <freerdp/channels/channels.h>
 #include <freerdp/client/channels.h>
 #include <freerdp/client/cmdline.h>
+#include <freerdp/event.h>
 #include <freerdp/gdi/gdi.h>
 #include <freerdp/gdi/gfx.h>
 #include <assert.h>
@@ -16,6 +17,8 @@ struct csharp_context
 	void* buffer;
 	
 	fnRegionUpdated regionUpdated;
+    
+    fnOnError onError;
 };
 typedef struct csharp_context csContext;
 
@@ -320,6 +323,23 @@ static int cs_verify_x509_certificate(freerdp* instance, BYTE* data, int length,
 	return 1;
 }
 
+void cs_error_info(void* ctx, ErrorInfoEventArgs* e)
+{
+    rdpContext* context = (rdpContext*) ctx;
+    csContext* csc = (csContext*)context->instance->context;
+    
+    if (csc->onError)
+    {
+        WLog_ERR("Devolutions", "Before Error callback");
+        csc->onError(context->instance, e->code);
+        WLog_ERR("Devolutions", "After Error callback");
+    }
+    else
+    {
+        WLog_ERR("Devolutions", "No error callback");
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////
@@ -347,12 +367,16 @@ void* csharp_freerdp_new()
 	instance->ContextSize = sizeof(csContext);
 	instance->ContextNew = cs_context_new;
 	instance->ContextFree = cs_context_free;
-
+    
 	if (!freerdp_context_new(instance))
 	{
 		freerdp_free(instance);
 		instance = NULL;
 	}
+    else
+    {
+        PubSub_SubscribeErrorInfo(instance->context->pubSub, cs_error_info);
+    }
 
 	return instance;
 }
@@ -668,4 +692,17 @@ void csharp_set_on_verify_x509_certificate(void* instance, pVerifyX509Certificat
 	freerdp* inst = (freerdp*)instance;
 	
 	inst->VerifyX509Certificate = fn;
+}
+
+void csharp_set_on_error(void* instance, fnOnError fn)
+{
+    freerdp* inst = (freerdp*)instance;
+    csContext* ctxt = (csContext*)inst->context;
+    
+    ctxt->onError = fn;
+}
+
+const char* csharp_get_error_info_string(int code)
+{
+    return freerdp_get_error_info_string(code);
 }
