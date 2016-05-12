@@ -472,8 +472,8 @@ public class BookmarkActivity extends PreferenceActivity implements
 			ListPreference listPreference = (ListPreference) findPreference(key);
 			listPreference.setSummary(listPreference.getEntry());
 
-			boolean enabled = listPreference.getValue().equalsIgnoreCase(
-					getResources().getString(R.string.resolution_custom));
+			String value = listPreference.getValue();
+			boolean enabled = value.equalsIgnoreCase("custom");
 			if (key.equals("bookmark.resolution")) {
 				findPreference("bookmark.width").setEnabled(enabled);
 				findPreference("bookmark.height").setEnabled(enabled);
@@ -575,7 +575,7 @@ public class BookmarkActivity extends PreferenceActivity implements
 		if (!verifyFailed && sharedPreferences.getInt("bookmark.port", -1) <= 0)
 			verifyFailed = true;
 
-		// if an error occured - display toast and return false
+		// if an error occurred - display toast and return false
 		return (!verifyFailed);
 	}
 

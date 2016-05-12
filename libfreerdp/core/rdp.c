@@ -67,7 +67,7 @@ const char* DATA_PDU_TYPE_STRINGS[80] =
 		"ARC Status", /* 0x32 */
 		"?", "?", "?", /* 0x33 - 0x35 */
 		"Status Info", /* 0x36 */
-		"Monitor Layout" /* 0x37 */
+		"Monitor Layout", /* 0x37 */
 		"FrameAcknowledge", "?", "?", /* 0x38 - 0x40 */
 		"?", "?", "?", "?", "?", "?" /* 0x41 - 0x46 */
 };
@@ -204,8 +204,7 @@ static int rdp_security_stream_init(rdpRdp* rdp, wStream* s, BOOL sec_header)
 int rdp_init_stream(rdpRdp* rdp, wStream* s)
 {
 	Stream_Seek(s, RDP_PACKET_HEADER_MAX_LENGTH);
-	rdp_security_stream_init(rdp, s, FALSE);
-	return 0;
+	return rdp_security_stream_init(rdp, s, FALSE);
 }
 
 wStream* rdp_send_stream_init(rdpRdp* rdp)
@@ -249,15 +248,19 @@ BOOL rdp_set_error_info(rdpRdp* rdp, UINT32 errorInfo)
 
 	if (rdp->errorInfo != ERRINFO_SUCCESS)
 	{
-		ErrorInfoEventArgs e;
-		rdpContext* context = rdp->instance->context;
-
-		rdp->context->LastError = MAKE_FREERDP_ERROR(ERRINFO, errorInfo);
+		rdpContext* context = rdp->context;
 		rdp_print_errinfo(rdp->errorInfo);
-
-		EventArgsInit(&e, "freerdp");
-		e.code = rdp->errorInfo;
-		PubSub_OnErrorInfo(context->pubSub, context, &e);
+		if (context)
+		{
+			context->LastError = MAKE_FREERDP_ERROR(ERRINFO, errorInfo);
+			if (context->pubSub)
+			{
+				ErrorInfoEventArgs e;
+				EventArgsInit(&e, "freerdp");
+				e.code = rdp->errorInfo;
+				PubSub_OnErrorInfo(context->pubSub, context, &e);
+			}
+		}
 	}
 	else
 	{
@@ -341,10 +344,7 @@ BOOL rdp_read_header(rdpRdp* rdp, wStream* s, UINT16* length, UINT16* channelId)
 			return FALSE;
 
 		if (!rdp->instance)
-		{
-			freerdp_abort_connect(rdp->instance);
 			return FALSE;
-		}
 
 		context = rdp->instance->context;
 
@@ -672,8 +672,7 @@ BOOL rdp_recv_set_error_info_data_pdu(rdpRdp* rdp, wStream* s)
 		return FALSE;
 
 	Stream_Read_UINT32(s, errorInfo); /* errorInfo (4 bytes) */
-	rdp_set_error_info(rdp, errorInfo);
-	return TRUE;
+	return rdp_set_error_info(rdp, errorInfo);
 }
 
 BOOL rdp_recv_server_auto_reconnect_status_pdu(rdpRdp* rdp, wStream* s)
@@ -1062,7 +1061,7 @@ BOOL rdp_decrypt(rdpRdp* rdp, wStream* s, int length, UINT16 securityFlags)
 			return FALSE; /* TODO */
 		}
 
-		Stream_Length(s) -= pad;
+		Stream_SetLength(s, Stream_Length(s) - pad);
 		return TRUE;
 	}
 
@@ -1295,16 +1294,46 @@ int rdp_recv_callback(rdpTransport* transport, wStream* s, void* extra)
 	switch (rdp->state)
 	{
 		case CONNECTION_STATE_NLA:
-			if (nla_recv_pdu(rdp->nla, s) < 1)
+			if (rdp->nla->state < NLA_STATE_AUTH_INFO)
 			{
-				WLog_ERR(TAG, "rdp_recv_callback: CONNECTION_STATE_NLA - nla_recv_pdu() fail");
-				return -1;
+				if (nla_recv_pdu(rdp->nla, s) < 1)
+				{
+					WLog_ERR(TAG, "rdp_recv_callback: CONNECTION_STATE_NLA - nla_recv_pdu() fail");
+					return -1;
+				}
+			}
+			else if (rdp->nla->state == NLA_STATE_POST_NEGO)
+			{
+				nego_recv(rdp->transport, s, (void*) rdp->nego);
+
+				if (rdp->nego->state != NEGO_STATE_FINAL)
+				{
+					WLog_ERR(TAG, "rdp_recv_callback: CONNECTION_STATE_NLA - nego_recv() fail");
+					return -1;
+				}
+
+				rdp->nla->state = NLA_STATE_FINAL;
 			}
 
 			if (rdp->nla->state == NLA_STATE_AUTH_INFO)
 			{
 				transport_set_nla_mode(rdp->transport, FALSE);
 
+				if (rdp->settings->VmConnectMode)
+				{
+					rdp->nego->state = NEGO_STATE_NLA;
+					rdp->nego->RequestedProtocols = PROTOCOL_NLA | PROTOCOL_TLS;
+					nego_send_negotiation_request(rdp->nego);
+					rdp->nla->state = NLA_STATE_POST_NEGO;
+				}
+				else
+				{
+					rdp->nla->state = NLA_STATE_FINAL;
+				}
+			}
+
+			if (rdp->nla->state == NLA_STATE_FINAL)
+			{
 				nla_free(rdp->nla);
 				rdp->nla = NULL;
 
@@ -1416,6 +1445,8 @@ BOOL rdp_send_error_info(rdpRdp* rdp)
 		return TRUE;
 
 	s = rdp_data_pdu_init(rdp);
+	if (!s)
+		return FALSE;
 
 	Stream_Write_UINT32(s, rdp->errorInfo); /* error id (4 bytes) */
 
@@ -1594,31 +1625,31 @@ void rdp_reset(rdpRdp* rdp)
 
 	if (rdp->rc4_decrypt_key)
 	{
-		crypto_rc4_free(rdp->rc4_decrypt_key);
+		winpr_RC4_Free(rdp->rc4_decrypt_key);
 		rdp->rc4_decrypt_key = NULL;
 	}
 
 	if (rdp->rc4_encrypt_key)
 	{
-		crypto_rc4_free(rdp->rc4_encrypt_key);
+		winpr_RC4_Free(rdp->rc4_encrypt_key);
 		rdp->rc4_encrypt_key = NULL;
 	}
 
 	if (rdp->fips_encrypt)
 	{
-		crypto_des3_free(rdp->fips_encrypt);
+		winpr_Cipher_Free(rdp->fips_encrypt);
 		rdp->fips_encrypt = NULL;
 	}
 
 	if (rdp->fips_decrypt)
 	{
-		crypto_des3_free(rdp->fips_decrypt);
+		winpr_Cipher_Free(rdp->fips_decrypt);
 		rdp->fips_decrypt = NULL;
 	}
 
 	if (rdp->fips_hmac)
 	{
-		crypto_hmac_free(rdp->fips_hmac);
+		free(rdp->fips_hmac);
 		rdp->fips_hmac = NULL;
 	}
 
@@ -1665,11 +1696,11 @@ void rdp_free(rdpRdp* rdp)
 {
 	if (rdp)
 	{
-		crypto_rc4_free(rdp->rc4_decrypt_key);
-		crypto_rc4_free(rdp->rc4_encrypt_key);
-		crypto_des3_free(rdp->fips_encrypt);
-		crypto_des3_free(rdp->fips_decrypt);
-		crypto_hmac_free(rdp->fips_hmac);
+		winpr_RC4_Free(rdp->rc4_decrypt_key);
+		winpr_RC4_Free(rdp->rc4_encrypt_key);
+		winpr_Cipher_Free(rdp->fips_encrypt);
+		winpr_Cipher_Free(rdp->fips_decrypt);
+		free(rdp->fips_hmac);
 		freerdp_settings_free(rdp->settings);
 		freerdp_settings_free(rdp->settingsCopy);
 		transport_free(rdp->transport);

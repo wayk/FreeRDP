@@ -38,10 +38,12 @@
 #include <string.h>
 
 #include <winpr/crt.h>
+#include <winpr/path.h>
 #include <winpr/string.h>
 #include <winpr/synch.h>
 #include <winpr/thread.h>
 #include <winpr/stream.h>
+#include <winpr/environment.h>
 #include <winpr/interlocked.h>
 #include <winpr/collections.h>
 
@@ -859,6 +861,8 @@ out_error:
 
 #ifdef STATIC_CHANNELS
 #define DeviceServiceEntry	drive_DeviceServiceEntry
+#else
+#define DeviceServiceEntry	FREERDP_API DeviceServiceEntry
 #endif
 
 UINT sys_code_page = 0;
@@ -934,7 +938,9 @@ UINT DeviceServiceEntry(PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints)
 	/* Special case: path[0] == '%' -> user home dir */
 	if (strcmp(drive->Path, "%") == 0)
 	{
-		sprintf_s(buf, sizeof(buf), "%s\\", getenv("USERPROFILE"));
+		GetEnvironmentVariableA("USERPROFILE", buf, sizeof(buf));
+		PathCchAddBackslashA(buf, sizeof(buf));
+
 		free(drive->Path);
 		drive->Path = _strdup(buf);
 		if (!drive->Path)

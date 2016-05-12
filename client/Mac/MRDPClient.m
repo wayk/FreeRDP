@@ -1349,6 +1349,8 @@ BOOL mac_authenticate(freerdp* instance, char** username, char** password, char*
     return ok;
 }
 
+BOOL gdi_init_primary(rdpGdi* gdi);
+void gdi_bitmap_free_ex(gdiBitmap* gdi_bmp);
 
 BOOL gdi_reinit(rdpGdi* gdi, BYTE* buffer, int width, int height)
 {

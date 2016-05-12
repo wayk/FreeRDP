@@ -295,7 +295,7 @@ rdpSettings* freerdp_settings_new(DWORD flags)
 	if (!settings->ChannelDefArray)
 			goto out_fail;
 
-	settings->SupportMonitorLayoutPdu = TRUE;
+	settings->SupportMonitorLayoutPdu = FALSE;
 	settings->MonitorCount = 0;
 	settings->MonitorDefArraySize = 32;
 	settings->MonitorDefArray = (rdpMonitor*) calloc(settings->MonitorDefArraySize, sizeof(rdpMonitor));
@@ -464,6 +464,7 @@ rdpSettings* freerdp_settings_new(DWORD flags)
 	settings->GfxProgressive = FALSE;
 	settings->GfxProgressiveV2 = FALSE;
 	settings->GfxH264 = FALSE;
+	settings->GfxAVC444 = FALSE;
 
 	settings->ClientAutoReconnectCookie = (ARC_CS_PRIVATE_PACKET*) calloc(1, sizeof(ARC_CS_PRIVATE_PACKET));
 	if (!settings->ClientAutoReconnectCookie)
@@ -472,7 +473,7 @@ rdpSettings* freerdp_settings_new(DWORD flags)
 	if (!settings->ServerAutoReconnectCookie)
 			goto out_fail;
 
-	settings->ClientTimeZone = (TIME_ZONE_INFO*) calloc(1,sizeof(TIME_ZONE_INFO));
+	settings->ClientTimeZone = (LPTIME_ZONE_INFORMATION) calloc(1,sizeof(TIME_ZONE_INFORMATION));
 	if (!settings->ClientTimeZone)
 			goto out_fail;
 
@@ -493,39 +494,45 @@ rdpSettings* freerdp_settings_new(DWORD flags)
 	if(!settings->DynamicChannelArray)
 			goto out_fail;
 
-	settings->HomePath = GetKnownPath(KNOWN_PATH_HOME);
-	if (!settings->HomePath)
-			goto out_fail;
 
-	/* For default FreeRDP continue using same config directory
-	 * as in old releases.
-	 * Custom builds use <Vendor>/<Product> as config folder. */
-	if (_stricmp(FREERDP_VENDOR_STRING, FREERDP_PRODUCT_STRING))
+	if (!settings->ServerMode)
 	{
-		base = GetKnownSubPath(KNOWN_PATH_XDG_CONFIG_HOME,
-				       FREERDP_VENDOR_STRING);
-		if (base)
+		/* these values are used only by the client part */
+
+		settings->HomePath = GetKnownPath(KNOWN_PATH_HOME);
+		if (!settings->HomePath)
+				goto out_fail;
+
+		/* For default FreeRDP continue using same config directory
+		 * as in old releases.
+		 * Custom builds use <Vendor>/<Product> as config folder. */
+		if (_stricmp(FREERDP_VENDOR_STRING, FREERDP_PRODUCT_STRING))
 		{
-			settings->ConfigPath = GetCombinedPath(
-						       base,
-						       FREERDP_PRODUCT_STRING);
+			base = GetKnownSubPath(KNOWN_PATH_XDG_CONFIG_HOME,
+						   FREERDP_VENDOR_STRING);
+			if (base)
+			{
+				settings->ConfigPath = GetCombinedPath(
+								   base,
+								   FREERDP_PRODUCT_STRING);
+			}
+			free (base);
+		} else {
+			int i;
+			char product[sizeof(FREERDP_PRODUCT_STRING)];
+
+			memset(product, 0, sizeof(product));
+			for (i=0; i<sizeof(product); i++)
+				product[i] = tolower(FREERDP_PRODUCT_STRING[i]);
+
+			settings->ConfigPath = GetKnownSubPath(
+							   KNOWN_PATH_XDG_CONFIG_HOME,
+							   product);
 		}
-		free (base);
-	} else {
-		int i;
-		char product[sizeof(FREERDP_PRODUCT_STRING)];
 
-		memset(product, 0, sizeof(product));
-		for (i=0; i<sizeof(product); i++)
-			product[i] = tolower(FREERDP_PRODUCT_STRING[i]);
-
-		settings->ConfigPath = GetKnownSubPath(
-					       KNOWN_PATH_XDG_CONFIG_HOME,
-					       product);
+		if (!settings->ConfigPath)
+				goto out_fail;
 	}
-
-	if (!settings->ConfigPath)
-			goto out_fail;
 
 	settings_load_hkey_local_machine(settings);
 
@@ -762,10 +769,10 @@ rdpSettings* freerdp_settings_clone(rdpSettings* settings)
 		CopyMemory(_settings->ClientAutoReconnectCookie, settings->ClientAutoReconnectCookie, sizeof(ARC_CS_PRIVATE_PACKET));
 		CopyMemory(_settings->ServerAutoReconnectCookie, settings->ServerAutoReconnectCookie, sizeof(ARC_SC_PRIVATE_PACKET));
 
-		_settings->ClientTimeZone = (TIME_ZONE_INFO*) malloc(sizeof(TIME_ZONE_INFO));
+		_settings->ClientTimeZone = (LPTIME_ZONE_INFORMATION) malloc(sizeof(TIME_ZONE_INFORMATION));
 		if (!_settings->ClientTimeZone)
 			goto out_fail;
-		CopyMemory(_settings->ClientTimeZone, settings->ClientTimeZone, sizeof(TIME_ZONE_INFO));
+		CopyMemory(_settings->ClientTimeZone, settings->ClientTimeZone, sizeof(TIME_ZONE_INFORMATION));
 
 		_settings->TargetNetAddressCount = settings->TargetNetAddressCount;
 
@@ -815,7 +822,7 @@ rdpSettings* freerdp_settings_clone(rdpSettings* settings)
 			goto out_fail;
 		}
 
- 		if (_settings->DeviceArraySize < _settings->DeviceCount)
+		if (_settings->DeviceArraySize < _settings->DeviceCount)
 		{
 			_settings->DeviceCount = 0;
 			_settings->DeviceArraySize = 0;

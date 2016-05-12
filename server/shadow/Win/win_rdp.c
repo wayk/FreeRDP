@@ -99,9 +99,11 @@ BOOL shw_authenticate(freerdp* instance, char** username, char** password, char*
 	return TRUE;
 }
 
-BOOL shw_verify_certificate(freerdp* instance, char* subject, char* issuer, char* fingerprint)
+static DWORD shw_verify_certificate(freerdp* instance, const char* common_name,
+					const char* subject, const char* issuer,
+					const char* fingerprint, BOOL host_mismatch)
 {
-	return TRUE;
+	return 1;
 }
 
 int shw_verify_x509_certificate(freerdp* instance, BYTE* data, int length, const char* hostname, int port, DWORD flags)
@@ -131,9 +133,11 @@ BOOL shw_pre_connect(freerdp* instance)
 	PubSub_SubscribeChannelDisconnected(context->pubSub,
 			(pChannelDisconnectedEventHandler) shw_OnChannelDisconnectedEventHandler);
 
-	freerdp_client_load_addins(context->channels, instance->settings);
+	if (!freerdp_client_load_addins(context->channels, instance->settings))
+		return FALSE;
 
-	freerdp_channels_pre_connect(context->channels, instance);
+	if (freerdp_channels_pre_connect(context->channels, instance) != CHANNEL_RC_OK)
+		return FALSE;
 
 	return TRUE;
 }
@@ -157,7 +161,7 @@ BOOL shw_post_connect(freerdp* instance)
 	instance->update->DesktopResize = shw_desktop_resize;
 	instance->update->SurfaceFrameMarker = shw_surface_frame_marker;
 
-	return (freerdp_channels_post_connect(instance->context->channels, instance) >= 0) ;
+	return (freerdp_channels_post_connect(instance->context->channels, instance) == CHANNEL_RC_OK) ;
 }
 
 void* shw_client_thread(void* arg)

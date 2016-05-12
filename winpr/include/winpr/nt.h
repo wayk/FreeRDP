@@ -89,7 +89,7 @@
 
 /* Defined in wincred.h, do not redefine */
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(_UWP)
 
 #include <wincred.h>
 
@@ -962,6 +962,7 @@
 #define STATUS_WAIT_FOR_OPLOCK						((NTSTATUS)0x00000367)
 #define STATUS_MOUNT_POINT_NOT_RESOLVED					((NTSTATUS)0xC0000368)
 #define STATUS_INVALID_DEVICE_OBJECT_PARAMETER				((NTSTATUS)0xC0000369)
+/* The following is not a typo. It's the same spelling as in the Microsoft headers */
 #define STATUS_MCA_OCCURED						((NTSTATUS)0xC000036A)
 #define STATUS_DRIVER_BLOCKED_CRITICAL					((NTSTATUS)0xC000036B)
 #define STATUS_DRIVER_BLOCKED						((NTSTATUS)0xC000036C)
@@ -1254,6 +1255,14 @@
 
 /* Defined in winternl.h, always define since we do not include this header */
 
+/* defined in ntstatus.h */
+#if !defined(NTSTATUS_FROM_WIN32) && !defined(INLINE_NTSTATUS_FROM_WIN32)
+static INLINE NTSTATUS NTSTATUS_FROM_WIN32(long x)
+{
+	return x <= 0 ? (NTSTATUS)x : (NTSTATUS) (((x) & 0x0000FFFF) | (0x7 << 16) | 0xC0000000);
+}
+#endif
+
 #ifdef _WIN32
 
 /**
@@ -1420,7 +1429,11 @@ typedef struct _IO_STATUS_BLOCK
 {
 	union
 	{
+#ifdef _WIN32
+		NTSTATUS Status;
+#else
 		NTSTATUS status;
+#endif
 		PVOID Pointer;
 	};
 	ULONG_PTR Information;

@@ -10,9 +10,6 @@ set(${MODULE_PREFIX}_SRCS
 	${${MODULE_PREFIX}_HDRS}
 	devolutionsrdp.c)
 
-#set(${MODULE_PREFIX}_LIBS ${${MODULE_PREFIX}_LIBS} log)
-set(${MODULE_PREFIX}_LIBS ${${MODULE_PREFIX}_LIBS} xfreerdp-client)
-
 add_library(${MODULE_NAME} SHARED ${${MODULE_PREFIX}_SRCS})
 
 list(APPEND ${MODULE_PREFIX}_LIBS winpr)

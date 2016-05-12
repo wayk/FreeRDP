@@ -357,6 +357,9 @@ void rfx_context_free(RFX_CONTEXT* context)
 {
 	RFX_CONTEXT_PRIV *priv;
 
+	if (!context)
+		return;
+
 	assert(NULL != context);
 	assert(NULL != context->priv);
 	assert(NULL != context->priv->TilePool);
@@ -419,10 +422,17 @@ void rfx_context_set_pixel_format(RFX_CONTEXT* context, RDP_PIXEL_FORMAT pixel_f
 	}
 }
 
-void rfx_context_reset(RFX_CONTEXT* context)
+BOOL rfx_context_reset(RFX_CONTEXT* context, UINT32 width, UINT32 height)
 {
+	if (!context)
+		return FALSE;
+
+	context->width = width;
+	context->height = height;
 	context->state = RFX_STATE_SEND_HEADERS;
 	context->frameIdx = 0;
+
+	return TRUE;
 }
 
 static BOOL rfx_process_message_sync(RFX_CONTEXT* context, wStream* s)
@@ -805,8 +815,8 @@ static BOOL rfx_process_message_tileset(RFX_CONTEXT* context, RFX_MESSAGE* messa
 
 	if (message->numTiles < 1)
 	{
-		WLog_ERR(TAG, "no tiles.");
-		return FALSE;
+		/* Windows Server 2012 (not R2) can send empty tile sets */
+		return TRUE;
 	}
 
 	Stream_Read_UINT32(s, tilesDataSize); /* tilesDataSize (4 bytes) */

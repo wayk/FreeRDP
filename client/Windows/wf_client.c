@@ -224,19 +224,6 @@ BOOL wf_pre_connect(freerdp* instance)
 
 	settings = instance->settings;
 
-	if (settings->ConnectionFile)
-	{
-		if (wfc->connectionRdpFile)
-		{
-			freerdp_client_rdp_file_free(wfc->connectionRdpFile);
-		}
-
-		wfc->connectionRdpFile = freerdp_client_rdp_file_new();
-		WLog_INFO(TAG,  "Using connection file: %s", settings->ConnectionFile);
-		freerdp_client_parse_rdp_file(wfc->connectionRdpFile, settings->ConnectionFile);
-		freerdp_client_populate_settings_from_rdp_file(wfc->connectionRdpFile, settings);
-	}
-
 	settings->OsMajorType = OSMAJORTYPE_WINDOWS;
 	settings->OsMinorType = OSMINORTYPE_WINDOWS_NT;
 	settings->OrderSupport[NEG_DSTBLT_INDEX] = TRUE;
@@ -333,7 +320,8 @@ BOOL wf_pre_connect(freerdp* instance)
 	PubSub_SubscribeChannelDisconnected(instance->context->pubSub,
 		(pChannelDisconnectedEventHandler) wf_OnChannelDisconnectedEventHandler);
 
-	freerdp_channels_pre_connect(instance->context->channels, instance);
+	if (freerdp_channels_pre_connect(instance->context->channels, instance) != CHANNEL_RC_OK)
+		return FALSE;
 
 	return TRUE;
 }
@@ -485,7 +473,7 @@ BOOL wf_post_connect(freerdp* instance)
 		instance->update->BitmapUpdate = wf_gdi_bitmap_update;
 	}
 
-	if (freerdp_channels_post_connect(context->channels, instance) < 0)
+	if (freerdp_channels_post_connect(context->channels, instance) != CHANNEL_RC_OK)
 		return FALSE;
 
 	if (wfc->fullscreen)
@@ -607,6 +595,31 @@ BOOL wf_verify_certificate(freerdp* instance, char* subject, char* issuer, char*
 
 	return TRUE;
 }
+
+static DWORD wf_verify_changed_certificate(freerdp* instance, const char* common_name,
+					   const char* subject, const char* issuer,
+					   const char* fingerprint,
+					   const char* old_subject, const char* old_issuer,
+					   const char* old_fingerprint)
+{
+	char answer;
+
+	WLog_ERR(TAG, "!!! Certificate has changed !!!");
+	WLog_ERR(TAG, "New Certificate details:");
+	WLog_ERR(TAG, "\tSubject: %s", subject);
+	WLog_ERR(TAG, "\tIssuer: %s", issuer);
+	WLog_ERR(TAG, "\tThumbprint: %s", fingerprint);
+	WLog_ERR(TAG, "Old Certificate details:");
+	WLog_ERR(TAG, "\tSubject: %s", old_subject);
+	WLog_ERR(TAG, "\tIssuer: %s", old_issuer);
+	WLog_ERR(TAG, "\tThumbprint: %s", old_fingerprint);
+	WLog_ERR(TAG, "The above X.509 certificate does not match the certificate used for previous connections. "
+		"This may indicate that the certificate has been tampered with."
+		"Please contact the administrator of the RDP server and clarify.");
+
+	return 0;
+}
+
 
 static BOOL wf_auto_reconnect(freerdp* instance)
 {
@@ -897,40 +910,6 @@ int freerdp_client_set_window_size(wfContext* wfc, int width, int height)
 	return 0;
 }
 
-// TODO: Some of that code is a duplicate of wf_pre_connect. Refactor?
-int freerdp_client_load_settings_from_rdp_file(wfContext* wfc, char* filename)
-{
-	rdpSettings* settings;
-
-	settings = wfc->instance->settings;
-
-	if (filename)
-	{
-		settings->ConnectionFile = _strdup(filename);
-		if (!settings->ConnectionFile)
-		{
-			return 3;
-		}
-
-		// free old settings file
-		freerdp_client_rdp_file_free(wfc->connectionRdpFile);
-		wfc->connectionRdpFile = freerdp_client_rdp_file_new();
-		WLog_INFO(TAG,  "Using connection file: %s", settings->ConnectionFile);
-
-		if (!freerdp_client_parse_rdp_file(wfc->connectionRdpFile, settings->ConnectionFile))
-		{
-			return 1;
-		}
-
-		if (!freerdp_client_populate_settings_from_rdp_file(wfc->connectionRdpFile, settings))
-		{
-			return 2;
-		}
-	}
-
-	return 0;
-}
-
 void wf_size_scrollbars(wfContext* wfc, UINT32 client_width, UINT32 client_height)
 {
 	if (wfc->disablewindowtracking)
@@ -1081,6 +1060,7 @@ BOOL wfreerdp_client_new(freerdp* instance, rdpContext* context)
 	instance->Authenticate = wf_authenticate;
 	instance->GatewayAuthenticate = wf_gw_authenticate;
 	instance->VerifyCertificate = wf_verify_certificate;
+	instance->VerifyChangedCertificate = wf_verify_changed_certificate;
 
 	wfc->instance = instance;
 	wfc->settings = instance->settings;
@@ -1143,7 +1123,8 @@ int wfreerdp_client_start(rdpContext* context)
 	if (!wfc->keyboardThread)
 		return -1;
 
-	freerdp_client_load_addins(context->channels, instance->settings);
+	if (!freerdp_client_load_addins(context->channels, instance->settings))
+		return -1;
 
 	wfc->thread = CreateThread(NULL, 0, wf_client_thread, (void*) instance, 0, &wfc->mainThreadId);
 

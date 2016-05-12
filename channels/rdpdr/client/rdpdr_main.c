@@ -46,6 +46,15 @@
 #include <fcntl.h>
 #endif
 
+#ifdef __MACOSX__
+#include <CoreFoundation/CoreFoundation.h>
+#include <stdio.h>
+#include <dirent.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
+
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -101,7 +110,63 @@ static UINT rdpdr_send_device_list_remove_request(rdpdrPlugin* rdpdr, UINT32 cou
 	return rdpdr_send(rdpdr, s);
 }
 
-#ifdef _WIN32
+#ifdef _UWP
+
+void first_hotplug(rdpdrPlugin *rdpdr)
+{
+
+}
+
+static void* drive_hotplug_thread_func(void* arg)
+{
+	return NULL;
+}
+
+static UINT drive_hotplug_thread_terminate(rdpdrPlugin* rdpdr)
+{
+	return CHANNEL_RC_OK;
+}
+
+#elif _WIN32
+
+BOOL check_path(char* path)
+{
+	UINT type = GetDriveTypeA(path);
+	if (!(type == DRIVE_REMOVABLE || type == DRIVE_CDROM || type == DRIVE_REMOTE))
+		return FALSE;
+	return GetVolumeInformationA(path, NULL, 0, NULL, NULL, NULL, NULL, 0);
+}
+
+void first_hotplug(rdpdrPlugin *rdpdr)
+{
+	int i;
+	char drive_path[5] = { 'c', ':', '\\', '\0' };
+
+	DWORD unitmask = GetLogicalDrives();
+
+	for (i = 0; i < 26; i++)
+	{
+		if (unitmask & 0x01)
+		{
+			RDPDR_DRIVE* drive;
+
+			drive_path[0] = 'A' + i;
+			drive_path[1] = ':';
+
+			if (check_path(drive_path))
+			{
+				drive = (RDPDR_DRIVE*)malloc(sizeof(RDPDR_DRIVE));
+				ZeroMemory(drive, sizeof(RDPDR_DRIVE));
+				drive->Type = RDPDR_DTYP_FILESYSTEM;
+				drive->Path = _strdup(drive_path);
+				drive_path[1] = '\0';
+				drive->Name = _strdup(drive_path);
+				devman_load_device_service(rdpdr->devman, (RDPDR_DEVICE *)drive, rdpdr->rdpcontext);
+			}
+		}
+		unitmask = unitmask >> 1;
+	}
+}
 
 LRESULT CALLBACK hotplug_proc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
@@ -131,17 +196,21 @@ LRESULT CALLBACK hotplug_proc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 								RDPDR_DRIVE* drive;
 
 								drive_path[0] = 'A' + i;
+								drive_path[1] = ':';
 
-								drive = (RDPDR_DRIVE*) malloc(sizeof(RDPDR_DRIVE));
-								ZeroMemory(drive, sizeof(RDPDR_DRIVE));
+								if (check_path(drive_path))
+								{
+									drive = (RDPDR_DRIVE*) malloc(sizeof(RDPDR_DRIVE));
+									ZeroMemory(drive, sizeof(RDPDR_DRIVE));
 
-								drive->Type = RDPDR_DTYP_FILESYSTEM;
+									drive->Type = RDPDR_DTYP_FILESYSTEM;
 
-								drive->Path = _strdup(drive_path);
-								drive_path[1] = '\0';
-								drive->Name = _strdup(drive_path);
-								devman_load_device_service(rdpdr->devman, (RDPDR_DEVICE *)drive, rdpdr->rdpcontext);
-								rdpdr_send_device_list_announce_request(rdpdr, TRUE);
+									drive->Path = _strdup(drive_path);
+									drive_path[1] = '\0';
+									drive->Name = _strdup(drive_path);
+									devman_load_device_service(rdpdr->devman, (RDPDR_DEVICE *)drive, rdpdr->rdpcontext);
+									rdpdr_send_device_list_announce_request(rdpdr, TRUE);
+								}
 							}
 							unitmask = unitmask >> 1;
 						}
@@ -275,6 +344,242 @@ static UINT drive_hotplug_thread_terminate(rdpdrPlugin* rdpdr)
 	return error;
 }
 
+#elif __MACOSX__
+
+#define MAX_USB_DEVICES 100
+
+typedef struct _hotplug_dev
+{
+	char* path;
+	BOOL  to_add;
+} hotplug_dev;
+
+
+/**
+ * Function description
+ *
+ * @return 0 on success, otherwise a Win32 error code
+ */
+static UINT handle_hotplug(rdpdrPlugin* rdpdr)
+{
+	struct dirent *pDirent;
+	DIR *pDir;
+	char fullpath[PATH_MAX];
+	char* szdir = (char*)"/Volumes";
+	struct stat buf;
+	hotplug_dev dev_array[MAX_USB_DEVICES];
+	int count;
+	DEVICE_DRIVE_EXT *device_ext;
+	ULONG_PTR *keys;
+	int i, j;
+	int size = 0;
+	UINT error;
+	UINT32 ids[1];
+
+	pDir = opendir (szdir);
+	if (pDir == NULL)
+	{
+		printf ("Cannot open directory\n");
+		return ERROR_OPEN_FAILED;
+	}
+
+	while ((pDirent = readdir(pDir)) != NULL)
+	{
+		if (pDirent->d_name[0] != '.')
+		{
+			sprintf(fullpath, "%s/%s", szdir, pDirent->d_name);
+			lstat(fullpath, &buf);
+			if(S_ISDIR(buf.st_mode))
+			{
+				dev_array[size].path = _strdup(fullpath);
+				if (!dev_array[size].path)
+				{
+					closedir (pDir);
+					error = CHANNEL_RC_NO_MEMORY;
+					goto cleanup;
+				}
+				dev_array[size++].to_add = TRUE;
+			}
+		}
+	}
+	closedir (pDir);
+
+	/* delete removed devices */
+	count = ListDictionary_GetKeys(rdpdr->devman->devices, &keys);
+
+	for (j = 0; j < count; j++)
+	{
+		BOOL dev_found = FALSE;
+
+		device_ext = (DEVICE_DRIVE_EXT *)ListDictionary_GetItemValue(rdpdr->devman->devices, (void *)keys[j]);
+		if (!device_ext)
+			continue;
+
+		if (device_ext->path == NULL)
+			continue;
+
+		/* not plugable device */
+		if (strstr(device_ext->path, "/Volumes/") == NULL)
+			continue;
+
+		for (i = 0; i < size; i++)
+		{
+			if (strstr(device_ext->path, dev_array[i].path) != NULL)
+			{
+				dev_found = TRUE;
+				dev_array[i].to_add = FALSE;
+				break;
+			}
+		}
+
+		if (!dev_found)
+		{
+			devman_unregister_device(rdpdr->devman, (void *)keys[j]);
+			ids[0] = keys[j];
+			if ((error = rdpdr_send_device_list_remove_request(rdpdr, 1, ids)))
+			{
+				WLog_ERR(TAG, "rdpdr_send_device_list_remove_request failed with error %lu!", error);
+				goto cleanup;
+			}
+		}
+	}
+
+	/* add new devices */
+	for (i = 0; i < size; i++)
+	{
+		RDPDR_DRIVE* drive;
+
+		if (dev_array[i].to_add)
+		{
+			char* name;
+
+			drive = (RDPDR_DRIVE*) calloc(1, sizeof(RDPDR_DRIVE));
+			if (!drive)
+			{
+				WLog_ERR(TAG, "calloc failed!");
+				error = CHANNEL_RC_NO_MEMORY;
+				goto cleanup;
+			}
+
+			drive->Type = RDPDR_DTYP_FILESYSTEM;
+
+			drive->Path = dev_array[i].path;
+			dev_array[i].path = NULL;
+
+			name = strrchr(drive->Path, '/') + 1;
+			drive->Name = _strdup(name);
+			if (!drive->Name)
+			{
+				WLog_ERR(TAG, "_strdup failed!");
+				free(drive->Path);
+				free(drive);
+				error = CHANNEL_RC_NO_MEMORY;
+				goto cleanup;
+			}
+			if ((error = devman_load_device_service(rdpdr->devman, (RDPDR_DEVICE *)drive, rdpdr->rdpcontext)))
+			{
+				WLog_ERR(TAG, "devman_load_device_service failed!");
+				free(drive->Path);
+				free(drive->Name);
+				free(drive);
+				error = CHANNEL_RC_NO_MEMORY;
+				goto cleanup;
+			}
+		}
+	}
+
+cleanup:
+	for (i = 0; i < size; i++)
+		free (dev_array[i].path);
+
+	return error;
+ }
+
+
+static void drive_hotplug_fsevent_callback(ConstFSEventStreamRef streamRef, void *clientCallBackInfo,
+					   size_t numEvents, void *eventPaths, const FSEventStreamEventFlags eventFlags[],
+					   const FSEventStreamEventId eventIds[])
+{
+	rdpdrPlugin* rdpdr;
+	int i;
+	UINT error;
+	char **paths = (char**)eventPaths;
+
+	rdpdr = (rdpdrPlugin*) clientCallBackInfo;
+
+	for (i=0; i<numEvents; i++)
+	{
+		if (strcmp(paths[i], "/Volumes/") == 0)
+		{
+			if ((error = handle_hotplug(rdpdr)))
+			{
+				WLog_ERR(TAG, "handle_hotplug failed with error %lu!", error);
+			}
+			else
+				rdpdr_send_device_list_announce_request(rdpdr, TRUE);
+			return;
+		}
+	}
+}
+
+void first_hotplug(rdpdrPlugin *rdpdr)
+{
+	UINT error;
+	if ((error = handle_hotplug(rdpdr)))
+	{
+		WLog_ERR(TAG, "handle_hotplug failed with error %lu!", error);
+	}
+}
+
+static void* drive_hotplug_thread_func(void* arg)
+{
+	rdpdrPlugin* rdpdr;
+	FSEventStreamRef fsev;
+	UINT error;
+
+	rdpdr = (rdpdrPlugin*) arg;
+	CFStringRef path = CFSTR("/Volumes/");
+	CFArrayRef pathsToWatch = CFArrayCreate(kCFAllocatorMalloc, (const void**)&path, 1, NULL);
+	FSEventStreamContext ctx;
+	ZeroMemory(&ctx, sizeof(ctx));
+	ctx.info = arg;
+	fsev = FSEventStreamCreate(kCFAllocatorMalloc, drive_hotplug_fsevent_callback, &ctx, pathsToWatch, kFSEventStreamEventIdSinceNow, 1, kFSEventStreamCreateFlagNone);
+
+	rdpdr->runLoop = CFRunLoopGetCurrent();
+	FSEventStreamScheduleWithRunLoop(fsev, rdpdr->runLoop, kCFRunLoopDefaultMode);
+	FSEventStreamStart(fsev);
+	CFRunLoopRun();
+	FSEventStreamStop(fsev);
+	FSEventStreamRelease(fsev);
+
+	ExitThread(CHANNEL_RC_OK);
+	return NULL;
+}
+
+
+/**
+ * Function description
+ *
+ * @return 0 on success, otherwise a Win32 error code
+ */
+static UINT drive_hotplug_thread_terminate(rdpdrPlugin* rdpdr)
+{
+	UINT error;
+	if (rdpdr->hotplugThread)
+	{
+		CFRunLoopStop(rdpdr->runLoop);
+
+		if (WaitForSingleObject(rdpdr->hotplugThread, INFINITE) == WAIT_FAILED)
+		{
+			error = GetLastError();
+			WLog_ERR(TAG, "WaitForSingleObject failed with error %lu!", error);
+			return error;
+		}
+		rdpdr->hotplugThread = NULL;
+	}
+	return CHANNEL_RC_OK;
+}
+
 #else
 
 #define MAX_USB_DEVICES 100
@@ -361,13 +666,13 @@ static char* get_word(char* str, unsigned int* offset)
 		(*offset)++;
 
 	word = malloc(wlen + 1);
-	
+
 	if (word != NULL)
 	{
 		CopyMemory(word, p, wlen);
 		word[wlen] = '\0';
 	}
-	
+
 	return word;
 }
 
@@ -506,7 +811,16 @@ cleanup:
 	for (i = 0; i < size; i++)
 		free (dev_array[i].path);
 
-	return error ? error : rdpdr_send_device_list_announce_request(rdpdr, TRUE);
+	return error;
+}
+
+void first_hotplug(rdpdrPlugin *rdpdr)
+{
+	UINT error;
+	if ((error = handle_hotplug(rdpdr)))
+	{
+		WLog_ERR(TAG, "handle_hotplug failed with error %lu!", error);
+	}
 }
 
 static void* drive_hotplug_thread_func(void* arg)
@@ -516,7 +830,7 @@ static void* drive_hotplug_thread_func(void* arg)
 	fd_set rfds;
 	struct timeval tv;
 	int rv;
-	UINT error;
+	UINT error = 0;
 	DWORD status;
 
 	rdpdr = (rdpdrPlugin*) arg;
@@ -542,12 +856,6 @@ static void* drive_hotplug_thread_func(void* arg)
 	tv.tv_sec = 1;
 	tv.tv_usec = 0;
 
-	if ((error = handle_hotplug(rdpdr)))
-	{
-		WLog_ERR(TAG, "handle_hotplug failed with error %lu!", error);
-		goto out;
-	}
-
 	while ((rv = select(mfd+1, NULL, NULL, &rfds, &tv)) >= 0)
 	{
 		status = WaitForSingleObject(rdpdr->stopEvent, 0);
@@ -568,6 +876,8 @@ static void* drive_hotplug_thread_func(void* arg)
 				WLog_ERR(TAG, "handle_hotplug failed with error %lu!", error);
 				goto out;
 			}
+			else
+				rdpdr_send_device_list_announce_request(rdpdr, TRUE);
 		}
 
 		FD_ZERO(&rfds);
@@ -643,6 +953,7 @@ static UINT rdpdr_process_connect(rdpdrPlugin* rdpdr)
 
 		if (device->Name && (strcmp(device->Name, "*") == 0))
 		{
+			first_hotplug(rdpdr);
 			if (!(rdpdr->hotplugThread = CreateThread(NULL, 0,
 					(LPTHREAD_START_ROUTINE) drive_hotplug_thread_func, rdpdr, 0, NULL)))
 			{
@@ -1426,7 +1737,8 @@ static void rdpdr_virtual_channel_event_terminated(rdpdrPlugin* rdpdr)
 	free(rdpdr);
 }
 
-static VOID VCAPITYPE rdpdr_virtual_channel_init_event(LPVOID pInitHandle, UINT event, LPVOID pData, UINT dataLength)
+static VOID VCAPITYPE rdpdr_virtual_channel_init_event(LPVOID pInitHandle, UINT event,
+						       LPVOID pData, UINT dataLength)
 {
 	rdpdrPlugin* rdpdr;
 	UINT error = CHANNEL_RC_OK;
@@ -1464,7 +1776,6 @@ static VOID VCAPITYPE rdpdr_virtual_channel_init_event(LPVOID pInitHandle, UINT 
 
 	if (error && rdpdr->rdpcontext)
 		setChannelError(rdpdr->rdpcontext, error, "rdpdr_virtual_channel_init_event reported an error");
-	return;
 }
 
 /* rdpdr is always built-in */

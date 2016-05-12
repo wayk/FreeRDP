@@ -41,6 +41,12 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # Include our extra modules
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/)
 
+if((CMAKE_SYSTEM_NAME MATCHES "WindowsStore") AND (CMAKE_SYSTEM_VERSION MATCHES "10.0"))
+	set(UWP 1)
+	add_definitions("-D_UWP")
+	set(CMAKE_WINDOWS_VERSION "WIN10")
+endif()
+
 # Check for cmake compatibility (enable/disable features)
 include(CheckCmakeCompat)
 
@@ -122,8 +128,10 @@ if(NOT DEFINED BUILD_SHARED_LIBS)
 	endif()
 endif()
 
-if(NOT DEFINED EXPORT_ALL_SYMBOLS)
-	set(EXPORT_ALL_SYMBOLS TRUE)
+if(BUILD_TESTING)
+    set(EXPORT_ALL_SYMBOLS TRUE)
+elseif(NOT DEFINED EXPORT_ALL_SYMBOLS)
+    set(EXPORT_ALL_SYMBOLS FALSE)
 endif()
 
 # BSD
@@ -215,10 +223,6 @@ if(CMAKE_COMPILER_IS_GNUCC)
 	if(CMAKE_BUILD_TYPE STREQUAL "Release")
 		set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG")
 		set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG")
-		if(NOT OPENBSD)
-			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2")
-			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
-		endif()
 
 		CHECK_C_COMPILER_FLAG (-Wno-builtin-macro-redefined Wno-builtin-macro-redefined)
 		if(Wno-builtin-macro-redefined)
@@ -279,6 +283,22 @@ if(${CMAKE_C_COMPILER_ID} STREQUAL "Clang" OR CMAKE_COMPILER_IS_GNUCC)
 			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-omit-frame-pointer")
 		endif()
 	endif()
+	if (WITH_NO_UNDEFINED)
+		if (DEFINED CMAKE_REQUIRED_FLAGS)
+			set(SAVE_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
+		endif()
+		set(CMAKE_REQUIRED_FLAGS "-Wl,--no-undefined")
+		CHECK_C_COMPILER_FLAG (-Wl,--no-undefined no-undefined)
+		if (DEFINED SAVE_CMAKE_REQUIRED_FLAGS)
+			set(CMAKE_REQUIRED_FLAGS ${SAVE_CMAKE_REQUIRED_FLAGS})
+			unset(SAVE_CMAKE_REQUIRED_FLAGS)
+		else()
+			unset(CMAKE_REQUIRED_FLAGS)
+		endif()
+		if(no-undefined)
+			SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined" )
+		endif()
+	endif()
 endif()
 
 if(MSVC)
@@ -321,6 +341,7 @@ if(WIN32)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUNICODE -D_UNICODE")
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_CRT_SECURE_NO_WARNINGS")
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWIN32_LEAN_AND_MEAN")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_WINSOCK_DEPRECATED_NO_WARNINGS")
 
 	set(CMAKE_USE_RELATIVE_PATH ON)
 	if (${CMAKE_GENERATOR} MATCHES "NMake Makefile*")
@@ -352,6 +373,9 @@ if(WIN32)
 	elseif(CMAKE_WINDOWS_VERSION STREQUAL "WIN8")
 		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWINVER=0x0602 -D_WIN32_WINNT=0x0602")
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWINVER=0x0602 -D_WIN32_WINNT=0x0602")
+	elseif(CMAKE_WINDOWS_VERSION STREQUAL "WIN10")
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWINVER=0x0A00 -D_WIN32_WINNT=0x0A00")
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWINVER=0x0A00 -D_WIN32_WINNT=0x0A00")
 	endif()
 
 	if (FREERDP_EXTERNAL_SSL_PATH)
@@ -698,17 +722,17 @@ if (TARGET_ARCH MATCHES "sparc")
 endif()
 
 # Path to put FreeRDP data
-set(FREERDP_DATA_PATH "${CMAKE_INSTALL_PREFIX}/share/freerdp")
+set(FREERDP_DATA_PATH "${CMAKE_INSTALL_PREFIX}/share/freerdp${FREERDP_VERSION_MAJOR}")
 
 # Path to put plugins
 
 set(FREERDP_LIBRARY_PATH "${CMAKE_INSTALL_LIBDIR}")
 
-set(FREERDP_PLUGIN_PATH "${CMAKE_INSTALL_LIBDIR}/freerdp")
+set(FREERDP_PLUGIN_PATH "${CMAKE_INSTALL_LIBDIR}/freerdp${FREERDP_VERSION_MAJOR}")
 set(FREERDP_ADDIN_PATH "${FREERDP_PLUGIN_PATH}")
 
 # Path to put extensions
-set(FREERDP_EXTENSION_PATH "${CMAKE_INSTALL_FULL_LIBDIR}/freerdp/extensions")
+set(FREERDP_EXTENSION_PATH "${CMAKE_INSTALL_FULL_LIBDIR}/freerdp${FREERDP_VERSION_MAJOR}/extensions")
 
 # Include directories
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
@@ -768,6 +792,14 @@ endif()
 include_directories("${CMAKE_SOURCE_DIR}/winpr/include")
 include_directories("${CMAKE_BINARY_DIR}/winpr/include")
 
+if (${CMAKE_VERSION} VERSION_LESS 2.8.12)
+	set(PUBLIC_KEYWORD "")
+	set(PRIVATE_KEYWORD "")
+else()
+	set(PUBLIC_KEYWORD "PUBLIC")
+	set(PRIVATE_KEYWORD "PRIVATE")
+endif()
+
 add_subdirectory(winpr)
 
 # Sub-directories
@@ -789,6 +821,10 @@ include_directories("${CMAKE_BINARY_DIR}/rdtk/include")
 
 add_subdirectory(rdtk)
 
+if(WAYLAND_FOUND)
+    add_subdirectory(uwac)
+endif()
+
 if(BSD)
 	if(IS_DIRECTORY /usr/local/include)
 		include_directories(/usr/local/include)
@@ -803,14 +839,6 @@ endif()
 
 if(WITH_CHANNELS)
 	add_subdirectory(channels)
-endif()
-
-if (${CMAKE_VERSION} VERSION_LESS 2.8.12)
-	set(PUBLIC_KEYWORD "")
-	set(PRIVATE_KEYWORD "")
-else()
-	set(PUBLIC_KEYWORD "PUBLIC")
-	set(PRIVATE_KEYWORD "PRIVATE")
 endif()
 
 if(WITH_CLIENT_COMMON OR WITH_CLIENT)

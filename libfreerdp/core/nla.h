@@ -27,6 +27,7 @@ typedef struct rdp_nla rdpNla;
 
 #include <winpr/sspi.h>
 #include <winpr/stream.h>
+#include <winpr/crypto.h>
 
 #include <freerdp/crypto/tls.h>
 #include <freerdp/crypto/ber.h>
@@ -41,6 +42,7 @@ enum _NLA_STATE
 	NLA_STATE_NEGO_TOKEN,
 	NLA_STATE_PUB_KEY_AUTH,
 	NLA_STATE_AUTH_INFO,
+	NLA_STATE_POST_NEGO,
 	NLA_STATE_FINAL
 };
 typedef enum _NLA_STATE NLA_STATE;
@@ -57,6 +59,8 @@ struct rdp_nla
 	rdpSettings* settings;
 	rdpTransport* transport;
 	UINT32 cbMaxToken;
+	UINT32 version;
+	UINT32 errorCode;
 	ULONG fContextReq;
 	ULONG pfContextAttr;
 	BOOL haveContext;
@@ -75,7 +79,7 @@ struct rdp_nla
 	SecBuffer authInfo;
 	SecBuffer PublicKey;
 	SecBuffer tsCredentials;
-	CryptoRc4 rc4SealState;
+	WINPR_RC4_CTX rc4SealState;
 	LPTSTR ServicePrincipalName;
 	SEC_WINNT_AUTH_IDENTITY* identity;
 	PSecurityFunctionTable table;
