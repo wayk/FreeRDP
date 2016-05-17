@@ -73,6 +73,7 @@ BOOL mac_end_paint(rdpContext* context);
 - (void)dealloc
 {
     self.delegate = nil;
+	free(frameBuffer);
     
     [super dealloc];
 }
@@ -898,7 +899,7 @@ BOOL mac_post_connect(freerdp* instance)
     }
     else
     {
-        client->frameBuffer->fbBitsPerPixel = 32;
+		client->frameBuffer->fbBitsPerPixel = 32;
         client->frameBuffer->fbBytesPerPixel = 4;
         client->frameBuffer->fbWidth = settings->DesktopWidth;
         client->frameBuffer->fbHeight = settings->DesktopHeight;
@@ -919,8 +920,8 @@ BOOL mac_post_connect(freerdp* instance)
 				if (client->frameBuffer->fbSharedMemory != MAP_FAILED)
                 {
                     gdi_init(instance, flags, client->frameBuffer->fbSharedMemory);
-					WLog_DBG(TAG, "gdi initilialized with shared memory name:%s Id:%d addr:%p size:%d", shmName,
-							 client->frameBuffer->fbSegmentId, client->frameBuffer->fbSharedMemory, shmemSize);
+					WLog_DBG(TAG, "gdi initilialized with shared memory name:%s Id:%d addr:%p size:%d gdi primary %p", shmName,
+							 client->frameBuffer->fbSegmentId, client->frameBuffer->fbSharedMemory, shmemSize, instance->context->gdi->primary_buffer);
                 }
                 else
                 {
@@ -1382,7 +1383,7 @@ BOOL mac_desktop_resize(rdpContext* context)
     MRDPClient* client = (MRDPClient *)mfc->client;
     id<MRDPClientDelegate> view = (id<MRDPClientDelegate>)client.delegate;
     rdpSettings* settings = context->settings;
-	WLog_DBG(TAG, "mac_desktop_resize %d x %d", settings->DesktopWidth, settings->DesktopHeight);
+	WLog_DBG(TAG, "mac_desktop_resize %p %d x %d", context->gdi->bitmap_buffer, settings->DesktopWidth, settings->DesktopHeight);
     
     /**
      * TODO: Fix resizing race condition. We should probably implement a message to be
@@ -1401,35 +1402,29 @@ BOOL mac_desktop_resize(rdpContext* context)
 	}
 	else
 	{
-		RDS_FRAMEBUFFER* frameBuffer = client->frameBuffer;
-		size_t shmemSize = frameBuffer->fbScanline * frameBuffer->fbHeight;
-		if (munmap(frameBuffer->fbSharedMemory, shmemSize) != 0)
-		{
-			WLog_DBG(TAG, "Failed to unmap shared memory object: %s (%d)", strerror(errno), errno);
-		}
+		RDS_FRAMEBUFFER* oldFrameBuffer = client->frameBuffer;
+		RDS_FRAMEBUFFER* newFrameBuffer = (RDS_FRAMEBUFFER *) malloc(sizeof(RDS_FRAMEBUFFER));
 		
-		ZeroMemory(frameBuffer, sizeof(RDS_FRAMEBUFFER));
-		
-		frameBuffer->fbBitsPerPixel = 32;
-		frameBuffer->fbBytesPerPixel = 4;
-		frameBuffer->fbWidth = settings->DesktopWidth;
-		frameBuffer->fbHeight = settings->DesktopHeight;
-		frameBuffer->fbScanline = frameBuffer->fbWidth * frameBuffer->fbBytesPerPixel;
-		shmemSize = frameBuffer->fbScanline * frameBuffer->fbHeight;
+		newFrameBuffer->fbBitsPerPixel = 32;
+		newFrameBuffer->fbBytesPerPixel = 4;
+		newFrameBuffer->fbWidth = settings->DesktopWidth;
+		newFrameBuffer->fbHeight = settings->DesktopHeight;
+		newFrameBuffer->fbScanline = newFrameBuffer->fbWidth * newFrameBuffer->fbBytesPerPixel;
+		size_t shmemSize = newFrameBuffer->fbScanline * newFrameBuffer->fbHeight;
 		const char* shmName = [view.renderBufferName UTF8String];
-		frameBuffer->fbSegmentId = shm_open(shmName, (O_CREAT | O_EXCL | O_RDWR), 0600);
+		newFrameBuffer->fbSegmentId = shm_open(shmName, (O_CREAT | O_EXCL | O_RDWR), 0600);
 		
-		if (frameBuffer->fbSegmentId >= 0)
+		if (newFrameBuffer->fbSegmentId >= 0)
 		{
 			BOOL error = false;
-			if (ftruncate(frameBuffer->fbSegmentId, shmemSize) == 0)
+			if (ftruncate(newFrameBuffer->fbSegmentId, shmemSize) == 0)
 			{
-				frameBuffer->fbSharedMemory = mmap(NULL, shmemSize, (PROT_READ | PROT_WRITE), MAP_SHARED,
-														   frameBuffer->fbSegmentId, 0);
-				if (frameBuffer->fbSharedMemory != MAP_FAILED)
+				newFrameBuffer->fbSharedMemory = mmap(NULL, shmemSize, (PROT_READ | PROT_WRITE), MAP_SHARED,
+														   newFrameBuffer->fbSegmentId, 0);
+				if (newFrameBuffer->fbSharedMemory != MAP_FAILED)
 				{
-					gdi_reinit(context->gdi, frameBuffer->fbSharedMemory, frameBuffer->fbWidth, frameBuffer->fbWidth);
-					WLog_DBG(TAG, "gdi initilialized with shared memory name:%s Id:%d addr:%p size:%d", shmName, frameBuffer->fbSegmentId, frameBuffer->fbSharedMemory, shmemSize);
+					gdi_reinit(context->gdi, newFrameBuffer->fbSharedMemory, newFrameBuffer->fbWidth, newFrameBuffer->fbHeight);
+					WLog_DBG(TAG, "gdi initilialized with shared memory name:%s Id:%d addr:%p size:%d %p", shmName, newFrameBuffer->fbSegmentId, newFrameBuffer->fbSharedMemory, shmemSize, context->gdi->primary_buffer);
 				}
 				else
 				{
@@ -1444,7 +1439,7 @@ BOOL mac_desktop_resize(rdpContext* context)
 			}
 			
 			// Note: sharedMemory still valid until munmap() called
-			close(frameBuffer->fbSegmentId);
+			close(newFrameBuffer->fbSegmentId);
 			if (error)
 			{
 				if (shm_unlink([view.renderBufferName UTF8String]) != 0)
@@ -1459,6 +1454,14 @@ BOOL mac_desktop_resize(rdpContext* context)
 			WLog_DBG(TAG, "Failed to open shared memory object: %s (%d)", strerror(errno), errno);
 			return false;
 		}
+		
+		client->frameBuffer = newFrameBuffer;
+		shmemSize = oldFrameBuffer->fbScanline * oldFrameBuffer->fbHeight;
+		if (munmap(oldFrameBuffer->fbSharedMemory, shmemSize) != 0)
+		{
+			WLog_DBG(TAG, "Failed to unmap shared memory object: %s (%d)", strerror(errno), errno);
+		}
+		free(oldFrameBuffer);
 	}
 	
 	NSSize size = NSMakeSize(mfc->width, mfc->height);
