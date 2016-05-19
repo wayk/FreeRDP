@@ -589,7 +589,7 @@ BOOL csharp_check_event_handles(void* instance, void* buffer)
 	
 	result = freerdp_check_event_handles(inst->context);
     
-	return result < 0 ? FALSE : TRUE;
+	return result != 1;
 }
 
 void csharp_freerdp_send_unicode(void* instance, int character)
