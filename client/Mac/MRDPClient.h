@@ -40,7 +40,8 @@ typedef struct _RDS_FRAMEBUFFER RDS_FRAMEBUFFER;
 	@public
 	bool is_connected;
 	bool isReadOnly;
-	bool altTabKeyPressed;
+	bool cmdTabInProgress;
+    bool cmdComboUsed;
 	RDS_FRAMEBUFFER* frameBuffer;
 	id<MRDPClientDelegate> delegate;
 	NSPasteboard* pasteboard_rd;

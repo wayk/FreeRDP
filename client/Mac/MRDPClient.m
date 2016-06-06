@@ -227,7 +227,8 @@ BOOL mac_end_paint(rdpContext* context);
 
 - (void)resignActive
 {
-    altTabKeyPressed = false;
+    cmdTabInProgress = false;
+    cmdComboUsed = false;
 	freerdp_input_send_keyboard_event(context->input, 0 | KBD_FLAGS_RELEASE, 0x2A); /*Left shift*/
 	freerdp_input_send_keyboard_event(context->input, 0 | KBD_FLAGS_RELEASE, 0x36); /*Right shift*/
 	freerdp_input_send_keyboard_event(context->input, 0 | KBD_FLAGS_RELEASE, 0x38); /*Alt*/
@@ -461,16 +462,16 @@ BOOL mac_end_paint(rdpContext* context);
              keyCode, scancode, vkcode, keyFlags, GetVirtualKeyName(vkcode));
 #endif
     
-    if (altTabKeyPressed)
+    if (cmdTabInProgress)
     {
         if (vkcode == VK_TAB)
         {
-            altTabKeyPressed = false;
+            cmdTabInProgress = false;
         }
         else
         {
+            cmdComboUsed = true;
             freerdp_input_send_keyboard_event(instance->input, 256 | KBD_FLAGS_DOWN, 0x005B);
-            altTabKeyPressed = false;
         }
     }
     
@@ -480,6 +481,11 @@ BOOL mac_end_paint(rdpContext* context);
     {
         //For some reasons, keyUp isn't called when Command is held down.
         freerdp_input_send_keyboard_event(instance->input, KBD_FLAGS_RELEASE, 0x1D); /* VK_LCONTROL, RELEASE */
+    }
+    
+    if(cmdTabInProgress)
+    {
+        freerdp_input_send_keyboard_event(instance->input, 256 | KBD_FLAGS_RELEASE, 0x005B);
     }
 }
 
@@ -590,17 +596,18 @@ BOOL mac_end_paint(rdpContext* context);
     {
         if ((modFlags & NSCommandKeyMask) && !(kbdModFlags & NSCommandKeyMask))
         {
-            altTabKeyPressed = true;
+            cmdTabInProgress = true;
         }
         else if (!(modFlags & NSCommandKeyMask) && (kbdModFlags & NSCommandKeyMask))
         {
-            if (altTabKeyPressed)
+            if (cmdTabInProgress && !cmdComboUsed)
             {
                 freerdp_input_send_keyboard_event(instance->input, 256 | KBD_FLAGS_DOWN, 0x005B);
-                altTabKeyPressed = false;
+                freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_RELEASE, scancode);
             }
-
-            freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_RELEASE, scancode);
+            
+            cmdTabInProgress = false;
+            cmdComboUsed = false;
         }
     }
     
