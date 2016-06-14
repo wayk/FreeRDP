@@ -219,7 +219,25 @@
 
 - (BOOL)acceptsFirstResponder
 {
-	return YES;
+    return YES;
+}
+
+- (BOOL)resignFirstResponder
+{
+    if(self.delegate == nil)
+        return YES;
+    
+    mfContext* mfCtx = (mfContext*)instance->context;
+    if(mfCtx == nil)
+        return YES;
+    
+    MRDPClient* client = (MRDPClient *)mfCtx->client;
+    if(client == nil)
+        return YES;
+
+    [client performSelector:@selector(resignActive) withObject:nil afterDelay:0.0];
+    
+    return YES;
 }
 
 - (void)mouseMoved:(NSEvent *)event
