@@ -1,7 +1,7 @@
-#include "devolutionsrdp.h"
 #include <freerdp/channels/channels.h>
 #include <freerdp/client/channels.h>
 #include <freerdp/client/cmdline.h>
+#include <freerdp/client/cliprdr.h>
 #include <freerdp/event.h>
 #include <freerdp/gdi/gdi.h>
 #include <freerdp/gdi/gfx.h>
@@ -10,17 +10,10 @@
 #include <freerdp/log.h>
 #include <winpr/environment.h>
 
-struct csharp_context
-{
-	rdpContext _p;
-    
-	void* buffer;
-	
-	fnRegionUpdated regionUpdated;
-    
-    fnOnError onError;
-};
-typedef struct csharp_context csContext;
+#include "devolutionsrdp.h"
+#include "clipboard.h"
+
+#define TAG "devolutionsrdp"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -134,18 +127,31 @@ static void cs_send_unicode_key(freerdp* instance, int vk)
 
 void cs_OnChannelConnectedEventHandler(rdpContext* context, ChannelConnectedEventArgs* e)
 {
+	csContext* csc = (csContext*)context->instance->context;
+
     if (strcmp(e->name, RDPGFX_DVC_CHANNEL_NAME) == 0)
     {
         gdi_graphics_pipeline_init(context->gdi, (RdpgfxClientContext*) e->pInterface);
     }
+    else if (strcmp(e->name, CLIPRDR_SVC_CHANNEL_NAME) == 0)
+	{
+        WLog_ERR(TAG, "RemoteFX FTW!\n");
+		cs_cliprdr_init(csc, (CliprdrClientContext*) e->pInterface);
+	}
 }
 
 void cs_OnChannelDisconnectedEventHandler(rdpContext* context, ChannelDisconnectedEventArgs* e)
 {
+	csContext* csc = (csContext*)context->instance->context;
+
     if (strcmp(e->name, RDPGFX_DVC_CHANNEL_NAME) == 0)
     {
         gdi_graphics_pipeline_uninit(context->gdi, (RdpgfxClientContext*) e->pInterface);
     }
+    else if (strcmp(e->name, CLIPRDR_SVC_CHANNEL_NAME) == 0)
+	{
+		cs_cliprdr_uninit(csc, (CliprdrClientContext*) e->pInterface);
+	}
 }
 
 static BOOL cs_context_new(freerdp* instance, rdpContext* context)
@@ -168,6 +174,7 @@ static void cs_context_free(freerdp* instance, rdpContext* context)
 
 static BOOL cs_pre_connect(freerdp* instance)
 {
+	int rc;
     rdpContext* context = instance->context;
 	rdpSettings* settings = instance->settings;
 	BOOL bitmap_cache = settings->BitmapCacheEnabled;
@@ -199,26 +206,37 @@ static BOOL cs_pre_connect(freerdp* instance)
 	settings->OrderSupport[NEG_ELLIPSE_CB_INDEX] = FALSE;
 
 //	settings->FrameAcknowledge = 10;
-
-//	freerdp_register_addin_provider(freerdp_channels_load_static_addin_entry, 0);
-//	freerdp_client_load_addins(instance->context->channels, instance->settings);
     
     PubSub_SubscribeChannelConnected(context->pubSub,
                                      (pChannelConnectedEventHandler) cs_OnChannelConnectedEventHandler);
     PubSub_SubscribeChannelDisconnected(context->pubSub,
                                         (pChannelDisconnectedEventHandler) cs_OnChannelDisconnectedEventHandler);
 
-//  freerdp_client_load_addins(context->channels, instance->settings);
-    freerdp_channels_pre_connect(context->channels, instance);
+    rc = freerdp_register_addin_provider(freerdp_channels_load_static_addin_entry, 0);
+	if (rc != CHANNEL_RC_OK)
+	{
+		WLog_ERR(TAG, "Failed to register addin provider [%l08X]", rc);
+		return FALSE;
+	}
+
+	if (!freerdp_client_load_addins(instance->context->channels, instance->settings))
+	{
+		WLog_ERR(TAG, "Failed to load addins [%l08X]", GetLastError());
+		return FALSE;
+	}
+
+    rc = freerdp_channels_pre_connect(context->channels, instance);
+    if (rc != CHANNEL_RC_OK)
+	{
+		WLog_ERR(TAG, "freerdp_channels_pre_connect failed with %l08X", rc);
+		return FALSE;
+	}
     
     if (!context->cache)
     {
         if (!(context->cache = cache_new(settings)))
             return FALSE;
     }
-
-    
-//	freerdp_channels_pre_connect(instance->context->channels, instance);
 
 	return TRUE;
 }
@@ -266,7 +284,6 @@ static BOOL cs_post_connect(freerdp* instance)
 {
 	UINT32 gdi_flags;
     rdpUpdate* update;
-	rdpSettings *settings = instance->settings;
 
     update = instance->context->update;
     
@@ -294,8 +311,8 @@ static BOOL cs_post_connect(freerdp* instance)
 
 static void cs_post_disconnect(freerdp* instance)
 {
-    rdpContext* context;
-    context = instance->context;
+    rdpContext* context = instance->context;
+    csContext* csCtxt = (csContext*)instance->context;
     
     freerdp_channels_disconnect(context->channels, instance);
     
@@ -330,13 +347,7 @@ void cs_error_info(void* ctx, ErrorInfoEventArgs* e)
     
     if (csc->onError)
     {
-        WLog_ERR("Devolutions", "Before Error callback");
         csc->onError(context->instance, e->code);
-        WLog_ERR("Devolutions", "After Error callback");
-    }
-    else
-    {
-        WLog_ERR("Devolutions", "No error callback");
     }
 }
 
@@ -483,6 +494,8 @@ BOOL csharp_freerdp_set_connection_info(void* instance, const char* hostname, co
 //    settings->GfxH264 = TRUE;
 //    settings->GfxProgressive = TRUE;
 //    settings->GfxProgressiveV2 = TRUE;
+    settings->RedirectClipboard = TRUE;
+    settings->SupportGraphicsPipeline = FALSE;
 
 	switch (security)
 	{
@@ -604,7 +617,6 @@ void csharp_freerdp_send_vkcode(void* instance, int vkcode, BOOL down)
 
 void csharp_freerdp_send_input(void* instance, int character, BOOL down)
 {
-    int flags;
     BOOL shift_was_sent = FALSE;
     
     // Send as is.
@@ -651,6 +663,37 @@ void csharp_freerdp_send_cursor_event(void* instance, int x, int y, int flags)
     freerdp_input_send_mouse_event(((freerdp*)instance)->input, flags, x, y);
 }
 
+void csharp_freerdp_send_clipboard_data(void* instance, BYTE* buffer, int length)
+{
+    int size;
+    BYTE* data;
+    UINT32 formatId;
+
+    freerdp* inst = (freerdp*)instance;
+    csContext* ctxt = (csContext*)inst->context;
+
+    formatId = ClipboardRegisterFormat(ctxt->clipboard, "UTF8_STRING");
+
+    if (length)
+    {
+        size = length + 1;
+        data = (BYTE*) malloc(size);
+
+        if (!data)
+            return;
+
+        CopyMemory(data, buffer, size);
+        data[size] = '\0';
+        ClipboardSetData(ctxt->clipboard, formatId, (void*) data, size);
+    }
+    else
+    {
+        ClipboardEmpty(ctxt->clipboard);
+    }
+
+    cs_cliprdr_send_client_format_list(ctxt->cliprdr);
+}
+
 void csharp_set_log_output(const char* path, const char* name)
 {
     SetEnvironmentVariableA("WLOG_APPENDER", "FILE");
@@ -666,18 +709,19 @@ void csharp_set_on_authenticate(void* instance, pAuthenticate fn)
 	inst->Authenticate = fn;
 }
 
+void csharp_set_on_clipboard_update(void* instance, fnOnClipboardUpdate fn)
+{
+	freerdp* inst = (freerdp*)instance;
+    csContext* ctxt = (csContext*)inst->context;
+    
+    ctxt->onClipboardUpdate = fn;
+}
+
 void csharp_set_on_gateway_authenticate(void* instance, pAuthenticate fn)
 {
 	freerdp* inst = (freerdp*)instance;
 	
 	inst->GatewayAuthenticate = fn;
-}
-
-void csharp_set_on_disconnect(void* instance, pPostDisconnect fn)
-{
-	freerdp* inst = (freerdp*)instance;
-	
-	inst->PostDisconnect = fn;
 }
 
 void csharp_set_on_verify_certificate(void* instance, pVerifyCertificate fn)
