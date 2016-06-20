@@ -58,7 +58,7 @@ static UINT rdpgfx_send_caps_advertise_pdu(RDPGFX_CHANNEL_CALLBACK* callback)
 	RDPGFX_PLUGIN* gfx;
 	RDPGFX_HEADER header;
 	RDPGFX_CAPSET* capsSet;
-	RDPGFX_CAPSET capsSets[2];
+	RDPGFX_CAPSET capsSets[3];
 	RDPGFX_CAPS_ADVERTISE_PDU pdu;
 
 	gfx = (RDPGFX_PLUGIN*) callback->plugin;
@@ -90,11 +90,24 @@ static UINT rdpgfx_send_caps_advertise_pdu(RDPGFX_CHANNEL_CALLBACK* callback)
 		capsSet->flags |= RDPGFX_CAPS_FLAG_SMALL_CACHE;
 
 	if (gfx->H264)
-		capsSet->flags |= RDPGFX_CAPS_FLAG_H264ENABLED;
+		capsSet->flags |= RDPGFX_CAPS_FLAG_AVC420_ENABLED;
+
+	if (gfx->AVC444)
+	{
+		capsSet = &capsSets[pdu.capsSetCount++];
+		capsSet->version = RDPGFX_CAPVERSION_10;
+		capsSet->flags = 0;
+
+		if (gfx->SmallCache)
+			capsSet->flags |= RDPGFX_CAPS_FLAG_SMALL_CACHE;
+
+		if (!gfx->H264)
+			capsSet->flags |= RDPGFX_CAPS_FLAG_AVC_DISABLED;
+	}
 
 	header.pduLength = RDPGFX_HEADER_SIZE + 2 + (pdu.capsSetCount * RDPGFX_CAPSET_SIZE);
 
-	WLog_DBG(TAG, "SendCapsAdvertisePdu");
+	WLog_DBG(TAG, "SendCapsAdvertisePdu %d", pdu.capsSetCount);
 
 	s = Stream_New(NULL, header.pduLength);
 	if (!s)
@@ -145,7 +158,7 @@ static UINT rdpgfx_recv_caps_confirm_pdu(RDPGFX_CHANNEL_CALLBACK* callback, wStr
 
 	if (Stream_GetRemainingLength(s) < 12)
 	{
-		WLog_ERR(TAG, "not enought data!");
+		WLog_ERR(TAG, "not enough data!");
 		return ERROR_INVALID_DATA;
 	}
 
@@ -219,7 +232,7 @@ static UINT rdpgfx_recv_reset_graphics_pdu(RDPGFX_CHANNEL_CALLBACK* callback, wS
 
 	if (Stream_GetRemainingLength(s) < 12)
 	{
-		WLog_ERR(TAG, "not enought data!");
+		WLog_ERR(TAG, "not enough data!");
 		return ERROR_INVALID_DATA;
 	}
 
@@ -229,7 +242,7 @@ static UINT rdpgfx_recv_reset_graphics_pdu(RDPGFX_CHANNEL_CALLBACK* callback, wS
 
 	if (Stream_GetRemainingLength(s) < (pdu.monitorCount * 20))
 	{
-		WLog_ERR(TAG, "not enought data!");
+		WLog_ERR(TAG, "not enough data!");
 		return ERROR_INVALID_DATA;
 	}
 
@@ -291,7 +304,7 @@ static UINT rdpgfx_recv_evict_cache_entry_pdu(RDPGFX_CHANNEL_CALLBACK* callback,
 
 	if (Stream_GetRemainingLength(s) < 2)
 	{
-		WLog_ERR(TAG, "not enought data!");
+		WLog_ERR(TAG, "not enough data!");
 		return ERROR_INVALID_DATA;
 	}
 
@@ -324,7 +337,7 @@ UINT rdpgfx_recv_cache_import_reply_pdu(RDPGFX_CHANNEL_CALLBACK* callback, wStre
 
 	if (Stream_GetRemainingLength(s) < 2)
 	{
-		WLog_ERR(TAG, "not enought data!");
+		WLog_ERR(TAG, "not enough data!");
 		return ERROR_INVALID_DATA;
 	}
 
@@ -332,7 +345,7 @@ UINT rdpgfx_recv_cache_import_reply_pdu(RDPGFX_CHANNEL_CALLBACK* callback, wStre
 
 	if (Stream_GetRemainingLength(s) < (size_t) (pdu.importedEntriesCount * 2))
 	{
-		WLog_ERR(TAG, "not enought data!");
+		WLog_ERR(TAG, "not enough data!");
 		return ERROR_INVALID_DATA;
 	}
 
@@ -378,7 +391,7 @@ static UINT rdpgfx_recv_create_surface_pdu(RDPGFX_CHANNEL_CALLBACK* callback, wS
 
 	if (Stream_GetRemainingLength(s) < 7)
 	{
-		WLog_ERR(TAG, "not enought data!");
+		WLog_ERR(TAG, "not enough data!");
 		return ERROR_INVALID_DATA;
 	}
 
@@ -414,7 +427,7 @@ UINT rdpgfx_recv_delete_surface_pdu(RDPGFX_CHANNEL_CALLBACK* callback, wStream* 
 
 	if (Stream_GetRemainingLength(s) < 2)
 	{
-		WLog_ERR(TAG, "not enought data!");
+		WLog_ERR(TAG, "not enough data!");
 		return ERROR_INVALID_DATA;
 	}
 
@@ -446,7 +459,7 @@ static UINT rdpgfx_recv_start_frame_pdu(RDPGFX_CHANNEL_CALLBACK* callback, wStre
 
 	if (Stream_GetRemainingLength(s) < 8)
 	{
-		WLog_ERR(TAG, "not enought data!");
+		WLog_ERR(TAG, "not enough data!");
 		return ERROR_INVALID_DATA;
 	}
 
@@ -483,7 +496,7 @@ static UINT rdpgfx_recv_end_frame_pdu(RDPGFX_CHANNEL_CALLBACK* callback, wStream
 
 	if (Stream_GetRemainingLength(s) < 4)
 	{
-		WLog_ERR(TAG, "not enought data!");
+		WLog_ERR(TAG, "not enough data!");
 		return ERROR_INVALID_DATA;
 	}
 
@@ -539,7 +552,7 @@ static UINT rdpgfx_recv_wire_to_surface_1_pdu(RDPGFX_CHANNEL_CALLBACK* callback,
 
 	if (Stream_GetRemainingLength(s) < 17)
 	{
-		WLog_ERR(TAG, "not enought data!");
+		WLog_ERR(TAG, "not enough data!");
 		return ERROR_INVALID_DATA;
 	}
 
@@ -557,7 +570,7 @@ static UINT rdpgfx_recv_wire_to_surface_1_pdu(RDPGFX_CHANNEL_CALLBACK* callback,
 
 	if (pdu.bitmapDataLength > Stream_GetRemainingLength(s))
 	{
-		WLog_ERR(TAG, "not enought data!");
+		WLog_ERR(TAG, "not enough data!");
 		return ERROR_INVALID_DATA;
 	}
 
@@ -604,7 +617,7 @@ static UINT rdpgfx_recv_wire_to_surface_2_pdu(RDPGFX_CHANNEL_CALLBACK* callback,
 
 	if (Stream_GetRemainingLength(s) < 13)
 	{
-		WLog_ERR(TAG, "not enought data!");
+		WLog_ERR(TAG, "not enough data!");
 		return ERROR_INVALID_DATA;
 	}
 
@@ -660,7 +673,7 @@ static UINT rdpgfx_recv_delete_encoding_context_pdu(RDPGFX_CHANNEL_CALLBACK* cal
 
 	if (Stream_GetRemainingLength(s) < 6)
 	{
-		WLog_ERR(TAG, "not enought data!");
+		WLog_ERR(TAG, "not enough data!");
 		return ERROR_INVALID_DATA;
 	}
 
@@ -688,7 +701,7 @@ static UINT rdpgfx_recv_delete_encoding_context_pdu(RDPGFX_CHANNEL_CALLBACK* cal
 UINT rdpgfx_recv_solid_fill_pdu(RDPGFX_CHANNEL_CALLBACK* callback, wStream* s)
 {
 	UINT16 index;
-	RDPGFX_RECT16* fillRect;
+	RECTANGLE_16* fillRect;
 	RDPGFX_SOLID_FILL_PDU pdu;
 	RDPGFX_PLUGIN* gfx = (RDPGFX_PLUGIN*) callback->plugin;
 	RdpgfxClientContext* context = (RdpgfxClientContext*) gfx->iface.pInterface;
@@ -696,7 +709,7 @@ UINT rdpgfx_recv_solid_fill_pdu(RDPGFX_CHANNEL_CALLBACK* callback, wStream* s)
 
 	if (Stream_GetRemainingLength(s) < 8)
 	{
-		WLog_ERR(TAG, "not enought data!");
+		WLog_ERR(TAG, "not enough data!");
 		return ERROR_INVALID_DATA;
 	}
 
@@ -710,11 +723,11 @@ UINT rdpgfx_recv_solid_fill_pdu(RDPGFX_CHANNEL_CALLBACK* callback, wStream* s)
 
 	if (Stream_GetRemainingLength(s) < (size_t) (pdu.fillRectCount * 8))
 	{
-		WLog_ERR(TAG, "not enought data!");
+		WLog_ERR(TAG, "not enough data!");
 		return ERROR_INVALID_DATA;
 	}
 
-	pdu.fillRects = (RDPGFX_RECT16*) calloc(pdu.fillRectCount, sizeof(RDPGFX_RECT16));
+	pdu.fillRects = (RECTANGLE_16*) calloc(pdu.fillRectCount, sizeof(RECTANGLE_16));
 
 	if (!pdu.fillRects)
 	{
@@ -742,7 +755,7 @@ UINT rdpgfx_recv_solid_fill_pdu(RDPGFX_CHANNEL_CALLBACK* callback, wStream* s)
 		if (error)
 			WLog_ERR(TAG, "context->SolidFill failed with error %lu", error);
 	}
-	
+
 	free(pdu.fillRects);
 
 	return error;
@@ -764,7 +777,7 @@ static UINT rdpgfx_recv_surface_to_surface_pdu(RDPGFX_CHANNEL_CALLBACK* callback
 
 	if (Stream_GetRemainingLength(s) < 14)
 	{
-		WLog_ERR(TAG, "not enought data!");
+		WLog_ERR(TAG, "not enough data!");
 		return ERROR_INVALID_DATA;
 	}
 
@@ -780,7 +793,7 @@ static UINT rdpgfx_recv_surface_to_surface_pdu(RDPGFX_CHANNEL_CALLBACK* callback
 
 	if (Stream_GetRemainingLength(s) < (size_t) (pdu.destPtsCount * 4))
 	{
-		WLog_ERR(TAG, "not enought data!");
+		WLog_ERR(TAG, "not enough data!");
 		return ERROR_INVALID_DATA;
 	}
 
@@ -835,7 +848,7 @@ static UINT rdpgfx_recv_surface_to_cache_pdu(RDPGFX_CHANNEL_CALLBACK* callback, 
 
 	if (Stream_GetRemainingLength(s) < 20)
 	{
-		WLog_ERR(TAG, "not enought data!");
+		WLog_ERR(TAG, "not enough data!");
 		return ERROR_INVALID_DATA;
 	}
 
@@ -880,7 +893,7 @@ UINT rdpgfx_recv_cache_to_surface_pdu(RDPGFX_CHANNEL_CALLBACK* callback, wStream
 
 	if (Stream_GetRemainingLength(s) < 6)
 	{
-		WLog_ERR(TAG, "not enought data!");
+		WLog_ERR(TAG, "not enough data!");
 		return ERROR_INVALID_DATA;
 	}
 
@@ -890,7 +903,7 @@ UINT rdpgfx_recv_cache_to_surface_pdu(RDPGFX_CHANNEL_CALLBACK* callback, wStream
 
 	if (Stream_GetRemainingLength(s) < (size_t) (pdu.destPtsCount * 4))
 	{
-		WLog_ERR(TAG, "not enought data!");
+		WLog_ERR(TAG, "not enough data!");
 		return ERROR_INVALID_DATA;
 	}
 
@@ -942,7 +955,7 @@ static UINT rdpgfx_recv_map_surface_to_output_pdu(RDPGFX_CHANNEL_CALLBACK* callb
 
 	if (Stream_GetRemainingLength(s) < 12)
 	{
-		WLog_ERR(TAG, "not enought data!");
+		WLog_ERR(TAG, "not enough data!");
 		return ERROR_INVALID_DATA;
 	}
 
@@ -978,7 +991,7 @@ UINT rdpgfx_recv_map_surface_to_window_pdu(RDPGFX_CHANNEL_CALLBACK* callback, wS
 
 	if (Stream_GetRemainingLength(s) < 18)
 	{
-		WLog_ERR(TAG, "not enought data!");
+		WLog_ERR(TAG, "not enough data!");
 		return ERROR_INVALID_DATA;
 	}
 
@@ -1515,6 +1528,8 @@ void* rdpgfx_get_cache_slot_data(RdpgfxClientContext* context, UINT16 cacheSlot)
 
 #ifdef STATIC_CHANNELS
 #define DVCPluginEntry		rdpgfx_DVCPluginEntry
+#else
+#define DVCPluginEntry		FREERDP_API DVCPluginEntry
 #endif
 
 /**
@@ -1561,6 +1576,7 @@ UINT DVCPluginEntry(IDRDYNVC_ENTRY_POINTS* pEntryPoints)
 		gfx->Progressive = gfx->settings->GfxProgressive;
 		gfx->ProgressiveV2 = gfx->settings->GfxProgressiveV2;
 		gfx->H264 = gfx->settings->GfxH264;
+		gfx->AVC444 = gfx->settings->GfxAVC444;
 
 		if (gfx->H264)
 			gfx->SmallCache = TRUE;
@@ -1569,7 +1585,6 @@ UINT DVCPluginEntry(IDRDYNVC_ENTRY_POINTS* pEntryPoints)
 			gfx->ThinClient = FALSE;
 
 		gfx->MaxCacheSlot = (gfx->ThinClient) ? 4096 : 25600;
-
 
 		context = (RdpgfxClientContext*) calloc(1, sizeof(RdpgfxClientContext));
 

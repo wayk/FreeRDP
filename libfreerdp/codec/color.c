@@ -1469,6 +1469,9 @@ int freerdp_image_copy_from_pointer_data(BYTE* pDstData, UINT32 DstFormat,
 	int dstBitsPerPixel;
 	int dstBytesPerPixel;
 
+	xorBits = xorMask;
+	andBits = andMask;
+
 	dstBitsPerPixel = FREERDP_PIXEL_FORMAT_DEPTH(DstFormat);
 	dstBytesPerPixel = (FREERDP_PIXEL_FORMAT_BPP(DstFormat) / 8);
 	dstFlip = FREERDP_PIXEL_FORMAT_FLIP(DstFormat);
@@ -1555,7 +1558,7 @@ int freerdp_image_copy_from_pointer_data(BYTE* pDstData, UINT32 DstFormat,
 
 			if (xorBpp == 8 && !palette)
 			{
-				WLog_ERR(TAG, "null palette in convertion from %d bpp to %d bpp",
+				WLog_ERR(TAG, "null palette in conversion from %d bpp to %d bpp",
 						 xorBpp, dstBitsPerPixel);
 				return -1;
 			}

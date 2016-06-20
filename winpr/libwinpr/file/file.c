@@ -22,9 +22,14 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 
+#include <winpr/crt.h>
 #include <winpr/file.h>
 
-#ifndef _WIN32
+#ifdef _WIN32
+
+#include <io.h>
+
+#else /* _WIN32 */
 
 #include "../log.h"
 #define TAG WINPR_TAG("file")
@@ -36,6 +41,8 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/file.h>
+#include <sys/stat.h>
+#include <sys/time.h>
 
 static BOOL FileIsHandled(HANDLE handle)
 {
@@ -342,6 +349,128 @@ static BOOL FileUnlockFileEx(HANDLE hFile, DWORD dwReserved, DWORD nNumberOfByte
 	return TRUE;
 }
 
+static BOOL FileSetFileTime(HANDLE hFile, const FILETIME *lpCreationTime,
+		const FILETIME *lpLastAccessTime, const FILETIME *lpLastWriteTime)
+{
+	int rc;
+#if defined(__APPLE__) || defined(ANDROID) || defined(__FreeBSD__)
+	struct stat buf;
+#endif
+/* OpenBSD, NetBSD and DragonflyBSD support POSIX futimens */
+#if defined(ANDROID) || defined(__FreeBSD__)
+	struct timeval timevals[2];
+#else
+	struct timespec times[2]; /* last access, last modification */
+#endif
+	WINPR_FILE* pFile = (WINPR_FILE*)hFile;
+	const UINT64 EPOCH_DIFF = 11644473600ULL;
+
+	if (!hFile)
+		return FALSE;
+
+#if defined(__APPLE__) || defined(ANDROID) || defined(__FreeBSD__)
+	rc = fstat(fileno(pFile->fp), &buf);
+	if (rc < 0)
+		return FALSE;
+#endif
+	if (!lpLastAccessTime)
+	{
+#if defined(__APPLE__)
+#if !defined(_POSIX_C_SOURCE) || defined(_DARWIN_C_SOURCE)
+		times[0] = buf.st_atimespec;
+#else
+		times[0].tv_sec = buf.st_atime;
+		times[0].tv_nsec = buf.st_atimensec;
+#endif
+#elif defined(__FreeBSD__)
+		timevals[0].tv_sec = buf.st_atime;
+#ifdef _POSIX_SOURCE
+		TIMESPEC_TO_TIMEVAL(&timevals[0], &buf.st_atim);
+#else
+		TIMESPEC_TO_TIMEVAL(&timevals[0], &buf.st_atimespec);
+#endif
+#elif defined(ANDROID)
+		timevals[0].tv_sec = buf.st_atime;
+		timevals[0].tv_usec = buf.st_atimensec / 1000UL;
+#else
+		times[0].tv_sec = UTIME_OMIT;
+		times[0].tv_nsec = UTIME_OMIT;
+#endif
+	}
+	else
+	{
+		UINT64 tmp = ((UINT64)lpLastAccessTime->dwHighDateTime) << 32
+				| lpLastAccessTime->dwLowDateTime;
+		tmp -= EPOCH_DIFF;
+		tmp /= 10ULL;
+
+#if defined(ANDROID) || defined(__FreeBSD__)
+		tmp /= 10000ULL;
+
+		timevals[0].tv_sec = tmp / 10000ULL;
+		timevals[0].tv_usec = tmp % 10000ULL;
+#else
+		times[0].tv_sec = tmp / 10000000ULL;
+		times[0].tv_nsec = tmp % 10000000ULL;
+#endif
+	}
+	if (!lpLastWriteTime)
+	{
+#ifdef __APPLE__
+#if !defined(_POSIX_C_SOURCE) || defined(_DARWIN_C_SOURCE)
+		times[1] = buf.st_mtimespec;
+#else
+		times[1].tv_sec = buf.st_mtime;
+		times[1].tv_nsec = buf.st_mtimensec;
+#endif
+#elif defined(__FreeBSD__)
+		timevals[1].tv_sec = buf.st_mtime;
+#ifdef _POSIX_SOURCE
+		TIMESPEC_TO_TIMEVAL(&timevals[1], &buf.st_mtim);
+#else
+		TIMESPEC_TO_TIMEVAL(&timevals[1], &buf.st_mtimespec);
+#endif
+#elif defined(ANDROID)
+		timevals[1].tv_sec = buf.st_mtime;
+		timevals[1].tv_usec = buf.st_mtimensec / 1000UL;
+#else
+		times[1].tv_sec = UTIME_OMIT;
+		times[1].tv_nsec = UTIME_OMIT;
+#endif
+	}
+	else
+	{
+		UINT64 tmp = ((UINT64)lpLastWriteTime->dwHighDateTime) << 32
+				| lpLastWriteTime->dwLowDateTime;
+		tmp -= EPOCH_DIFF;
+		tmp /= 10ULL;
+
+#if defined(ANDROID) || defined(__FreeBSD__)
+		tmp /= 10000ULL;
+
+		timevals[1].tv_sec = tmp / 10000ULL;
+		timevals[1].tv_usec = tmp % 10000ULL;
+#else
+		times[1].tv_sec = tmp / 10000000ULL;
+		times[1].tv_nsec = tmp % 10000000ULL;
+#endif
+	}
+
+	// TODO: Creation time can not be handled!
+#ifdef __APPLE__
+	rc = futimes(fileno(pFile->fp), times);
+#elif defined(ANDROID) || defined(__FreeBSD__)
+	rc = utimes(pFile->lpFileName, timevals);
+#else
+	rc = futimens(fileno(pFile->fp), times);
+#endif
+	if (rc != 0)
+		return FALSE;
+
+	return TRUE;
+
+}
+
 static HANDLE_OPS fileOps = {
 	FileIsHandled,
 	FileCloseHandle,
@@ -361,7 +490,8 @@ static HANDLE_OPS fileOps = {
 	NULL, /* FileLockFile */
 	FileLockFileEx,
 	FileUnlockFile,
-	FileUnlockFileEx
+	FileUnlockFileEx,
+	FileSetFileTime
 };
 
 static HANDLE_OPS shmOps = {
@@ -383,8 +513,8 @@ static HANDLE_OPS shmOps = {
 	NULL, /* FileLockFile */
 	NULL, /* FileLockFileEx */
 	NULL, /* FileUnlockFile */
-	NULL /* FileUnlockFileEx */
-
+	NULL, /* FileUnlockFileEx */
+	NULL  /* FileSetFileTime */
 };
 
 
@@ -503,7 +633,7 @@ BOOL IsFileDevice(LPCTSTR lpDeviceName)
 	return TRUE;
 }
 
-HANDLE_CREATOR _FileHandleCreator = 
+HANDLE_CREATOR _FileHandleCreator =
 {
 	IsFileDevice,
 	FileCreateFileA
@@ -573,6 +703,233 @@ BOOL SetStdHandleEx(DWORD dwStdHandle, HANDLE hNewHandle, HANDLE* phOldHandle)
 
 #endif /* _WIN32 */
 
+#ifdef _UWP
+
+HANDLE CreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode, LPSECURITY_ATTRIBUTES lpSecurityAttributes,
+	DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes, HANDLE hTemplateFile)
+{
+	HANDLE hFile;
+	CREATEFILE2_EXTENDED_PARAMETERS params;
+
+	ZeroMemory(&params, sizeof(CREATEFILE2_EXTENDED_PARAMETERS));
+
+	params.dwSize = sizeof(CREATEFILE2_EXTENDED_PARAMETERS);
+
+	if (dwFlagsAndAttributes & FILE_FLAG_BACKUP_SEMANTICS) params.dwFileFlags |= FILE_FLAG_BACKUP_SEMANTICS;
+	if (dwFlagsAndAttributes & FILE_FLAG_DELETE_ON_CLOSE) params.dwFileFlags |= FILE_FLAG_DELETE_ON_CLOSE;
+	if (dwFlagsAndAttributes & FILE_FLAG_NO_BUFFERING) params.dwFileFlags |= FILE_FLAG_NO_BUFFERING;
+	if (dwFlagsAndAttributes & FILE_FLAG_OPEN_NO_RECALL) params.dwFileFlags |= FILE_FLAG_OPEN_NO_RECALL;
+	if (dwFlagsAndAttributes & FILE_FLAG_OPEN_REPARSE_POINT) params.dwFileFlags |= FILE_FLAG_OPEN_REPARSE_POINT;
+	if (dwFlagsAndAttributes & FILE_FLAG_OPEN_REQUIRING_OPLOCK) params.dwFileFlags |= FILE_FLAG_OPEN_REQUIRING_OPLOCK;
+	if (dwFlagsAndAttributes & FILE_FLAG_OVERLAPPED) params.dwFileFlags |= FILE_FLAG_OVERLAPPED;
+	if (dwFlagsAndAttributes & FILE_FLAG_POSIX_SEMANTICS) params.dwFileFlags |= FILE_FLAG_POSIX_SEMANTICS;
+	if (dwFlagsAndAttributes & FILE_FLAG_RANDOM_ACCESS) params.dwFileFlags |= FILE_FLAG_RANDOM_ACCESS;
+	if (dwFlagsAndAttributes & FILE_FLAG_SESSION_AWARE) params.dwFileFlags |= FILE_FLAG_SESSION_AWARE;
+	if (dwFlagsAndAttributes & FILE_FLAG_SEQUENTIAL_SCAN) params.dwFileFlags |= FILE_FLAG_SEQUENTIAL_SCAN;
+	if (dwFlagsAndAttributes & FILE_FLAG_WRITE_THROUGH) params.dwFileFlags |= FILE_FLAG_WRITE_THROUGH;
+
+	if (dwFlagsAndAttributes & FILE_ATTRIBUTE_ARCHIVE) params.dwFileAttributes |= FILE_ATTRIBUTE_ARCHIVE;
+	if (dwFlagsAndAttributes & FILE_ATTRIBUTE_COMPRESSED) params.dwFileAttributes |= FILE_ATTRIBUTE_COMPRESSED;
+	if (dwFlagsAndAttributes & FILE_ATTRIBUTE_DEVICE) params.dwFileAttributes |= FILE_ATTRIBUTE_DEVICE;
+	if (dwFlagsAndAttributes & FILE_ATTRIBUTE_DIRECTORY) params.dwFileAttributes |= FILE_ATTRIBUTE_DIRECTORY;
+	if (dwFlagsAndAttributes & FILE_ATTRIBUTE_ENCRYPTED) params.dwFileAttributes |= FILE_ATTRIBUTE_ENCRYPTED;
+	if (dwFlagsAndAttributes & FILE_ATTRIBUTE_HIDDEN) params.dwFileAttributes |= FILE_ATTRIBUTE_HIDDEN;
+	if (dwFlagsAndAttributes & FILE_ATTRIBUTE_INTEGRITY_STREAM) params.dwFileAttributes |= FILE_ATTRIBUTE_INTEGRITY_STREAM;
+	if (dwFlagsAndAttributes & FILE_ATTRIBUTE_NORMAL) params.dwFileAttributes |= FILE_ATTRIBUTE_NORMAL;
+	if (dwFlagsAndAttributes & FILE_ATTRIBUTE_NOT_CONTENT_INDEXED) params.dwFileAttributes |= FILE_ATTRIBUTE_NOT_CONTENT_INDEXED;
+	if (dwFlagsAndAttributes & FILE_ATTRIBUTE_NO_SCRUB_DATA) params.dwFileAttributes |= FILE_ATTRIBUTE_NO_SCRUB_DATA;
+	if (dwFlagsAndAttributes & FILE_ATTRIBUTE_OFFLINE) params.dwFileAttributes |= FILE_ATTRIBUTE_OFFLINE;
+	if (dwFlagsAndAttributes & FILE_ATTRIBUTE_READONLY) params.dwFileAttributes |= FILE_ATTRIBUTE_READONLY;
+	if (dwFlagsAndAttributes & FILE_ATTRIBUTE_REPARSE_POINT) params.dwFileAttributes |= FILE_ATTRIBUTE_REPARSE_POINT;
+	if (dwFlagsAndAttributes & FILE_ATTRIBUTE_SPARSE_FILE) params.dwFileAttributes |= FILE_ATTRIBUTE_SPARSE_FILE;
+	if (dwFlagsAndAttributes & FILE_ATTRIBUTE_SYSTEM) params.dwFileAttributes |= FILE_ATTRIBUTE_SYSTEM;
+	if (dwFlagsAndAttributes & FILE_ATTRIBUTE_TEMPORARY) params.dwFileAttributes |= FILE_ATTRIBUTE_TEMPORARY;
+	if (dwFlagsAndAttributes & FILE_ATTRIBUTE_VIRTUAL) params.dwFileAttributes |= FILE_ATTRIBUTE_VIRTUAL;
+
+	if (dwFlagsAndAttributes & SECURITY_ANONYMOUS) params.dwSecurityQosFlags |= SECURITY_ANONYMOUS;
+	if (dwFlagsAndAttributes & SECURITY_CONTEXT_TRACKING) params.dwSecurityQosFlags |= SECURITY_CONTEXT_TRACKING;
+	if (dwFlagsAndAttributes & SECURITY_DELEGATION) params.dwSecurityQosFlags |= SECURITY_DELEGATION;
+	if (dwFlagsAndAttributes & SECURITY_EFFECTIVE_ONLY) params.dwSecurityQosFlags |= SECURITY_EFFECTIVE_ONLY;
+	if (dwFlagsAndAttributes & SECURITY_IDENTIFICATION) params.dwSecurityQosFlags |= SECURITY_IDENTIFICATION;
+	if (dwFlagsAndAttributes & SECURITY_IMPERSONATION) params.dwSecurityQosFlags |= SECURITY_IMPERSONATION;
+
+	params.lpSecurityAttributes = lpSecurityAttributes;
+	params.hTemplateFile = hTemplateFile;
+
+	hFile = CreateFile2(lpFileName, dwDesiredAccess, dwShareMode, dwCreationDisposition, &params);
+
+	return hFile;
+}
+
+HANDLE CreateFileA(LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode, LPSECURITY_ATTRIBUTES lpSecurityAttributes,
+	DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes, HANDLE hTemplateFile)
+{
+	HANDLE hFile;
+	WCHAR* lpFileNameW = NULL;
+	
+	ConvertToUnicode(CP_UTF8, 0, lpFileName, -1, &lpFileNameW, 0);
+
+	if (!lpFileNameW)
+		return NULL;
+
+	hFile = CreateFileW(lpFileNameW, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
+			dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+
+	free(lpFileNameW);
+
+	return hFile;
+}
+
+DWORD WINAPI GetFileSize(HANDLE hFile, LPDWORD lpFileSizeHigh)
+{
+	BOOL status;
+	LARGE_INTEGER fileSize = { 0, 0 };
+
+	if (!lpFileSizeHigh)
+		return INVALID_FILE_SIZE;
+
+	status = GetFileSizeEx(hFile, &fileSize);
+
+	if (!status)
+		return INVALID_FILE_SIZE;
+
+	*lpFileSizeHigh = fileSize.HighPart;
+
+	return fileSize.LowPart;
+}
+
+DWORD SetFilePointer(HANDLE hFile, LONG lDistanceToMove,
+	PLONG lpDistanceToMoveHigh, DWORD dwMoveMethod)
+{
+	BOOL status;
+	LARGE_INTEGER liDistanceToMove = { 0, 0 };
+	LARGE_INTEGER liNewFilePointer = { 0, 0 };
+
+	liDistanceToMove.LowPart = lDistanceToMove;
+
+	status = SetFilePointerEx(hFile, liDistanceToMove, &liNewFilePointer, dwMoveMethod);
+
+	if (!status)
+		return INVALID_SET_FILE_POINTER;
+
+	if (lpDistanceToMoveHigh)
+		*lpDistanceToMoveHigh = liNewFilePointer.HighPart;
+
+	return liNewFilePointer.LowPart;
+}
+
+HANDLE FindFirstFileA(LPCSTR lpFileName, LPWIN32_FIND_DATAA lpFindFileData)
+{
+	return FindFirstFileExA(lpFileName, FindExInfoStandard, lpFindFileData, FindExSearchNameMatch, NULL, 0);
+}
+
+HANDLE FindFirstFileW(LPCWSTR lpFileName, LPWIN32_FIND_DATAW lpFindFileData)
+{
+	return FindFirstFileExW(lpFileName, FindExInfoStandard, lpFindFileData, FindExSearchNameMatch, NULL, 0);
+}
+
+DWORD GetFullPathNameA(LPCSTR lpFileName, DWORD nBufferLength, LPSTR lpBuffer, LPSTR* lpFilePart)
+{
+	DWORD dwStatus;
+	WCHAR* lpFileNameW = NULL;
+	WCHAR* lpBufferW = NULL;
+	WCHAR* lpFilePartW = NULL;
+	DWORD nBufferLengthW = nBufferLength * 2;
+
+	if (!lpFileName || (nBufferLength < 1))
+		return 0;
+
+	ConvertToUnicode(CP_UTF8, 0, lpFileName, -1, &lpFileNameW, 0);
+
+	if (!lpFileNameW)
+		return 0;
+
+	lpBufferW = (WCHAR*) malloc(nBufferLengthW);
+
+	if (!lpBufferW)
+		return 0;
+
+	dwStatus = GetFullPathNameW(lpFileNameW, nBufferLengthW, lpBufferW, &lpFilePartW);
+
+	ConvertFromUnicode(CP_UTF8, 0, lpBufferW, nBufferLengthW, &lpBuffer, nBufferLength, NULL, NULL);
+
+	if (lpFilePart)
+		lpFilePart = lpBuffer + (lpFilePartW - lpBufferW);
+
+	free(lpFileNameW);
+	free(lpBufferW);
+
+	return dwStatus * 2;
+}
+
+BOOL GetDiskFreeSpaceA(LPCSTR lpRootPathName, LPDWORD lpSectorsPerCluster,
+	LPDWORD lpBytesPerSector, LPDWORD lpNumberOfFreeClusters, LPDWORD lpTotalNumberOfClusters)
+{
+	BOOL status;
+	ULARGE_INTEGER FreeBytesAvailableToCaller = { 0, 0 };
+	ULARGE_INTEGER TotalNumberOfBytes = { 0, 0 };
+	ULARGE_INTEGER TotalNumberOfFreeBytes = { 0, 0 };
+
+	status = GetDiskFreeSpaceExA(lpRootPathName, &FreeBytesAvailableToCaller,
+			&TotalNumberOfBytes, &TotalNumberOfFreeBytes);
+
+	if (!status)
+		return FALSE;
+
+	*lpBytesPerSector = 1;
+	*lpSectorsPerCluster = TotalNumberOfBytes.LowPart;
+	*lpNumberOfFreeClusters = FreeBytesAvailableToCaller.LowPart;
+	*lpTotalNumberOfClusters = TotalNumberOfFreeBytes.LowPart;
+
+	return TRUE;
+}
+
+BOOL GetDiskFreeSpaceW(LPCWSTR lpRootPathName, LPDWORD lpSectorsPerCluster,
+	LPDWORD lpBytesPerSector, LPDWORD lpNumberOfFreeClusters, LPDWORD lpTotalNumberOfClusters)
+{
+	BOOL status;
+	ULARGE_INTEGER FreeBytesAvailableToCaller = { 0, 0 };
+	ULARGE_INTEGER TotalNumberOfBytes = { 0, 0 };
+	ULARGE_INTEGER TotalNumberOfFreeBytes = { 0, 0 };
+
+	status = GetDiskFreeSpaceExW(lpRootPathName, &FreeBytesAvailableToCaller,
+		&TotalNumberOfBytes, &TotalNumberOfFreeBytes);
+
+	if (!status)
+		return FALSE;
+
+	*lpBytesPerSector = 1;
+	*lpSectorsPerCluster = TotalNumberOfBytes.LowPart;
+	*lpNumberOfFreeClusters = FreeBytesAvailableToCaller.LowPart;
+	*lpTotalNumberOfClusters = TotalNumberOfFreeBytes.LowPart;
+
+	return TRUE;
+}
+
+DWORD GetLogicalDriveStringsA(DWORD nBufferLength, LPSTR lpBuffer)
+{
+	SetLastError(ERROR_INVALID_FUNCTION);
+	return 0;
+}
+
+DWORD GetLogicalDriveStringsW(DWORD nBufferLength, LPWSTR lpBuffer)
+{
+	SetLastError(ERROR_INVALID_FUNCTION);
+	return 0;
+}
+
+BOOL PathIsDirectoryEmptyA(LPCSTR pszPath)
+{
+	return FALSE;
+}
+
+UINT GetACP(void)
+{
+	return CP_UTF8;
+}
+
+#endif
+
 /* Extended API */
 
 #ifdef _WIN32
@@ -583,7 +940,7 @@ HANDLE GetFileHandleForFileDescriptor(int fd)
 {
 #ifdef _WIN32
 	return (HANDLE)_get_osfhandle(fd);
-#else /* WIN32 */
+#else /* _WIN32 */
 	WINPR_FILE *pFile;
 	FILE* fp;
 	int flags;
@@ -611,7 +968,7 @@ HANDLE GetFileHandleForFileDescriptor(int fd)
 		return INVALID_HANDLE_VALUE;
 
 	return (HANDLE)pFile;
-#endif /* WIN32 */
+#endif /* _WIN32 */
 }
 
 

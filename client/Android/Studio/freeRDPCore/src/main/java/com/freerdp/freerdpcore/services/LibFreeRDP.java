@@ -17,6 +17,7 @@ import com.freerdp.freerdpcore.domain.ManualBookmark;
 
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.net.Uri;
 import android.util.Log;
 
 import java.util.ArrayList;
@@ -89,7 +90,12 @@ public class LibFreeRDP {
 
         boolean OnAuthenticate(StringBuilder username, StringBuilder domain, StringBuilder password);
 
-        boolean OnVerifiyCertificate(String subject, String issuer, String fingerprint);
+        int OnVerifiyCertificate(String commonName, String subject,
+                String issuer, String fingerprint, boolean mismatch);
+
+        int OnVerifiyChangedCertificate(String commonName, String subject,
+                String issuer, String fingerprint, String oldSubject,
+                String oldIssuer, String oldFingerprint);
 
         void OnGraphicsUpdate(int x, int y, int width, int height);
 
@@ -202,7 +208,7 @@ public class LibFreeRDP {
         }
 
         if (flags.getH264()) {
-            args.add("/h264");
+            args.add("/gfx-h264");
         }
 
         args.add(addFlag("wallpaper", flags.getWallpaper()));
@@ -252,16 +258,70 @@ public class LibFreeRDP {
             }
         }
 
-        /* 0 ... disable
-           1 ... local
-           2 ... remote */
+        /* 0 ... local
+           1 ... remote 
+           2 ... disable */
         args.add("/audio-mode:" + String.valueOf(advanced.getRedirectSound()));
+        if (advanced.getRedirectSound() == 0) {
+            args.add("/sound");
+        }
 
         if (advanced.getRedirectMicrophone()) {
             args.add("/microphone");
         }
 
         args.add("/log-level:TRACE");
+        String[] arrayArgs = args.toArray(new String[args.size()]);
+        return freerdp_parse_arguments(inst, arrayArgs);
+    }
+    
+    public static boolean setConnectionInfo(int inst, Uri openUri) {
+        ArrayList<String> args = new ArrayList<String>();
+
+        // Parse URI from query string. Same key overwrite previous one
+        // freerdp://user@ip:port/connect?sound=&rfx=&p=password&clipboard=%2b&themes=-
+     
+        // Now we only support Software GDI
+        args.add(TAG);
+        args.add("/gdi:sw");
+        
+        // Parse hostname and port. Set to 'v' argument
+        String hostname = openUri.getHost();
+        int port = openUri.getPort();
+        if (hostname != null) {
+            hostname = hostname + ((port == -1) ? "" : (":" + String.valueOf(port)));
+            args.add("/v:" + hostname);
+        }
+        
+        String user = openUri.getUserInfo();
+        if (user != null) {
+            args.add("/u:" + user);
+        }
+        
+        for (String key: openUri.getQueryParameterNames()) {
+            String value = openUri.getQueryParameter(key);
+            
+            if (value.isEmpty()) {
+                // Query: key=
+                // To freerdp argument: /key
+                args.add("/" + key);
+            } else if (value.equals("-") || value.equals("+")) {
+                // Query: key=- or key=+
+                // To freerdp argument: -key or +key
+                args.add(value+key);
+            } else {
+                // Query: key=value
+                // To freerdp argument: /key:value
+                if (key.equals("drive") && value.equals("sdcard")) { 
+                    // Special for sdcard redirect
+                    String path = android.os.Environment.getExternalStorageDirectory().getPath();
+                    value = "sdcard," + path;
+                }
+
+                args.add("/" + key + ":" + value);
+            }
+        }
+        
         String[] arrayArgs = args.toArray(new String[args.size()]);
         return freerdp_parse_arguments(inst, arrayArgs);
     }
@@ -330,14 +390,30 @@ public class LibFreeRDP {
         return false;
     }
 
-    private static boolean OnVerifyCertificate(int inst, String subject, String issuer, String fingerprint) {
+    private static int OnVerifyCertificate(int inst, String commonName, String subject,
+                                           String issuer, String fingerprint, boolean
+                                                   hostMismatch) {
         SessionState s = GlobalApp.getSession(inst);
         if (s == null)
-            return false;
+            return 0;
         UIEventListener uiEventListener = s.getUIEventListener();
         if (uiEventListener != null)
-            return uiEventListener.OnVerifiyCertificate(subject, issuer, fingerprint);
-        return false;
+            return uiEventListener.OnVerifiyCertificate(commonName, subject, issuer, fingerprint,
+                    hostMismatch);
+        return 0;
+    }
+
+    private static int OnVerifyCertificate(int inst, String commonName, String subject,
+                                           String issuer, String fingerprint, String oldSubject,
+                                           String oldIssuer, String oldFingerprint) {
+        SessionState s = GlobalApp.getSession(inst);
+        if (s == null)
+            return 0;
+        UIEventListener uiEventListener = s.getUIEventListener();
+        if (uiEventListener != null)
+            return uiEventListener.OnVerifiyChangedCertificate(commonName, subject, issuer,
+                    fingerprint, oldSubject, oldIssuer, oldFingerprint);
+        return 0;
     }
 
     private static void OnGraphicsUpdate(int inst, int x, int y, int width, int height) {

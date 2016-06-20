@@ -21,6 +21,8 @@
 #include "config.h"
 #endif
 
+#define ANDROID
+
 #include <errno.h>
 #include <freerdp/utils/passphrase.h>
 

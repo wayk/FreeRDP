@@ -29,6 +29,7 @@ import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
 import android.inputmethodservice.Keyboard;
 import android.inputmethodservice.KeyboardView;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -238,6 +239,11 @@ public class SessionActivity extends ActionBarActivity implements
 			if (progressDialog != null) {
 				progressDialog.dismiss();
 				progressDialog = null;
+			}
+
+			if (session.getBookmark() == null) {
+				// Return immediately if we launch from URI
+				return;
 			}
 
 			// add hostname to history if quick connect was used
@@ -614,9 +620,14 @@ public class SessionActivity extends ActionBarActivity implements
 	}
 
 	private void processIntent(Intent intent) {
-		// get either session instance or create one from a bookmark
+		// get either session instance or create one from a bookmark/uri
 		Bundle bundle = intent.getExtras();
-		if (bundle.containsKey(PARAM_INSTANCE)) {
+		Uri openUri = intent.getData();
+		if (openUri != null) {
+			// Launched from URI, e.g:
+			// freerdp://user@ip:port/connect?sound=&rfx=&p=password&clipboard=%2b&themes=-
+			connect(openUri);
+		} else if (bundle.containsKey(PARAM_INSTANCE)) {
 			int inst = bundle.getInt(PARAM_INSTANCE);
 			session = GlobalApp.getSession(inst);
 			bitmap = session.getSurface().getBitmap();
@@ -648,7 +659,6 @@ public class SessionActivity extends ActionBarActivity implements
 
 	private void connect(BookmarkBase bookmark) {
 		session = GlobalApp.createSession(bookmark, getApplicationContext());
-		session.setUIEventListener(this);
 
 		BookmarkBase.ScreenSettings screenSettings = session.getBookmark()
 				.getActiveScreenSettings();
@@ -673,8 +683,20 @@ public class SessionActivity extends ActionBarActivity implements
 			screenSettings.setWidth(screen_width);
 		}
 
+		connectWithTitle(bookmark.getLabel());
+	}
+
+	private void connect(Uri openUri) {
+		session = GlobalApp.createSession(openUri, getApplicationContext());
+
+		connectWithTitle(openUri.getAuthority());
+	}
+
+	private void connectWithTitle(String title) {
+		session.setUIEventListener(this);
+
 		progressDialog = new ProgressDialog(this);
-		progressDialog.setTitle(bookmark.getLabel());
+		progressDialog.setTitle(title);
 		progressDialog.setMessage(getResources().getText(
 				R.string.dlg_msg_connecting));
 		progressDialog.setButton(ProgressDialog.BUTTON_NEGATIVE, "Cancel",
@@ -699,7 +721,7 @@ public class SessionActivity extends ActionBarActivity implements
 	// binds the current session to the activity by wiring it up with the
 	// sessionView and updating all internal objects accordingly
 	private void bindSession() {
-		Log.v("SessionActivity", "bindSession called");
+		Log.v(TAG, "bindSession called");
 		session.setUIEventListener(this);
 		sessionView.onSurfaceChange(session);
 		scrollView.requestLayout();
@@ -972,6 +994,11 @@ public class SessionActivity extends ActionBarActivity implements
 
 		session.setSurface(new BitmapDrawable(bitmap));
 
+		if (session.getBookmark() == null) {
+			// Return immediately if we launch from URI
+			return;
+		}
+
 		// check this settings and initial settings - if they are not equal the
 		// server doesn't support our settings
 		// FIXME: the additional check (settings.getWidth() != width + 1) is for
@@ -1066,12 +1093,10 @@ public class SessionActivity extends ActionBarActivity implements
 	}
 
 	@Override
-	public boolean OnVerifiyCertificate(String subject, String issuer,
-										String fingerprint) {
-
+	public int OnVerifiyCertificate(String commonName, String subject, String issuer, String fingerprint, boolean mismatch) {
 		// see if global settings says accept all
 		if (GlobalSettings.getAcceptAllCertificates())
-			return true;
+			return 0;
 
 		// this is where the return code of our dialog will be stored
 		callbackDialogResult = false;
@@ -1095,7 +1120,38 @@ public class SessionActivity extends ActionBarActivity implements
 		} catch (InterruptedException e) {
 		}
 
-		return callbackDialogResult;
+		return callbackDialogResult ? 1 : 0;
+	}
+
+	@Override
+	public int OnVerifiyChangedCertificate(String commonName, String subject, String issuer, String fingerprint, String oldSubject, String oldIssuer, String oldFingerprint) {
+		// see if global settings says accept all
+		if (GlobalSettings.getAcceptAllCertificates())
+			return 0;
+
+		// this is where the return code of our dialog will be stored
+		callbackDialogResult = false;
+
+		// set message
+		String msg = getResources().getString(
+				R.string.dlg_msg_verify_certificate);
+		msg = msg + "\n\nSubject: " + subject + "\nIssuer: " + issuer
+				+ "\nFingerprint: " + fingerprint;
+		dlgVerifyCertificate.setMessage(msg);
+
+		// start dialog in UI thread
+		uiHandler.sendMessage(Message.obtain(null, UIHandler.SHOW_DIALOG,
+				dlgVerifyCertificate));
+
+		// wait for result
+		try {
+			synchronized (dlgVerifyCertificate) {
+				dlgVerifyCertificate.wait();
+			}
+		} catch (InterruptedException e) {
+		}
+
+		return callbackDialogResult ? 1 : 0;
 	}
 
 	@Override
