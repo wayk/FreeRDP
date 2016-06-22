@@ -135,7 +135,6 @@ void cs_OnChannelConnectedEventHandler(rdpContext* context, ChannelConnectedEven
     }
     else if (strcmp(e->name, CLIPRDR_SVC_CHANNEL_NAME) == 0)
 	{
-        WLog_ERR(TAG, "RemoteFX FTW!\n");
 		cs_cliprdr_init(csc, (CliprdrClientContext*) e->pInterface);
 	}
 }
@@ -288,7 +287,6 @@ static BOOL cs_post_connect(freerdp* instance)
     update = instance->context->update;
     
 	assert(instance);
-	assert(settings);
 
 	if (instance->settings->ColorDepth > 16)
 		gdi_flags = CLRBUF_32BPP | CLRCONV_ALPHA;
@@ -593,16 +591,15 @@ BOOL csharp_waitforsingleobject(void* instance)
 
 BOOL csharp_check_event_handles(void* instance, void* buffer)
 {
+    int result;
 	freerdp* inst = (freerdp*)instance;
 	csContext* ctxt = (csContext*)inst->context;
-
-	int result = 0;
 
     ctxt->buffer = buffer;
 	
 	result = freerdp_check_event_handles(inst->context);
     
-	return result != 1;
+	return result;
 }
 
 void csharp_freerdp_send_unicode(void* instance, int character)
