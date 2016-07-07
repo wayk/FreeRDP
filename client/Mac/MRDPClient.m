@@ -537,6 +537,12 @@ BOOL mac_end_paint(rdpContext* context);
     if ((!self.is_connected) || self.isReadOnly)
         return;
     
+    if (event.keyCode == APPLE_VK_CapsLock)
+    {
+        [self sendKey:0x3A];
+        return;
+    }
+    
     keyFlags = 0;
     key = [event keyCode] + 8;
     modFlags = [event modifierFlags] & NSDeviceIndependentModifierFlagsMask;

@@ -434,12 +434,6 @@
 	
 	if (!client.is_connected)
 		return;
-	
-    if (event.keyCode == APPLE_VK_CapsLock)
-    {
-        [client sendKey:0x3A];
-        return;
-    }
     
 	[client flagsChanged:event];
 }
