@@ -445,8 +445,8 @@ BOOL mac_end_paint(rdpContext* context);
     scancode &= 0xFF;
     vkcode &= 0xFF;
     
-    // For VK_A, VK_C, VK_V or VK_X
-    if ((vkcode == 0x43 || vkcode == 0x56 || vkcode == 0x41 || vkcode == 0x58) && modifierFlags & NSCommandKeyMask)
+    // For VK_A, VK_C, VK_V, VK_X or VK_Z
+    if ((vkcode == 0x43 || vkcode == 0x56 || vkcode == 0x41 || vkcode == 0x58 || vkcode == 0x5A) && modifierFlags & NSCommandKeyMask)
     {
         if (context->settings->EnableWinKeyCutPaste)
         {
