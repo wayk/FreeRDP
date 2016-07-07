@@ -764,6 +764,7 @@ BOOL xf_gdi_polyline(rdpContext* context, POLYLINE_ORDER* polyline)
 	int npoints;
 	UINT32 color;
 	XPoint* points;
+    XPoint tmp;
 	xfContext* xfc = (xfContext*) context;
 	BOOL ret = TRUE;
 
