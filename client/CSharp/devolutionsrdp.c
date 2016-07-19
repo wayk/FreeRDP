@@ -445,8 +445,7 @@ BOOL csharp_freerdp_set_gateway_settings(void* instance, const char* hostname, U
     return TRUE;
 }
 
-BOOL csharp_freerdp_set_connection_info(void* instance, const char* hostname, const char* username, const char* password, const char* domain,
-										UINT32 width, UINT32 height, UINT32 color_depth, UINT32 port, int security)
+BOOL csharp_freerdp_set_connection_info(void* instance, const char* hostname, const char* username, const char* password,                       const char* domain, UINT32 width, UINT32 height, UINT32 color_depth, UINT32 port, int codecLevel, int security)
 {
 	freerdp* inst = (freerdp*)instance;
 	rdpSettings * settings = inst->settings;
@@ -482,18 +481,24 @@ BOOL csharp_freerdp_set_connection_info(void* instance, const char* hostname, co
 		goto out_fail_strdup;
 
 	settings->SoftwareGdi = TRUE;
-//	settings->BitmapCacheV3Enabled = TRUE;
-	settings->RemoteFxCodec = TRUE;
+	//settings->RemoteFxCodec = TRUE;
     settings->AllowFontSmoothing = TRUE;
-//    settings->BitmapCacheEnabled = TRUE;
     settings->ColorDepth = 16;
-//    settings->CompressionEnabled = TRUE;
-//    settings->CompressionLevel = 6;
-//    settings->GfxH264 = TRUE;
-//    settings->GfxProgressive = TRUE;
-//    settings->GfxProgressiveV2 = TRUE;
     settings->RedirectClipboard = TRUE;
-    settings->SupportGraphicsPipeline = FALSE;
+    
+    if (codecLevel >= 7)
+    {
+        settings->RemoteFxCodec = TRUE;
+        settings->FastPathOutput = TRUE;
+        settings->LargePointerFlag = TRUE;
+        settings->FrameMarkerCommandEnabled = TRUE;
+        settings->ColorDepth = 32;
+    }
+    
+    if(codecLevel >= 8)
+    {
+        settings->SupportGraphicsPipeline = TRUE;
+    }
 
 	switch (security)
 	{
