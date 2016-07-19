@@ -434,7 +434,7 @@
 	
 	if (!client.is_connected)
 		return;
-	
+    
 	[client flagsChanged:event];
 }
 
