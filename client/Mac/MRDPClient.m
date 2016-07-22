@@ -229,10 +229,11 @@ BOOL mac_end_paint(rdpContext* context);
 {
     cmdTabInProgress = false;
     cmdComboUsed = false;
-	freerdp_input_send_keyboard_event(context->input, 0 | KBD_FLAGS_RELEASE, 0x2A); /*Left shift*/
-	freerdp_input_send_keyboard_event(context->input, 0 | KBD_FLAGS_RELEASE, 0x36); /*Right shift*/
-	freerdp_input_send_keyboard_event(context->input, 0 | KBD_FLAGS_RELEASE, 0x38); /*Alt*/
-	freerdp_input_send_keyboard_event(context->input, 0 | KBD_FLAGS_RELEASE, 0x1D); /*ctrl*/
+	freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_RELEASE, 0x2A); /*Left shift*/
+	freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_RELEASE, 0x36); /*Right shift*/
+	freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_RELEASE, 0x38); /*Alt*/
+	freerdp_input_send_keyboard_event(context->input, KBD_FLAGS_RELEASE, 0x1D); /*ctrl*/
+    WLog_ERR(TAG, "Releasing ctrl\n");
 	kbdModFlags = 0;
 }
 
@@ -579,24 +580,42 @@ BOOL mac_end_paint(rdpContext* context);
 #endif
     
     if ((modFlags & NSAlphaShiftKeyMask) && !(kbdModFlags & NSAlphaShiftKeyMask))
-        freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_DOWN, scancode);
+    {
+        WLog_ERR(TAG, "RShift Down. keyFlags: %d, Scancode: %d\n", keyFlags, 0x36);
+        freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_DOWN, 0x36);
+    }
     else if (!(modFlags & NSAlphaShiftKeyMask) && (kbdModFlags & NSAlphaShiftKeyMask))
-        freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_RELEASE, scancode);
+    {
+        WLog_ERR(TAG, "RShift Up. keyFlags: %d, Scancode: %d\n", keyFlags, 0x36);
+        freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_RELEASE, 0x36);
+    }
     
     if ((modFlags & NSShiftKeyMask) && !(kbdModFlags & NSShiftKeyMask))
-        freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_DOWN, scancode);
+    {
+        WLog_ERR(TAG, "LShift Down. keyFlags: %d, Scancode: %d\n", keyFlags, 0x2A);
+        freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_DOWN, 0x2A);
+    }
     else if (!(modFlags & NSShiftKeyMask) && (kbdModFlags & NSShiftKeyMask))
-        freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_RELEASE, scancode);
-    
+    {
+        WLog_ERR(TAG, "LShift Up. keyFlags: %d, Scancode: %d\n", keyFlags, 0x2A);
+        freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_RELEASE, 0x2A);
+    }
+   
     if ((modFlags & NSControlKeyMask) && !(kbdModFlags & NSControlKeyMask))
-        freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_DOWN, scancode);
+    {
+        WLog_ERR(TAG, "Ctrl Down. keyFlags: %d, Scancode: %d\n", keyFlags, 0x1D);
+        freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_DOWN, 0x1D);
+    }
     else if (!(modFlags & NSControlKeyMask) && (kbdModFlags & NSControlKeyMask))
-        freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_RELEASE, scancode);
+    {
+        WLog_ERR(TAG, "Ctrl Up. keyFlags: %d, Scancode: %d\n", keyFlags, 0x1D);
+        freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_RELEASE, 0x1D);
+    }
     
     if ((modFlags & NSAlternateKeyMask) && !(kbdModFlags & NSAlternateKeyMask))
-        freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_DOWN, scancode);
+        freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_DOWN, 0x38);
     else if (!(modFlags & NSAlternateKeyMask) && (kbdModFlags & NSAlternateKeyMask))
-        freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_RELEASE, scancode);
+        freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_RELEASE, 0x38);
     
     if (context->settings->EnableWindowsKey)
     {
@@ -609,7 +628,7 @@ BOOL mac_end_paint(rdpContext* context);
             if (cmdTabInProgress && !cmdComboUsed)
             {
                 freerdp_input_send_keyboard_event(instance->input, 256 | KBD_FLAGS_DOWN, 0x005B);
-                freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_RELEASE, scancode);
+                freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_RELEASE, 0x005B);
             }
             
             cmdTabInProgress = false;
