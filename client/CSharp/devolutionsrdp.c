@@ -445,6 +445,14 @@ BOOL csharp_freerdp_set_gateway_settings(void* instance, const char* hostname, U
     return TRUE;
 }
 
+BOOL csharp_freerdp_set_console_mode(void* instance, BOOL useConsoleMode)
+{
+	freerdp* inst = (freerdp*)instance;
+	rdpSettings * settings = inst->settings;
+
+	settings->ConsoleSession = useConsoleMode;
+}
+
 BOOL csharp_freerdp_set_connection_info(void* instance, const char* hostname, const char* username, const char* password,                       const char* domain, UINT32 width, UINT32 height, UINT32 color_depth, UINT32 port, int codecLevel, int security)
 {
 	freerdp* inst = (freerdp*)instance;
@@ -698,10 +706,10 @@ void csharp_freerdp_send_clipboard_data(void* instance, BYTE* buffer, int length
 
 void csharp_set_log_output(const char* path, const char* name)
 {
-    SetEnvironmentVariableA("WLOG_APPENDER", "FILE");
+    // SetEnvironmentVariableA("WLOG_APPENDER", "FILE");
     SetEnvironmentVariableA("WLOG_LEVEL", "DEBUG");
-    SetEnvironmentVariableA("WLOG_FILEAPPENDER_OUTPUT_FILE_PATH", path);
-    SetEnvironmentVariableA("WLOG_FILEAPPENDER_OUTPUT_FILE_NAME", name);
+    // SetEnvironmentVariableA("WLOG_FILEAPPENDER_OUTPUT_FILE_PATH", path);
+    // SetEnvironmentVariableA("WLOG_FILEAPPENDER_OUTPUT_FILE_NAME", name);
 }
 
 void csharp_set_on_authenticate(void* instance, pAuthenticate fn)
