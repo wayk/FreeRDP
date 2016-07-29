@@ -445,12 +445,13 @@ BOOL csharp_freerdp_set_gateway_settings(void* instance, const char* hostname, U
     return TRUE;
 }
 
-BOOL csharp_freerdp_set_console_mode(void* instance, BOOL useConsoleMode)
+BOOL csharp_freerdp_set_console_mode(void* instance, BOOL useConsoleMode, BOOL useRestrictedAdminMode)
 {
 	freerdp* inst = (freerdp*)instance;
 	rdpSettings * settings = inst->settings;
 
 	settings->ConsoleSession = useConsoleMode;
+	settings->RestrictedAdminModeRequired = useRestrictedAdminMode;
 }
 
 BOOL csharp_freerdp_set_connection_info(void* instance, const char* hostname, const char* username, const char* password,                       const char* domain, UINT32 width, UINT32 height, UINT32 color_depth, UINT32 port, int codecLevel, int security)
