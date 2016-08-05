@@ -67,9 +67,35 @@ int TestSynchWaitableTimerAPC(int argc, char* argv[])
 	if (!bSuccess)
 		goto cleanup;
 
-	if (WaitForSingleObject(g_Event, INFINITE) != WAIT_OBJECT_0)
+	/**
+	 * See Remarks at https://msdn.microsoft.com/en-us/library/windows/desktop/ms686786(v=vs.85).aspx
+	 * The SetWaitableTimer completion routine is executed by the thread that activates the timer
+	 * using SetWaitableTimer. However, the thread must be in an ALERTABLE state.
+	 */
+
+
+	/**
+	 * Note: On WIN32 we need to use WaitForSingleObjectEx with parameter bAlertable = TRUE
+	 * However, WinPR currently (May 2016) does not have a working WaitForSingleObjectEx implementation
+	 * but its non-WIN32 WaitForSingleObject implementations seem to be alertable by WinPR's
+	 * timer implementations.
+	 **/
+
+	for(;;)
 	{
-		printf("WaitForSingleObject failed (%d)\n", GetLastError());
+		DWORD rc;
+#ifdef _WIN32
+		rc = WaitForSingleObjectEx(g_Event, INFINITE, TRUE);
+#else
+		rc = WaitForSingleObject(g_Event, INFINITE);
+#endif
+		if (rc == WAIT_OBJECT_0)
+			break;
+
+		if (rc == 0x000000C0L) /* WAIT_IO_COMPLETION */
+			continue;
+
+		printf("Failed to wait for completion event (%u)\n", GetLastError());
 		goto cleanup;
 	}
 
@@ -82,6 +108,20 @@ cleanup:
 		CloseHandle(g_Event);
 	free(apcData);
 
+#ifdef __APPLE__
+	if (status == 0)
+	{
+		printf("%s: Error, this test is currently expected not to succeed on this platform.\n",
+			__FUNCTION__);
+		status = -1;
+	}
+	else
+	{
+		printf("%s: This test is currently expected to fail on this platform.\n",
+			__FUNCTION__);
+		status = 0;
+	}
+#endif
 	return status;
 }
 

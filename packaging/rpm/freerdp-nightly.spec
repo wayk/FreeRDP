@@ -95,7 +95,7 @@ based on freerdp and winpr.
         -DCMAKE_SKIP_INSTALL_RPATH=FALSE \
         -DWITH_PULSE=ON \
         -DWITH_CHANNELS=ON \
-        -DSTATIC_CHANNELS=ON \
+        -DBUILTIN_CHANNELS=ON \
         -DWITH_CUPS=ON \
         -DWITH_PCSC=ON \
         -DWITH_JPEG=ON \
@@ -138,6 +138,7 @@ export NO_BRP_CHECK_RPATH true
 %{INSTALL_PREFIX}/%{_lib}/*.so.*
 %{INSTALL_PREFIX}/bin/
 %{INSTALL_PREFIX}/share/man/man1/xfreerdp.1*
+%{INSTALL_PREFIX}/share/man/man1/wlog.1*
 
 %files devel
 %defattr(-,root,root)
