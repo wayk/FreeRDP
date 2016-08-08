@@ -11,8 +11,8 @@
 USER_OS_SDK=""
 USER_SIM_SDK=""
 
-OPENSSLVERSION="1.0.2f"
-MD5SUM="b3bf73f507172be9292ea2a8c28b659d"
+OPENSSLVERSION="1.0.2h"
+MD5SUM="9392e65072ce4b614c1392eefc1f23d0"
 INSTALLDIR="external"
 
 MAKEOPTS="-j $CORES"
@@ -73,7 +73,7 @@ CS=`md5 -q "openssl-$OPENSSLVERSION.tar.gz" 2>/dev/null`
 if [ ! "$CS" = "$MD5SUM" ]; then
     echo "Downloading OpenSSL Version $OPENSSLVERSION ..."
     rm -f "openssl-$OPENSSLVERSION.tar.gz"
-    curl -L -o "openssl-$OPENSSLVERSION.tar.gz" http://www.openssl.org/source/openssl-$OPENSSLVERSION.tar.gz
+    curl -L -o "openssl-$OPENSSLVERSION.tar.gz" https://www.openssl.org/source/openssl-$OPENSSLVERSION.tar.gz
 
     CS=`md5 -q "openssl-$OPENSSLVERSION.tar.gz" 2>/dev/null`
     if [ ! "$CS" = "$MD5SUM" ]; then
