@@ -874,7 +874,29 @@ BOOL mac_pre_connect(freerdp* instance)
     
     PubSub_SubscribeChannelDisconnected(instance->context->pubSub,
                                         (pChannelDisconnectedEventHandler) mac_OnChannelDisconnectedEventHandler);
-    
+	
+	if(settings->AudioPlayback)
+	{
+        char* p[1];
+	    int count;
+	
+		count = 1;
+	    p[0] = "rdpsnd";
+	
+		freerdp_client_add_static_channel(settings, count, p);
+	}
+	
+	if(settings->AudioCapture)
+	{
+		char* p[1];
+		int count;
+		
+		count = 1;
+		p[0] = "audin";
+		
+		freerdp_client_add_dynamic_channel(settings, count, p);
+	}
+	
     freerdp_client_load_addins(instance->context->channels, instance->settings);
     
     freerdp_channels_pre_connect(instance->context->channels, instance);
