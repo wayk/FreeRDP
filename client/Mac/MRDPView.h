@@ -49,6 +49,7 @@
 - (BOOL)provideGatewayServerCredentials:(ServerCredential **)credentials;
 - (BOOL)validateCertificate:(ServerCertificate *)certificate;
 - (BOOL)validateX509Certificate:(X509Certificate *)certificate;
+- (void)smartResize;
 
 @property(nonatomic, assign) NSObject<MRDPViewDelegate> *delegate;
 

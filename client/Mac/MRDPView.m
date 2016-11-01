@@ -169,6 +169,40 @@
 
 }
 
+- (void)smartResize
+{
+    NSSize oldBoundsSize = self.superview.bounds.size;
+    
+    int newWidth = self.frame.size.width;
+    int newHeight = self.frame.size.height;
+    
+    if(oldBoundsSize.width > freerdp_get_param_uint32(self->context->settings, FreeRDP_DesktopWidth))
+    {
+        self.autoresizingMask = self.autoresizingMask & ~NSViewWidthSizable;
+        newWidth = freerdp_get_param_uint32(self->context->settings, FreeRDP_DesktopWidth);
+    }
+    else if(oldBoundsSize.width <= freerdp_get_param_uint32(self->context->settings, FreeRDP_DesktopWidth))
+    {
+        self.autoresizingMask = self.autoresizingMask |= NSViewWidthSizable;
+        newWidth = oldBoundsSize.width;
+    }
+    
+    if(oldBoundsSize.height > freerdp_get_param_uint32(self->context->settings, FreeRDP_DesktopHeight))
+    {
+        self.autoresizingMask = self.autoresizingMask & ~NSViewHeightSizable;
+        newHeight = freerdp_get_param_uint32(self->context->settings, FreeRDP_DesktopHeight);
+    }
+    else if(oldBoundsSize.height <= freerdp_get_param_uint32(self->context->settings, FreeRDP_DesktopHeight))
+    {
+        self.autoresizingMask = self.autoresizingMask |= NSViewHeightSizable;
+        newHeight = oldBoundsSize.height;
+    }
+    
+    [self setFrameSize:NSMakeSize(newWidth, newHeight)];
+    [self setFrameOrigin:NSMakePoint((oldBoundsSize.width - newWidth) / 2,
+                                     (oldBoundsSize.height - newHeight) / 2)];
+}
+
 /*************************************************************************************************************
  * Support for SmartSizing in app
  * We want the view to grow and shrink, but never get larger than the configured desktop size
@@ -180,36 +214,7 @@
 {
     if(freerdp_get_param_bool(self->context->settings, FreeRDP_SmartSizing))
     {
-        NSSize oldBoundsSize = self.superview.bounds.size;
-        
-        int newWidth = self.frame.size.width;
-        int newHeight = self.frame.size.height;
-        
-        if(oldBoundsSize.width > freerdp_get_param_uint32(self->context->settings, FreeRDP_DesktopWidth))
-        {
-            self.autoresizingMask = self.autoresizingMask & ~NSViewWidthSizable;
-            newWidth = freerdp_get_param_uint32(self->context->settings, FreeRDP_DesktopWidth);
-        }
-        else if(oldBoundsSize.width <= freerdp_get_param_uint32(self->context->settings, FreeRDP_DesktopWidth))
-        {
-            self.autoresizingMask = self.autoresizingMask |= NSViewWidthSizable;
-            newWidth = oldBoundsSize.width;
-        }
-        
-        if(oldBoundsSize.height > freerdp_get_param_uint32(self->context->settings, FreeRDP_DesktopHeight))
-        {
-            self.autoresizingMask = self.autoresizingMask & ~NSViewHeightSizable;
-            newHeight = freerdp_get_param_uint32(self->context->settings, FreeRDP_DesktopHeight);
-        }
-        else if(oldBoundsSize.height <= freerdp_get_param_uint32(self->context->settings, FreeRDP_DesktopHeight))
-        {
-            self.autoresizingMask = self.autoresizingMask |= NSViewHeightSizable;
-            newHeight = oldBoundsSize.height;
-        }
-        
-        [self setFrameSize:NSMakeSize(newWidth, newHeight)];
-        [self setFrameOrigin:NSMakePoint((oldBoundsSize.width - newWidth) / 2,
-                                         (oldBoundsSize.height - newHeight) / 2)];
+        [self smartResize];
     }
 }
 
