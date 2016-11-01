@@ -385,6 +385,16 @@ void MRDPViewController_ResizeWindowEventHandler(void* context, ResizeWindowEven
     return [mrdpClient getErrorInfoString:code];
 }
 
+- (BOOL)provideGatewayServerCredentials:(ServerCredential **)credentials
+{
+	if(delegate && [delegate respondsToSelector:@selector(provideGatewayServerCredentials:)])
+	{
+		return [delegate provideGatewayServerCredentials:credentials];
+	}
+	
+	return FALSE;
+}
+
 - (BOOL)provideServerCredentials:(ServerCredential **)credentials
 {
     if(delegate && [delegate respondsToSelector:@selector(provideServerCredentials:)])
@@ -486,9 +496,10 @@ void MRDPViewController_ResizeWindowEventHandler(void* context, ResizeWindowEven
 	SetEnvironmentVariableA("WLOG_FILTER", filter.UTF8String);
 	SetEnvironmentVariableA("WLOG_PREFIX", "[%hr:%mi:%se:%ml] [%pid:%tid] [%lv][%mn] %fn %ln - ");
 	
+	//Make sure our settings are used
+	WLog_Uninit();
 	WLog_Init();
-	NSLog(@"Log initialized inline");
-	WLog_INFO(TAG, "Log initialized inline");
+	WLog_INFO(TAG, "Log initialized inline File: %s/%s Filter: %s", filePath.UTF8String, fileName.UTF8String, filter.UTF8String);
 }
 
 - (void) setIsReadOnly:(bool)isReadOnly

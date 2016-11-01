@@ -733,7 +733,7 @@ DWORD mac_client_thread(void* param)
         rdpSettings* settings = context->settings;
         
         status = freerdp_connect(context->instance);
-        
+		
         if (!status)
         {
             client.is_connected = 0;
@@ -767,7 +767,7 @@ DWORD mac_client_thread(void* param)
         while (1)
         {
             status = WaitForMultipleObjects(nCount, events, FALSE, INFINITE);
-            
+			
             if (WaitForSingleObject(mfc->stopEvent, 0) == WAIT_OBJECT_0)
             {
                 break;
@@ -1383,6 +1383,59 @@ BOOL mac_authenticate(freerdp* instance, char** username, char** password, char*
     [credential release];
     
     return ok;
+}
+
+BOOL mac_gateway_authenticate(freerdp* instance, char** username, char** password, char** domain)
+{
+	mfContext *mfc = (mfContext *)instance->context;
+	MRDPClient* client = (MRDPClient *)mfc->client;
+	id<MRDPClientDelegate> view = (id<MRDPClientDelegate>)client.delegate;
+	
+	NSString *hostName = [NSString stringWithCString:instance->settings->GatewayHostname encoding:NSUTF8StringEncoding];
+	NSString *userName = nil;
+	NSString *userPass = nil;
+	NSString *userDomain = nil;
+	
+	if (*username)
+	{
+		userName = [NSString stringWithCString:*username encoding:NSUTF8StringEncoding];
+	}
+	
+	if (*password)
+	{
+		userPass = [NSString stringWithCString:*password encoding:NSUTF8StringEncoding];
+	}
+	
+	if (*domain)
+	{
+		userDomain = [NSString stringWithCString:*domain encoding:NSUTF8StringEncoding];
+	}
+	
+	ServerCredential *credential = [[ServerCredential alloc] initWithHostName:hostName
+																	   domain:userDomain
+																	 userName:userName
+																  andPassword:userPass];
+	
+	BOOL ok = [view provideGatewayServerCredentials:&credential];
+	
+	if (ok)
+	{
+		const char* submittedUsername = [credential.username cStringUsingEncoding:NSUTF8StringEncoding];
+		*username = malloc((strlen(submittedUsername) + 1) * sizeof(char));
+		strcpy(*username, submittedUsername);
+		
+		const char* submittedPassword = [credential.password cStringUsingEncoding:NSUTF8StringEncoding];
+		*password = malloc((strlen(submittedPassword) + 1) * sizeof(char));
+		strcpy(*password, submittedPassword);
+		
+		const char* submittedDomain = [credential.domain cStringUsingEncoding:NSUTF8StringEncoding];
+		*domain = malloc((strlen(submittedDomain) + 1) * sizeof(char));
+		strcpy(*domain, submittedDomain);
+	}
+	
+	[credential release];
+	
+	return ok;
 }
 
 BOOL gdi_init_primary(rdpGdi* gdi);

@@ -14,6 +14,7 @@
 
 @protocol MRDPViewDelegate <NSObject>
 
+- (BOOL)provideGatewayServerCredentials:(ServerCredential **)credentials;
 - (BOOL)provideServerCredentials:(ServerCredential **)credentials;
 - (BOOL)validateCertificate:(ServerCertificate *)certificate;
 - (BOOL)validateX509Certificate:(X509Certificate *)certificate;

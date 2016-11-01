@@ -540,6 +540,18 @@ NSMutableArray *forwardedServerDrives;
     return result;
 }
 
+- (BOOL)provideGatewayServerCredentials:(ServerCredential **)credentials
+{
+	WLog_DBG(TAG, "provideGatewayServerCredentials");
+	bool result = [serverProxy provideGatewayServerCredentials:[*credentials serverHostname] username:[*credentials username] password:[*credentials password] domain:[*credentials domain]];
+	
+	[*credentials setUsername:[[serverProxy serverCredential] username]];
+	[*credentials setPassword:[[serverProxy serverCredential] password]];
+	[*credentials setDomain:[[serverProxy serverCredential] domain]];
+	
+	return result;
+}
+
 - (BOOL)validateCertificate:(ServerCertificate *)certificate
 {
     WLog_DBG(TAG, "validateCertificate");

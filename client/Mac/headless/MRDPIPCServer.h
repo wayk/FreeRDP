@@ -25,6 +25,7 @@
 - (bool)validateCertificate:(NSString *)subject issuer:(NSString *)issuer fingerprint:(NSString *)fingerprint;
 - (bool)validateX509Certificate:(NSData *)data hostname:(NSString *)hostname port:(int)port;
 - (bool)provideServerCredentials:(NSString *)hostname username:(NSString *)username password:(NSString *)password domain:(NSString *)domain;
+- (bool)provideGatewayServerCredentials:(NSString *)hostname username:(NSString *)username password:(NSString *)password domain:(NSString *)domain;
 
 @property (nonatomic, readonly) id delegate;
 

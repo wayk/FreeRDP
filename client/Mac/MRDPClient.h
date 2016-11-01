@@ -93,6 +93,7 @@ typedef struct _RDS_FRAMEBUFFER RDS_FRAMEBUFFER;
 BOOL mac_pre_connect(freerdp* instance);
 BOOL mac_post_connect(freerdp*	instance);
 BOOL mac_authenticate(freerdp* instance, char** username, char** password, char** domain);
+BOOL mac_gateway_authenticate(freerdp* instance, char** username, char** password, char** domain);
 BOOL mac_verify_certificate(freerdp* instance, char* subject, char* issuer, char* fingerprint);
 int mac_verify_x509certificate(freerdp* instance, BYTE* data, int length, const char* hostname, int port, DWORD flags);
 int mac_receive_channel_data(freerdp* instance, UINT16 chan_id, BYTE* data, int size, int flags, int total_size);

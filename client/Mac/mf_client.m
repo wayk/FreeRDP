@@ -84,6 +84,7 @@ BOOL mfreerdp_client_new(freerdp* instance, rdpContext* context)
 	context->instance->PreConnect = mac_pre_connect;
 	context->instance->PostConnect = mac_post_connect;
 	context->instance->Authenticate = mac_authenticate;
+	context->instance->GatewayAuthenticate = mac_gateway_authenticate;
 	context->instance->VerifyCertificate = mac_verify_certificate;
 	context->instance->VerifyX509Certificate = mac_verify_x509certificate;
 

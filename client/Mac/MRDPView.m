@@ -520,6 +520,16 @@
 	return TRUE;
 }
 
+- (BOOL)provideGatewayServerCredentials:(ServerCredential **)credentials
+{
+	if(delegate && [delegate respondsToSelector:@selector(provideGatewayServerCredentials:)])
+	{
+		return [delegate provideGatewayServerCredentials:credentials];
+	}
+	
+	return FALSE;
+}
+
 - (BOOL)provideServerCredentials:(ServerCredential **)credentials
 {
 	if(delegate && [delegate respondsToSelector:@selector(provideServerCredentials:)])

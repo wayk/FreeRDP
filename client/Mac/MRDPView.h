@@ -46,6 +46,7 @@
 - (void)willResizeDesktop;
 - (BOOL)didResizeDesktop;
 - (BOOL)provideServerCredentials:(ServerCredential **)credentials;
+- (BOOL)provideGatewayServerCredentials:(ServerCredential **)credentials;
 - (BOOL)validateCertificate:(ServerCertificate *)certificate;
 - (BOOL)validateX509Certificate:(X509Certificate *)certificate;
 
