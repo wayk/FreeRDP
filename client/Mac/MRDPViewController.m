@@ -84,6 +84,11 @@ void MRDPViewController_ResizeWindowEventHandler(void* context, ResizeWindowEven
 			}
 		}
 	}
+    
+    if(freerdp_get_param_bool(self->context->settings, FreeRDP_SmartSizing) && [[self rdpView] respondsToSelector:@selector(smartResize)])
+    {
+        [[self rdpView] performSelector:@selector(smartResize)];
+    }
 }
 
 - (void)viewDidPostError:(NSNotification *)notification
