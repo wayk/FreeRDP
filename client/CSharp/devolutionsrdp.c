@@ -15,6 +15,18 @@
 
 #define TAG "devolutionsrdp"
 
+// PRIVATE FUNCTIONS DECLARATIONS
+/////////////////////////////////
+void cs_error_info(void* ctx, ErrorInfoEventArgs* e);
+static BOOL cs_pre_connect(freerdp* instance);
+static BOOL cs_post_connect(freerdp* instance);
+static void cs_post_disconnect(freerdp* instance);
+static BOOL cs_authenticate(freerdp* instance, char** username, char** password, char** domain);
+static BOOL cs_verify_certificate(freerdp* instance, char* subject, char* issuer, char* fingerprint);
+static int cs_verify_x509_certificate(freerdp* instance, BYTE* data, int length, const char* hostname, int port, DWORD flags);
+/////////////////////////////////
+//
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////
@@ -135,6 +147,7 @@ void cs_OnChannelConnectedEventHandler(rdpContext* context, ChannelConnectedEven
     }
     else if (strcmp(e->name, CLIPRDR_SVC_CHANNEL_NAME) == 0)
 	{
+        WLog_ERR(TAG, "Init Clipboard\n");
 		cs_cliprdr_init(csc, (CliprdrClientContext*) e->pInterface);
 	}
 }
@@ -155,25 +168,15 @@ void cs_OnChannelDisconnectedEventHandler(rdpContext* context, ChannelDisconnect
 
 static BOOL cs_context_new(freerdp* instance, rdpContext* context)
 {
-	if (!(context->channels = freerdp_channels_new()))
-		return FALSE;
-
 	return TRUE;
 }
 
 static void cs_context_free(freerdp* instance, rdpContext* context)
 {
-	if (context && context->channels)
-	{
-		freerdp_channels_close(context->channels, instance);
-		freerdp_channels_free(context->channels);
-		context->channels = NULL;
-	}
 }
 
 static BOOL cs_pre_connect(freerdp* instance)
 {
-	int rc;
     rdpContext* context = instance->context;
 	rdpSettings* settings = instance->settings;
 	BOOL bitmap_cache = settings->BitmapCacheEnabled;
@@ -205,32 +208,15 @@ static BOOL cs_pre_connect(freerdp* instance)
 	settings->OrderSupport[NEG_ELLIPSE_CB_INDEX] = FALSE;
 
 //	settings->FrameAcknowledge = 10;
-    
     PubSub_SubscribeChannelConnected(context->pubSub,
                                      (pChannelConnectedEventHandler) cs_OnChannelConnectedEventHandler);
+
     PubSub_SubscribeChannelDisconnected(context->pubSub,
                                         (pChannelDisconnectedEventHandler) cs_OnChannelDisconnectedEventHandler);
 
-    rc = freerdp_register_addin_provider(freerdp_channels_load_static_addin_entry, 0);
-	if (rc != CHANNEL_RC_OK)
-	{
-		WLog_ERR(TAG, "Failed to register addin provider [%l08X]", rc);
-		return FALSE;
-	}
+    if (!freerdp_client_load_addins(context->channels, instance->settings))
+            return -1;
 
-	if (!freerdp_client_load_addins(instance->context->channels, instance->settings))
-	{
-		WLog_ERR(TAG, "Failed to load addins [%l08X]", GetLastError());
-		return FALSE;
-	}
-
-    rc = freerdp_channels_pre_connect(context->channels, instance);
-    if (rc != CHANNEL_RC_OK)
-	{
-		WLog_ERR(TAG, "freerdp_channels_pre_connect failed with %l08X", rc);
-		return FALSE;
-	}
-    
     if (!context->cache)
     {
         if (!(context->cache = cache_new(settings)))
@@ -238,18 +224,6 @@ static BOOL cs_pre_connect(freerdp* instance)
     }
 
 	return TRUE;
-}
-
-int cs_pixelformat_get_format(int bytesPerPixel)
-{
-    if (bytesPerPixel == 1)
-        return PIXEL_FORMAT_8BPP;
-    else if (bytesPerPixel == 2)
-        return PIXEL_FORMAT_RGB16;
-    else if (bytesPerPixel == 3)
-        return PIXEL_FORMAT_RGB24;
-    else
-        return PIXEL_FORMAT_XRGB32;
 }
 
 BOOL cs_begin_paint(rdpContext* context)
@@ -264,12 +238,20 @@ BOOL cs_end_paint(rdpContext* context)
 {
 	rdpGdi* gdi = context->gdi;
 	csContext* csc = (csContext*)context->instance->context;
+	INT32 x, y;
+	UINT32 w, h;
     
     if (gdi->primary->hdc->hwnd->invalid->null)
         return TRUE;
 
-    freerdp_image_copy(csc->buffer, PIXEL_FORMAT_XRGB32, gdi->width * 4, gdi->primary->hdc->hwnd->invalid->x, gdi->primary->hdc->hwnd->invalid->y, gdi->primary->hdc->hwnd->invalid->w, gdi->primary->hdc->hwnd->invalid->h,
-                       gdi->primary_buffer, cs_pixelformat_get_format(gdi->bytesPerPixel), gdi->width * gdi->bytesPerPixel, gdi->primary->hdc->hwnd->invalid->x, gdi->primary->hdc->hwnd->invalid->y, NULL);
+    x = gdi->primary->hdc->hwnd->invalid->x;
+	y = gdi->primary->hdc->hwnd->invalid->y;
+	w = gdi->primary->hdc->hwnd->invalid->w;
+	h = gdi->primary->hdc->hwnd->invalid->h;
+
+    freerdp_image_copy(csc->buffer, PIXEL_FORMAT_BGRX32, gdi->width * 4, x, y, w, h,
+                       gdi->primary_buffer, gdi->dstFormat, gdi->stride, 
+                       x, y, NULL, FREERDP_FLIP_NONE);
 
 	if (csc->regionUpdated)
 	{
@@ -281,7 +263,7 @@ BOOL cs_end_paint(rdpContext* context)
 
 static BOOL cs_post_connect(freerdp* instance)
 {
-	UINT32 gdi_flags;
+	UINT32 gdi_format;
     rdpUpdate* update;
 
     update = instance->context->update;
@@ -289,11 +271,11 @@ static BOOL cs_post_connect(freerdp* instance)
 	assert(instance);
 
 	if (instance->settings->ColorDepth > 16)
-		gdi_flags = CLRBUF_32BPP | CLRCONV_ALPHA;
+		gdi_format = PIXEL_FORMAT_BGRX32;
 	else
-		gdi_flags = CLRBUF_16BPP;
+		gdi_format = PIXEL_FORMAT_BGR16;
 
-	if (!gdi_init(instance, gdi_flags, NULL))
+	if (!gdi_init(instance, gdi_format))
 		return FALSE;
 
 	update->BeginPaint = cs_begin_paint;
@@ -301,18 +283,12 @@ static BOOL cs_post_connect(freerdp* instance)
     
 //    pointer_cache_register_callbacks(update);
 
-	if (freerdp_channels_post_connect(instance->context->channels, instance) < 0)
-		return FALSE;
-
 	return TRUE;
 }
 
 static void cs_post_disconnect(freerdp* instance)
 {
     rdpContext* context = instance->context;
-    csContext* csCtxt = (csContext*)instance->context;
-    
-    freerdp_channels_disconnect(context->channels, instance);
     
 	gdi_free(instance);
     
@@ -381,12 +357,22 @@ void* csharp_freerdp_new()
 	{
 		freerdp_free(instance);
 		instance = NULL;
+        goto end;
 	}
     else
     {
         PubSub_SubscribeErrorInfo(instance->context->pubSub, cs_error_info);
     }
 
+    if (freerdp_register_addin_provider(freerdp_channels_load_static_addin_entry, 0) != CHANNEL_RC_OK)
+    {
+        instance = NULL;
+        goto end;
+    }
+
+    freerdp_register_addin_provider(freerdp_channels_load_static_addin_entry, 0);
+
+end:
 	return instance;
 }
 
@@ -394,18 +380,22 @@ void csharp_freerdp_free(void* instance)
 {
 	freerdp* inst = (freerdp*)instance;
 
-	freerdp_context_free(inst);
-	freerdp_free(inst);
+	freerdp_client_context_free(inst->context);
 }
 
 BOOL csharp_freerdp_connect(void* instance)
 {
-	return freerdp_connect((freerdp*)instance);
+    return freerdp_connect((freerdp*)instance);
 }
 
 BOOL csharp_freerdp_disconnect(void* instance)
 {
-	freerdp_disconnect((freerdp*)instance);
+    freerdp* inst = (freerdp*)instance;
+
+	freerdp_disconnect(inst);
+
+    if (freerdp_client_stop(inst->context) != CHANNEL_RC_OK)
+        return FALSE;
 
 	return TRUE;
 }
@@ -452,6 +442,8 @@ BOOL csharp_freerdp_set_console_mode(void* instance, BOOL useConsoleMode, BOOL u
 
 	settings->ConsoleSession = useConsoleMode;
 	settings->RestrictedAdminModeRequired = useRestrictedAdminMode;
+
+	return TRUE;
 }
 
 BOOL csharp_freerdp_set_connection_info(void* instance, const char* hostname, const char* username, const char* password,                       const char* domain, UINT32 width, UINT32 height, UINT32 color_depth, UINT32 port, int codecLevel, int security)
@@ -682,6 +674,12 @@ void csharp_freerdp_send_clipboard_data(void* instance, BYTE* buffer, int length
 
     freerdp* inst = (freerdp*)instance;
     csContext* ctxt = (csContext*)inst->context;
+
+    if(!ctxt->clipboard)
+    {
+        WLog_ERR(TAG, "Clipboard not initialized yet\n");
+        return; /* Clipboard not ready yet.*/
+    }
 
     formatId = ClipboardRegisterFormat(ctxt->clipboard, "UTF8_STRING");
 
