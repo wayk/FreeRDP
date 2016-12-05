@@ -10,9 +10,10 @@ set(${MODULE_PREFIX}_HDRS
 set(${MODULE_PREFIX}_SRCS
 	${${MODULE_PREFIX}_HDRS}
 	clipboard.c
+	headless.c
 	devolutionsrdp.c)
 
-add_library(${MODULE_NAME} SHARED ${${MODULE_PREFIX}_SRCS})
+add_library(${MODULE_NAME} STATIC ${${MODULE_PREFIX}_SRCS})
 
 set(${MODULE_PREFIX}_LIBS ${${MODULE_PREFIX}_LIBS} freerdp-client)
 set(${MODULE_PREFIX}_LIBS ${${MODULE_PREFIX}_LIBS} winpr freerdp)

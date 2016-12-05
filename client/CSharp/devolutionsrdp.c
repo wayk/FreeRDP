@@ -446,6 +446,16 @@ BOOL csharp_freerdp_set_console_mode(void* instance, BOOL useConsoleMode, BOOL u
 	return TRUE;
 }
 
+BOOL csharp_freerdp_set_redirect_clipboard(void* instance, BOOL redirectClipboard)
+{
+    freerdp* inst = (freerdp*)instance;
+	rdpSettings * settings = inst->settings;
+
+    settings->RedirectClipboard = redirectClipboard;
+
+    return TRUE;
+}
+
 BOOL csharp_freerdp_set_connection_info(void* instance, const char* hostname, const char* username, const char* password,                       const char* domain, UINT32 width, UINT32 height, UINT32 color_depth, UINT32 port, int codecLevel, int security)
 {
 	freerdp* inst = (freerdp*)instance;
@@ -485,7 +495,6 @@ BOOL csharp_freerdp_set_connection_info(void* instance, const char* hostname, co
 	//settings->RemoteFxCodec = TRUE;
     settings->AllowFontSmoothing = TRUE;
     settings->ColorDepth = 16;
-    settings->RedirectClipboard = TRUE;
     
     if (codecLevel >= 7)
     {
@@ -758,4 +767,21 @@ void csharp_set_on_error(void* instance, fnOnError fn)
 const char* csharp_get_error_info_string(int code)
 {
     return freerdp_get_error_info_string(code);
+}
+
+DWORD csharp_get_vk_from_keycode(DWORD keycode, DWORD flags)
+{
+	return GetVirtualKeyCodeFromKeycode(keycode, flags);
+}
+
+DWORD csharp_get_scancode_from_vk(DWORD keycode, DWORD flags)
+{
+	return GetVirtualScanCodeFromVirtualKeyCode(keycode, flags);
+}
+
+void csharp_freerdp_send_scancode(void* instance, int flags, DWORD scancode)
+{
+	freerdp* inst = (freerdp*)instance;
+	
+	freerdp_input_send_keyboard_event(inst->input, flags, scancode);
 }

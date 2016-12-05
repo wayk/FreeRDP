@@ -36,6 +36,7 @@ FREERDP_API BOOL csharp_freerdp_connect(void* instance);
 FREERDP_API BOOL csharp_freerdp_disconnect(void* instance);
 FREERDP_API void csharp_freerdp_set_on_region_updated(void* instance, fnRegionUpdated fn);
 FREERDP_API BOOL csharp_freerdp_set_console_mode(void* instance, BOOL useConsoleMode, BOOL useRestrictedAdminMode);
+FREERDP_API BOOL csharp_freerdp_set_redirect_clipboard(void* instance, BOOL redirectClipboard);
 FREERDP_API BOOL csharp_freerdp_set_connection_info(void* instance, const char* hostname, const char* username, const char* password, const char* domain, UINT32 width, UINT32 height, UINT32 color_depth, UINT32 port, int codecLevel, int security);
 FREERDP_API BOOL csharp_freerdp_set_gateway_settings(void* instance, const char* hostname, UINT32 port, const char* username, const char* password, const char* domain, BOOL bypassLocal);
 FREERDP_API BOOL csharp_freerdp_set_data_directory(void* instance, const char* directory);
@@ -47,8 +48,11 @@ FREERDP_API void csharp_freerdp_send_clipboard_data(void* instance, BYTE* data, 
 FREERDP_API void csharp_freerdp_send_cursor_event(void* instance, int x, int y, int flags);
 FREERDP_API void csharp_freerdp_send_input(void* instance, int keycode, BOOL down);
 FREERDP_API void csharp_freerdp_send_unicode(void* instance, int character);
+FREERDP_API DWORD csharp_get_vk_from_keycode(DWORD keycode, DWORD flags);
+FREERDP_API DWORD csharp_get_scancode_from_vk(DWORD keycode, DWORD flags);
 FREERDP_API BOOL csharp_get_is_buffer_updated(void* instance);
 FREERDP_API void csharp_freerdp_send_vkcode(void* instance, int vkcode, BOOL down);
+FREERDP_API void csharp_freerdp_send_scancode(void* instance, int flags, DWORD scancode);
 FREERDP_API void csharp_set_log_output(const char* path, const char* name);
 
 FREERDP_API void csharp_set_on_authenticate(void* instance, pAuthenticate fn);
