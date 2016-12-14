@@ -550,6 +550,42 @@ BOOL csharp_freerdp_set_connection_info(void* instance, const char* hostname, co
 	return FALSE;
 }
 
+void csharp_freerdp_set_hyperv_info(void* instance, char* pcb)
+{
+	freerdp* inst = (freerdp*)instance;
+	rdpSettings * settings = inst->settings;
+	
+	settings->PreconnectionBlob = _strdup(pcb);
+	settings->VmConnectMode = TRUE;
+	settings->SendPreconnectionPdu = TRUE;
+	settings->NlaSecurity = TRUE;
+	settings->NegotiateSecurityLayer = FALSE;
+}
+
+void csharp_freerdp_set_keyboard_layout(void* instance, int layoutID)
+{
+	freerdp* inst = (freerdp*)instance;
+	rdpSettings * settings = inst->settings;
+	
+	settings->KeyboardLayout = layoutID;
+}
+
+void csharp_freerdp_set_redirect_all_drives(void* instance, BOOL redirect)
+{
+	freerdp* inst = (freerdp*)instance;
+	rdpSettings * settings = inst->settings;
+	
+	settings->RedirectDrives = redirect;
+}
+
+void csharp_freerdp_set_redirect_home_drive(void* instance, BOOL redirect)
+{
+	freerdp* inst = (freerdp*)instance;
+	rdpSettings * settings = inst->settings;
+	
+	settings->RedirectHomeDrive = redirect;
+}
+
 BOOL csharp_freerdp_set_data_directory(void* instance, const char* directory)
 {
 	freerdp* inst = (freerdp*)instance;
@@ -714,10 +750,10 @@ void csharp_freerdp_send_clipboard_data(void* instance, BYTE* buffer, int length
 
 void csharp_set_log_output(const char* path, const char* name)
 {
-    // SetEnvironmentVariableA("WLOG_APPENDER", "FILE");
+    SetEnvironmentVariableA("WLOG_APPENDER", "FILE");
     SetEnvironmentVariableA("WLOG_LEVEL", "DEBUG");
-    // SetEnvironmentVariableA("WLOG_FILEAPPENDER_OUTPUT_FILE_PATH", path);
-    // SetEnvironmentVariableA("WLOG_FILEAPPENDER_OUTPUT_FILE_NAME", name);
+    SetEnvironmentVariableA("WLOG_FILEAPPENDER_OUTPUT_FILE_PATH", path);
+    SetEnvironmentVariableA("WLOG_FILEAPPENDER_OUTPUT_FILE_NAME", name);
 }
 
 void csharp_set_on_authenticate(void* instance, pAuthenticate fn)
@@ -784,4 +820,12 @@ void csharp_freerdp_send_scancode(void* instance, int flags, DWORD scancode)
 	freerdp* inst = (freerdp*)instance;
 	
 	freerdp_input_send_keyboard_event(inst->input, flags, scancode);
+}
+
+void csharp_freerdp_redirect_drive(void* instance, char* name, char* path)
+{
+	freerdp* inst = (freerdp*)instance;
+	char* d[] = { "drive", name, path};
+	
+	freerdp_client_add_device_channel(inst->settings, 3, d);
 }

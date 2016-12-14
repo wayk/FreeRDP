@@ -54,6 +54,8 @@ FREERDP_API BOOL csharp_get_is_buffer_updated(void* instance);
 FREERDP_API void csharp_freerdp_send_vkcode(void* instance, int vkcode, BOOL down);
 FREERDP_API void csharp_freerdp_send_scancode(void* instance, int flags, DWORD scancode);
 FREERDP_API void csharp_set_log_output(const char* path, const char* name);
+FREERDP_API void csharp_freerdp_set_hyperv_info(void* instance, char* pcb);
+FREERDP_API void csharp_freerdp_set_keyboard_layout(void* instance, int layoutID);
 
 FREERDP_API void csharp_set_on_authenticate(void* instance, pAuthenticate fn);
 FREERDP_API void csharp_set_on_clipboard_update(void* instance, fnOnClipboardUpdate fn);
@@ -62,5 +64,9 @@ FREERDP_API void csharp_set_on_verify_certificate(void* instance, pVerifyCertifi
 FREERDP_API void csharp_set_on_verify_x509_certificate(void* instance, pVerifyX509Certificate fn);
 FREERDP_API void csharp_set_on_error(void* instance, fnOnError fn);
 FREERDP_API const char* csharp_get_error_info_string(int code);
+
+FREERDP_API void csharp_freerdp_redirect_drive(void* instance, char* name, char* path);
+FREERDP_API void csharp_freerdp_set_redirect_all_drives(void* instance, BOOL redirect);
+FREERDP_API void csharp_freerdp_set_redirect_home_drive(void* instance, BOOL redirect);
 
 #endif /* CS_DEVOLUTIONSRDP_H_ */
