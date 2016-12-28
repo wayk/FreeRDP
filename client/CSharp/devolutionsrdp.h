@@ -56,6 +56,7 @@ FREERDP_API void csharp_freerdp_send_scancode(void* instance, int flags, DWORD s
 FREERDP_API void csharp_set_log_output(const char* path, const char* name);
 FREERDP_API void csharp_freerdp_set_hyperv_info(void* instance, char* pcb);
 FREERDP_API void csharp_freerdp_set_keyboard_layout(void* instance, int layoutID);
+FREERDP_API void csharp_freerdp_set_smart_sizing(void* instance, bool smartSizing);
 
 FREERDP_API void csharp_set_on_authenticate(void* instance, pAuthenticate fn);
 FREERDP_API void csharp_set_on_clipboard_update(void* instance, fnOnClipboardUpdate fn);

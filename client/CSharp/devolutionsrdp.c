@@ -336,6 +336,10 @@ void cs_error_info(void* ctx, ErrorInfoEventArgs* e)
 void* csharp_freerdp_new()
 {
 	freerdp* instance;
+    // Dont remove this is actually useful
+    // to prevent GetTickCount64 from getting stripped. (but not teased)
+    long inutile = GetTickCount64();
+    inutile = 0;
 
 	// create instance
 	if (!(instance = freerdp_new()))
@@ -492,9 +496,7 @@ BOOL csharp_freerdp_set_connection_info(void* instance, const char* hostname, co
 		goto out_fail_strdup;
 
 	settings->SoftwareGdi = TRUE;
-	//settings->RemoteFxCodec = TRUE;
     settings->AllowFontSmoothing = TRUE;
-    settings->ColorDepth = 16;
     
     if (codecLevel >= 7)
     {
@@ -828,4 +830,12 @@ void csharp_freerdp_redirect_drive(void* instance, char* name, char* path)
 	char* d[] = { "drive", name, path};
 	
 	freerdp_client_add_device_channel(inst->settings, 3, d);
+}
+
+void csharp_freerdp_set_smart_sizing(void* instance, bool smartSizing)
+{
+	freerdp* inst = (freerdp*)instance;
+	rdpSettings * settings = inst->settings;
+	
+	settings->SmartSizing = smartSizing;
 }
