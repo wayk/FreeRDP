@@ -36,6 +36,10 @@ void MRDPViewController_ResizeWindowEventHandler(void* context, ResizeWindowEven
 @synthesize delegate;
 @synthesize mrdpClient;
 @synthesize invertHungarianCharacter;
+@synthesize shiftKeyMask;
+@synthesize controlKeyMask;
+@synthesize alternateKeyMask;
+@synthesize commandKeyMask;
 
 - (BOOL)isConnected
 {
@@ -171,6 +175,11 @@ void MRDPViewController_ResizeWindowEventHandler(void* context, ResizeWindowEven
 	
 	forwardedServerDrives = [[NSMutableArray alloc] init];
 	mrdpClient.invertHungarianCharacter = invertHungarianCharacter;
+    
+    mrdpClient.alternateKeyMask = alternateKeyMask;
+    mrdpClient.commandKeyMask = commandKeyMask;
+    mrdpClient.controlKeyMask = controlKeyMask;
+    mrdpClient.shiftKeyMask = shiftKeyMask;
     
 	int status;
 	mfContext* mfc;

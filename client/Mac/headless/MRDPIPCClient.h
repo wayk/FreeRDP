@@ -22,11 +22,19 @@
     MRDPClient* mrdpClient;
     bool is_stopped;
     NSRect frame;
-	bool invertHungarianCharacter;
+    bool invertHungarianCharacter;
+    NSEventModifierFlags shiftKeyMask;
+    NSEventModifierFlags controlKeyMask;
+    NSEventModifierFlags alternateKeyMask;
+    NSEventModifierFlags commandKeyMask;
 }
 
 @property (assign) NSRect frame;
 @property (assign) bool invertHungarianCharacter;
+@property (assign) NSEventModifierFlags shiftKeyMask;
+@property (assign) NSEventModifierFlags controlKeyMask;
+@property (assign) NSEventModifierFlags alternateKeyMask;
+@property (assign) NSEventModifierFlags commandKeyMask;
 
 - (id)initWithServer:(NSString *)registeredName;
 - (void)configure;

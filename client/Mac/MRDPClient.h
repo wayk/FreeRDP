@@ -50,6 +50,10 @@ typedef struct _RDS_FRAMEBUFFER RDS_FRAMEBUFFER;
 	int pasteboard_format;
 	bool ignoreNextPasteboardChange;
 	bool invertHungarianCharacter;
+    NSEventModifierFlags shiftKeyMask;
+    NSEventModifierFlags controlKeyMask;
+    NSEventModifierFlags alternateKeyMask;
+    NSEventModifierFlags commandKeyMask;
 }
 
 @property(nonatomic, assign) bool is_connected;
@@ -57,6 +61,10 @@ typedef struct _RDS_FRAMEBUFFER RDS_FRAMEBUFFER;
 @property(nonatomic) RDS_FRAMEBUFFER* frameBuffer;
 @property(nonatomic, assign) id<MRDPClientDelegate> delegate;
 @property(nonatomic, assign) bool invertHungarianCharacter;
+@property(nonatomic, assign) NSEventModifierFlags shiftKeyMask;
+@property(nonatomic, assign) NSEventModifierFlags controlKeyMask;
+@property(nonatomic, assign) NSEventModifierFlags alternateKeyMask;
+@property(nonatomic, assign) NSEventModifierFlags commandKeyMask;
 
 - (int)rdpStart:(rdpContext*)rdp_context;
 - (void)releaseResources;
