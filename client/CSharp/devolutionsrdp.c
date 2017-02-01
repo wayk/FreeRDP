@@ -418,7 +418,6 @@ BOOL csharp_freerdp_set_gateway_settings(void* instance, const char* hostname, U
     rdpSettings* settings = inst->settings;
     
     settings->GatewayPort     = port;
-    //settings->GatewayUsageMethod = TSC_PROXY_MODE_DIRECT;
     settings->GatewayEnabled = TRUE;
     settings->GatewayUseSameCredentials = FALSE;
     settings->GatewayHostname = strdup(hostname);
@@ -429,6 +428,8 @@ BOOL csharp_freerdp_set_gateway_settings(void* instance, const char* hostname, U
     settings->GatewayHttpTransport = TRUE;
     settings->GatewayRpcTransport = TRUE;
     settings->CredentialsFromStdin = FALSE;
+
+    freerdp_update_gateway_usage_method(settings, TRUE, bypassLocal);
     
     if (!settings->GatewayHostname || !settings->GatewayUsername ||
         !settings->GatewayPassword || !settings->GatewayDomain)
