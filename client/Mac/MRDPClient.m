@@ -49,6 +49,12 @@ BOOL mf_Pointer_SetDefault(rdpContext* context);
 BOOL mac_begin_paint(rdpContext* context);
 BOOL mac_end_paint(rdpContext* context);
 
+@interface MRDPClient ()
+
+@property (nonatomic, assign) NSEventModifierFlags localAppliedMask;
+
+@end
+
 @implementation MRDPClient
 
 @synthesize is_connected;
@@ -60,6 +66,8 @@ BOOL mac_end_paint(rdpContext* context);
 @synthesize controlKeyMask;
 @synthesize alternateKeyMask;
 @synthesize commandKeyMask;
+@synthesize mappedShortcuts;
+@synthesize localAppliedMask;
 
 - (id)init
 {
@@ -480,10 +488,80 @@ BOOL mac_end_paint(rdpContext* context);
         {
             cmdComboUsed = true;
             freerdp_input_send_keyboard_event(instance->input, 256 | KBD_FLAGS_DOWN, 0x005B);
+            self.localAppliedMask |= NSCommandKeyMask;
         }
     }
     
-    freerdp_input_send_keyboard_event(instance->input, keyFlags, scancode);
+    NSDictionary* shortcut = [self getCustomMappedShortcutFromKeyCode:keyCode andModifierMasks:self.localAppliedMask];
+    if (shortcut)
+    {
+        vkcode = GetVirtualKeyCodeFromKeycode([[shortcut valueForKey:@"remoteKeyCode"] unsignedIntegerValue] + 8, KEYCODE_TYPE_APPLE);
+        scancode = GetVirtualScanCodeFromVirtualKeyCode(vkcode, 4);
+        
+        freerdp_input_send_keyboard_event(instance->input, KBD_FLAGS_RELEASE, 0x5B); // LWIN
+        freerdp_input_send_keyboard_event(instance->input, KBD_FLAGS_RELEASE, 0x2A); // LSHIFT
+        freerdp_input_send_keyboard_event(instance->input, KBD_FLAGS_RELEASE, 0x1D); // LCTRL
+        freerdp_input_send_keyboard_event(instance->input, KBD_FLAGS_RELEASE, 0x38); // LALT
+        
+        bool sendCommand = [[shortcut valueForKey:@"remoteMasks"] unsignedIntegerValue] & (uint)NSCommandKeyMask;
+        bool sendShift = [[shortcut valueForKey:@"remoteMasks"] unsignedIntegerValue] & (uint)NSShiftKeyMask;
+        bool sendControl = [[shortcut valueForKey:@"remoteMasks"] unsignedIntegerValue] & (uint)NSControlKeyMask;
+        bool sendAlternate = [[shortcut valueForKey:@"remoteMasks"] unsignedIntegerValue] & (uint)NSAlternateKeyMask;
+        
+        if (sendCommand)
+        {
+            freerdp_input_send_keyboard_event(instance->input, KBD_FLAGS_DOWN | KBD_FLAGS_EXTENDED, 0x5B); // LWIN
+        }
+        
+        if (sendShift)
+        {
+            freerdp_input_send_keyboard_event(instance->input, KBD_FLAGS_DOWN, 0x2A); // LSHIFT
+        }
+        
+        if (sendControl)
+        {
+            freerdp_input_send_keyboard_event(instance->input, KBD_FLAGS_DOWN, 0x1D); // LCTRL
+        }
+        
+        if (sendAlternate)
+        {
+            freerdp_input_send_keyboard_event(instance->input, KBD_FLAGS_DOWN, 0x38); // LALT
+        }
+        
+        freerdp_input_send_keyboard_event(instance->input, keyFlags, scancode);
+        
+        int releaseFlags = KBD_FLAGS_RELEASE;
+        if ((keyFlags & KBD_FLAGS_EXTENDED) > 0)
+        {
+            releaseFlags |= KBD_FLAGS_EXTENDED;
+        }
+        
+        freerdp_input_send_keyboard_event(instance->input, releaseFlags, scancode);
+        
+        if (sendCommand)
+        {
+            freerdp_input_send_keyboard_event(instance->input, KBD_FLAGS_RELEASE | KBD_FLAGS_EXTENDED, 0x5B); // LWIN
+        }
+        
+        if (sendShift)
+        {
+            freerdp_input_send_keyboard_event(instance->input, KBD_FLAGS_RELEASE, 0x2A); // LSHIFT
+        }
+        
+        if (sendControl)
+        {
+            freerdp_input_send_keyboard_event(instance->input, KBD_FLAGS_RELEASE, 0x1D); // LCTRL
+        }
+        
+        if (sendAlternate)
+        {
+            freerdp_input_send_keyboard_event(instance->input, KBD_FLAGS_RELEASE, 0x38); // LALT
+        }
+    }
+    else
+    {
+        freerdp_input_send_keyboard_event(instance->input, keyFlags, scancode);
+    }
     
     if (releaseKey)
     {
@@ -494,7 +572,28 @@ BOOL mac_end_paint(rdpContext* context);
     if(cmdTabInProgress)
     {
         freerdp_input_send_keyboard_event(instance->input, 256 | KBD_FLAGS_RELEASE, 0x005B);
+        self.localAppliedMask &= ~NSCommandKeyMask;
     }
+}
+
+- (NSDictionary*) getCustomMappedShortcutFromKeyCode:(uint) keyCode andModifierMasks:(NSEventModifierFlags) modifierMasks
+{
+    NSArray* shortcuts = self.mappedShortcuts;
+    if (shortcuts && shortcuts.count > 0)
+    {
+        for (NSDictionary* shortcut in shortcuts)
+        {
+            if (shortcut
+                && [[shortcut valueForKey:@"enabled"] boolValue]
+                && [[shortcut valueForKey:@"localKeyCode"] unsignedIntegerValue] == keyCode
+                && [[shortcut valueForKey:@"localMasks"] unsignedIntegerValue] == modifierMasks)
+            {
+                return shortcut;
+            }
+        }
+    }
+    
+    return NULL;
 }
 
 - (void)keyUp:(NSEvent *)event
@@ -592,19 +691,37 @@ BOOL mac_end_paint(rdpContext* context);
         freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_RELEASE, 0x36);
     
     if ((modFlags & self.shiftKeyMask) && !(kbdModFlags & self.shiftKeyMask))
+    {
         freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_DOWN, 0x2A);
+        self.localAppliedMask |= NSShiftKeyMask;
+    }
     else if (!(modFlags & self.shiftKeyMask) && (kbdModFlags & self.shiftKeyMask))
+    {
         freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_RELEASE, 0x2A);
+        self.localAppliedMask &= ~NSShiftKeyMask;
+    }
    
     if ((modFlags & self.controlKeyMask) && !(kbdModFlags & self.controlKeyMask))
+    {
         freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_DOWN, 0x1D);
+        self.localAppliedMask |= NSControlKeyMask;
+    }
     else if (!(modFlags & self.controlKeyMask) && (kbdModFlags & self.controlKeyMask))
+    {
         freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_RELEASE, 0x1D);
+        self.localAppliedMask &= ~NSControlKeyMask;
+    }
     
     if ((modFlags & self.alternateKeyMask) && !(kbdModFlags & self.alternateKeyMask))
+    {
         freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_DOWN, 0x38);
+        self.localAppliedMask |= NSAlternateKeyMask;
+    }
     else if (!(modFlags & self.alternateKeyMask) && (kbdModFlags & self.alternateKeyMask))
+    {
         freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_RELEASE, 0x38);
+        self.localAppliedMask &= ~NSAlternateKeyMask;
+    }
     
     if (context->settings->EnableWindowsKey)
     {

@@ -35,7 +35,8 @@ typedef struct _RDS_FRAMEBUFFER RDS_FRAMEBUFFER;
 	rdpContext* context;
 	NSMutableArray* cursors;
 	NSTimer* pasteboard_timer;
-	DWORD kbdModFlags;
+    DWORD kbdModFlags;
+    NSEventModifierFlags localAppliedMask;
 	        
 	@public
 	bool is_connected;
@@ -54,6 +55,7 @@ typedef struct _RDS_FRAMEBUFFER RDS_FRAMEBUFFER;
     NSEventModifierFlags controlKeyMask;
     NSEventModifierFlags alternateKeyMask;
     NSEventModifierFlags commandKeyMask;
+    NSArray* mappedShortcuts;
 }
 
 @property(nonatomic, assign) bool is_connected;
@@ -65,6 +67,7 @@ typedef struct _RDS_FRAMEBUFFER RDS_FRAMEBUFFER;
 @property(nonatomic, assign) NSEventModifierFlags controlKeyMask;
 @property(nonatomic, assign) NSEventModifierFlags alternateKeyMask;
 @property(nonatomic, assign) NSEventModifierFlags commandKeyMask;
+@property(nonatomic, copy) NSArray* mappedShortcuts;
 
 - (int)rdpStart:(rdpContext*)rdp_context;
 - (void)releaseResources;
@@ -108,6 +111,7 @@ int mac_receive_channel_data(freerdp* instance, UINT16 chan_id, BYTE* data, int 
 BOOL mac_authenticate(freerdp* instance, char** username, char** password, char** domain);
 BOOL mac_verify_certificate(freerdp* instance, char* subject, char* issuer, char* fingerprint);
 int mac_verify_x509certificate(freerdp* instance, BYTE* data, int length, const char* hostname, int port, DWORD flags);
+
 
 /* Pointer Flags */
 #define PTR_FLAGS_WHEEL                 0x0200

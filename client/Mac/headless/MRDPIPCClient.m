@@ -27,6 +27,7 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 @synthesize controlKeyMask;
 @synthesize alternateKeyMask;
 @synthesize commandKeyMask;
+@synthesize mappedShortcuts;
 
 static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
 
@@ -65,6 +66,8 @@ NSMutableArray *forwardedServerDrives;
         [serverProxy clientConnected:clientName];
         
         forwardedServerDrives = [[NSMutableArray alloc] init];
+        
+        self.mappedShortcuts = [[NSArray alloc] init];
     }
     
     return self;
@@ -139,6 +142,8 @@ NSMutableArray *forwardedServerDrives;
     mrdpClient.commandKeyMask = commandKeyMask;
     mrdpClient.controlKeyMask = controlKeyMask;
     mrdpClient.shiftKeyMask = shiftKeyMask;
+    
+    mrdpClient.mappedShortcuts = mappedShortcuts;
     
     mfContext* mfc = (mfContext*)context;
     mfc->client = mrdpClient;

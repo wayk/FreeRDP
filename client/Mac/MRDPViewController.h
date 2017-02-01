@@ -22,6 +22,7 @@
     NSEventModifierFlags controlKeyMask;
     NSEventModifierFlags alternateKeyMask;
     NSEventModifierFlags commandKeyMask;
+    NSArray* mappedShortcuts;
     
     @public
 	rdpContext* context;
@@ -38,6 +39,7 @@
 @property (nonatomic, assign) NSEventModifierFlags controlKeyMask;
 @property (nonatomic, assign) NSEventModifierFlags alternateKeyMask;
 @property (nonatomic, assign) NSEventModifierFlags commandKeyMask;
+@property (nonatomic, copy) NSArray* mappedShortcuts;
 
 - (BOOL)configure;
 - (BOOL)configure:(NSArray *)arguments;

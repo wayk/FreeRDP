@@ -40,6 +40,14 @@ void MRDPViewController_ResizeWindowEventHandler(void* context, ResizeWindowEven
 @synthesize controlKeyMask;
 @synthesize alternateKeyMask;
 @synthesize commandKeyMask;
+@synthesize mappedShortcuts;
+
+-(id)init
+{
+    self.mappedShortcuts = [[NSArray alloc] init];
+    
+    return self;
+}
 
 - (BOOL)isConnected
 {
@@ -174,12 +182,6 @@ void MRDPViewController_ResizeWindowEventHandler(void* context, ResizeWindowEven
 	}
 	
 	forwardedServerDrives = [[NSMutableArray alloc] init];
-	mrdpClient.invertHungarianCharacter = invertHungarianCharacter;
-    
-    mrdpClient.alternateKeyMask = alternateKeyMask;
-    mrdpClient.commandKeyMask = commandKeyMask;
-    mrdpClient.controlKeyMask = controlKeyMask;
-    mrdpClient.shiftKeyMask = shiftKeyMask;
     
 	int status;
 	mfContext* mfc;
@@ -230,6 +232,15 @@ void MRDPViewController_ResizeWindowEventHandler(void* context, ResizeWindowEven
     
 	MRDPClient *client = [[MRDPClient alloc] init];
 	client.delegate = view;
+    
+    client.invertHungarianCharacter = invertHungarianCharacter;
+    
+    client.alternateKeyMask = alternateKeyMask;
+    client.commandKeyMask = commandKeyMask;
+    client.controlKeyMask = controlKeyMask;
+    client.shiftKeyMask = shiftKeyMask;
+    
+    client.mappedShortcuts = mappedShortcuts;
     
 	mfContext* mfc = (mfContext*)context;
 	mfc->client = client;

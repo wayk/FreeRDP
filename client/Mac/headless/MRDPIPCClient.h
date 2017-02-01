@@ -27,6 +27,7 @@
     NSEventModifierFlags controlKeyMask;
     NSEventModifierFlags alternateKeyMask;
     NSEventModifierFlags commandKeyMask;
+    NSArray* mappedShortcuts;
 }
 
 @property (assign) NSRect frame;
@@ -35,6 +36,7 @@
 @property (assign) NSEventModifierFlags controlKeyMask;
 @property (assign) NSEventModifierFlags alternateKeyMask;
 @property (assign) NSEventModifierFlags commandKeyMask;
+@property (copy) NSArray* mappedShortcuts;
 
 - (id)initWithServer:(NSString *)registeredName;
 - (void)configure;
