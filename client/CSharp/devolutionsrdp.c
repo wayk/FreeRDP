@@ -9,6 +9,7 @@
 #include <ctype.h>
 #include <freerdp/log.h>
 #include <winpr/environment.h>
+#include <winpr/sysinfo.h>
 
 #include "devolutionsrdp.h"
 #include "clipboard.h"
