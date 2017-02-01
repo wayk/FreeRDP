@@ -23,6 +23,10 @@ void ErrorInfoEventHandler(void* ctx, ErrorInfoEventArgs* e);
 @implementation MRDPIPCClient
 
 @synthesize invertHungarianCharacter;
+@synthesize shiftKeyMask;
+@synthesize controlKeyMask;
+@synthesize alternateKeyMask;
+@synthesize commandKeyMask;
 
 static NSString* const clientBaseName = @"com.devolutions.freerdp-ipc-child";
 
@@ -130,6 +134,11 @@ NSMutableArray *forwardedServerDrives;
     mrdpClient = [[MRDPClient alloc] init];
     mrdpClient.delegate = self;
 	mrdpClient.invertHungarianCharacter	= invertHungarianCharacter;
+    
+    mrdpClient.alternateKeyMask = alternateKeyMask;
+    mrdpClient.commandKeyMask = commandKeyMask;
+    mrdpClient.controlKeyMask = controlKeyMask;
+    mrdpClient.shiftKeyMask = shiftKeyMask;
     
     mfContext* mfc = (mfContext*)context;
     mfc->client = mrdpClient;

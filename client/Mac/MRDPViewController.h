@@ -17,7 +17,11 @@
     NSObject<MRDPViewControllerDelegate> *delegate;
     NSView *rdpView;
 	NSMutableArray *forwardedServerDrives;
-	bool invertHungarianCharacter;
+    bool invertHungarianCharacter;
+    NSEventModifierFlags shiftKeyMask;
+    NSEventModifierFlags controlKeyMask;
+    NSEventModifierFlags alternateKeyMask;
+    NSEventModifierFlags commandKeyMask;
     
     @public
 	rdpContext* context;
@@ -30,6 +34,10 @@
 @property (nonatomic, assign) MRDPClient *mrdpClient;
 @property (nonatomic, readonly) NSView *rdpView;
 @property (nonatomic, assign) bool invertHungarianCharacter;
+@property (nonatomic, assign) NSEventModifierFlags shiftKeyMask;
+@property (nonatomic, assign) NSEventModifierFlags controlKeyMask;
+@property (nonatomic, assign) NSEventModifierFlags alternateKeyMask;
+@property (nonatomic, assign) NSEventModifierFlags commandKeyMask;
 
 - (BOOL)configure;
 - (BOOL)configure:(NSArray *)arguments;

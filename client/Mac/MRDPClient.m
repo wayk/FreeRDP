@@ -56,6 +56,10 @@ BOOL mac_end_paint(rdpContext* context);
 @synthesize frameBuffer;
 @synthesize delegate;
 @synthesize invertHungarianCharacter;
+@synthesize shiftKeyMask;
+@synthesize controlKeyMask;
+@synthesize alternateKeyMask;
+@synthesize commandKeyMask;
 
 - (id)init
 {
@@ -65,6 +69,11 @@ BOOL mac_end_paint(rdpContext* context);
         cursors = [[NSMutableArray alloc] initWithCapacity:10];
         frameBuffer = (RDS_FRAMEBUFFER *) malloc(sizeof(RDS_FRAMEBUFFER));
 		self.isReadOnly = false;
+        
+        self.shiftKeyMask = NSShiftKeyMask;
+        self.controlKeyMask = NSControlKeyMask;
+        self.alternateKeyMask = NSAlternateKeyMask;
+        self.commandKeyMask = NSCommandKeyMask;
     }
     
     return self;
@@ -445,7 +454,7 @@ BOOL mac_end_paint(rdpContext* context);
     vkcode &= 0xFF;
     
     // For VK_A, VK_C, VK_V, VK_X or VK_Z
-    if ((vkcode == 0x43 || vkcode == 0x56 || vkcode == 0x41 || vkcode == 0x58 || vkcode == 0x5A) && modifierFlags & NSCommandKeyMask)
+    if ((vkcode == 0x43 || vkcode == 0x56 || vkcode == 0x41 || vkcode == 0x58 || vkcode == 0x5A) && modifierFlags & self.commandKeyMask)
     {
         if (context->settings->EnableWinKeyCutPaste)
         {
@@ -558,16 +567,16 @@ BOOL mac_end_paint(rdpContext* context);
     if (modFlags & NSAlphaShiftKeyMask)
         fprintf( "NSAlphaShiftKeyMask\n");
     
-    if (modFlags & NSShiftKeyMask)
+    if (modFlags & self.shiftKeyMask)
         fprintf( "NSShiftKeyMask\n");
     
-    if (modFlags & NSControlKeyMask)
+    if (modFlags & self.controlKeyMask)
         fprintf( "NSControlKeyMask\n");
     
-    if (modFlags & NSAlternateKeyMask)
+    if (modFlags & self.alternateKeyMask)
         fprintf( "NSAlternateKeyMask\n");
     
-    if (modFlags & NSCommandKeyMask)
+    if (modFlags & self.commandKeyMask)
         fprintf( "NSCommandKeyMask\n");
     
     if (modFlags & NSNumericPadKeyMask)
@@ -582,33 +591,41 @@ BOOL mac_end_paint(rdpContext* context);
     else if (!(modFlags & NSAlphaShiftKeyMask) && (kbdModFlags & NSAlphaShiftKeyMask))
         freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_RELEASE, 0x36);
     
-    if ((modFlags & NSShiftKeyMask) && !(kbdModFlags & NSShiftKeyMask))
+    if ((modFlags & self.shiftKeyMask) && !(kbdModFlags & self.shiftKeyMask))
         freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_DOWN, 0x2A);
-    else if (!(modFlags & NSShiftKeyMask) && (kbdModFlags & NSShiftKeyMask))
+    else if (!(modFlags & self.shiftKeyMask) && (kbdModFlags & self.shiftKeyMask))
         freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_RELEASE, 0x2A);
    
-    if ((modFlags & NSControlKeyMask) && !(kbdModFlags & NSControlKeyMask))
+    if ((modFlags & self.controlKeyMask) && !(kbdModFlags & self.controlKeyMask))
         freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_DOWN, 0x1D);
-    else if (!(modFlags & NSControlKeyMask) && (kbdModFlags & NSControlKeyMask))
+    else if (!(modFlags & self.controlKeyMask) && (kbdModFlags & self.controlKeyMask))
         freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_RELEASE, 0x1D);
     
-    if ((modFlags & NSAlternateKeyMask) && !(kbdModFlags & NSAlternateKeyMask))
+    if ((modFlags & self.alternateKeyMask) && !(kbdModFlags & self.alternateKeyMask))
         freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_DOWN, 0x38);
-    else if (!(modFlags & NSAlternateKeyMask) && (kbdModFlags & NSAlternateKeyMask))
+    else if (!(modFlags & self.alternateKeyMask) && (kbdModFlags & self.alternateKeyMask))
         freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_RELEASE, 0x38);
     
     if (context->settings->EnableWindowsKey)
     {
-        if ((modFlags & NSCommandKeyMask) && !(kbdModFlags & NSCommandKeyMask))
+        if ((modFlags & self.commandKeyMask) && !(kbdModFlags & self.commandKeyMask))
         {
             cmdTabInProgress = true;
         }
-        else if (!(modFlags & NSCommandKeyMask) && (kbdModFlags & NSCommandKeyMask))
+        else if (!(modFlags & self.commandKeyMask) && (kbdModFlags & self.commandKeyMask))
         {
             if (cmdTabInProgress && !cmdComboUsed)
             {
-                freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_DOWN, 0x005B);
-                freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_RELEASE, 0x005B);
+                if (self.commandKeyMask == NSCommandKeyMask)
+                {
+                    freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_DOWN, 0x005B);
+                    freerdp_input_send_keyboard_event(instance->input, keyFlags | KBD_FLAGS_RELEASE, 0x005B);
+                }
+                else
+                {
+                    [self sendStart];
+                }
+                
             }
             
             cmdTabInProgress = false;
