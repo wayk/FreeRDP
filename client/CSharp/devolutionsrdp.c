@@ -336,6 +336,9 @@ void cs_error_info(void* ctx, ErrorInfoEventArgs* e)
 
 void* csharp_freerdp_new()
 {
+#ifdef WIN32
+	WSADATA wsaData;
+#endif
 	freerdp* instance;
     // Dont remove this is actually useful
     // to prevent GetTickCount64 from getting stripped. (but not teased)
@@ -376,6 +379,10 @@ void* csharp_freerdp_new()
     }
 
     freerdp_register_addin_provider(freerdp_channels_load_static_addin_entry, 0);
+
+#ifdef WIN32
+	WSAStartup(MAKEWORD(2, 2), &wsaData);
+#endif
 
 end:
 	return instance;
@@ -840,4 +847,27 @@ void csharp_freerdp_set_smart_sizing(void* instance, bool smartSizing)
 	rdpSettings * settings = inst->settings;
 	
 	settings->SmartSizing = smartSizing;
+}
+
+void csharp_freerdp_sync_toggle_keys(void* instance)
+{
+	UINT16 syncFlags = 0;
+	freerdp* inst = (freerdp*)instance;
+
+	if (!inst)
+		return;
+
+	if (GetKeyState(VK_NUMLOCK))
+		syncFlags |= KBD_SYNC_NUM_LOCK;
+
+	if (GetKeyState(VK_CAPITAL))
+		syncFlags |= KBD_SYNC_CAPS_LOCK;
+
+	if (GetKeyState(VK_SCROLL))
+		syncFlags |= KBD_SYNC_SCROLL_LOCK;
+
+	if (GetKeyState(VK_KANA))
+		syncFlags |= KBD_SYNC_KANA_LOCK;
+
+	inst->input->FocusInEvent(inst->input, syncFlags);
 }

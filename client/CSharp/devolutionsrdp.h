@@ -6,9 +6,9 @@
 #include <winpr/clipboard.h>
 #include <freerdp/client/cliprdr.h>
 
-typedef void (FREERDP_API *fnRegionUpdated)(void* rdp, int x, int y, int width, int height);
-typedef void (FREERDP_API *fnOnError)(void* context, int code);
-typedef void (FREERDP_API *fnOnClipboardUpdate)(void* context, byte* text, int length);
+typedef void (*fnRegionUpdated)(void* rdp, int x, int y, int width, int height);
+typedef void (*fnOnError)(void* context, int code);
+typedef void (*fnOnClipboardUpdate)(void* context, byte* text, int length);
 
 typedef struct csharp_context
 {
@@ -57,6 +57,7 @@ FREERDP_API void csharp_set_log_output(const char* path, const char* name);
 FREERDP_API void csharp_freerdp_set_hyperv_info(void* instance, char* pcb);
 FREERDP_API void csharp_freerdp_set_keyboard_layout(void* instance, int layoutID);
 FREERDP_API void csharp_freerdp_set_smart_sizing(void* instance, bool smartSizing);
+FREERDP_API void csharp_freerdp_sync_toggle_keys(void* instance);
 
 FREERDP_API void csharp_set_on_authenticate(void* instance, pAuthenticate fn);
 FREERDP_API void csharp_set_on_clipboard_update(void* instance, fnOnClipboardUpdate fn);
