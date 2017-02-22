@@ -13,14 +13,14 @@ typedef void (*fnOnClipboardUpdate)(void* context, byte* text, int length);
 typedef struct csharp_context
 {
 	rdpContext _p;
-    
+
 	void* buffer;
-	
+
 	fnRegionUpdated regionUpdated;
 	fnOnClipboardUpdate onClipboardUpdate;
-    fnOnError onError;
+	fnOnError onError;
 
-    BOOL clipboardSync;
+	BOOL clipboardSync;
 	wClipboard* clipboard;
 	UINT32 numServerFormats;
 	UINT32 requestedFormatId;

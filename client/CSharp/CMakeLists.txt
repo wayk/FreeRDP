@@ -13,7 +13,7 @@ set(${MODULE_PREFIX}_SRCS
 	headless.c
 	devolutionsrdp.c)
 
-add_library(${MODULE_NAME} STATIC ${${MODULE_PREFIX}_SRCS})
+add_library(${MODULE_NAME} SHARED ${${MODULE_PREFIX}_SRCS})
 
 set(${MODULE_PREFIX}_LIBS ${${MODULE_PREFIX}_LIBS} freerdp-client)
 set(${MODULE_PREFIX}_LIBS ${${MODULE_PREFIX}_LIBS} winpr freerdp)
