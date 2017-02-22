@@ -9,17 +9,25 @@
 typedef void (*fnRegionUpdated)(void* rdp, int x, int y, int width, int height);
 typedef void (*fnOnError)(void* context, int code);
 typedef void (*fnOnClipboardUpdate)(void* context, byte* text, int length);
+typedef void (*fnOnNewCursor)(void* context, UINT32 id, BYTE* data, UINT32 x, UINT32 y, UINT32 w, UINT32 h, UINT32 hotX, UINT32 hotY);
+typedef BYTE* (*fnOnFreeCursor)(void* context, void* pointer);
+typedef void (*fnOnSetCursor)(void* context, void* pointer);
+typedef void (*fnOnDefaultCursor)(void* context);
 
 typedef struct csharp_context
 {
 	rdpContext _p;
-
+    
 	void* buffer;
-
+	
 	fnRegionUpdated regionUpdated;
 	fnOnClipboardUpdate onClipboardUpdate;
+	fnOnNewCursor onNewCursor;
+	fnOnFreeCursor onFreeCursor;
+	fnOnSetCursor onSetCursor;
+	fnOnDefaultCursor onDefaultCursor;
 	fnOnError onError;
-
+	
 	BOOL clipboardSync;
 	wClipboard* clipboard;
 	UINT32 numServerFormats;
@@ -65,6 +73,7 @@ FREERDP_API void csharp_set_on_gateway_authenticate(void* instance, pAuthenticat
 FREERDP_API void csharp_set_on_verify_certificate(void* instance, pVerifyCertificate fn);
 FREERDP_API void csharp_set_on_verify_x509_certificate(void* instance, pVerifyX509Certificate fn);
 FREERDP_API void csharp_set_on_error(void* instance, fnOnError fn);
+FREERDP_API void csharp_set_on_cursor_notifications(void* instance, fnOnNewCursor newCursor, fnOnFreeCursor freeCursor, fnOnSetCursor setCursor, fnOnDefaultCursor defaultCursor);
 FREERDP_API const char* csharp_get_error_info_string(int code);
 
 FREERDP_API void csharp_freerdp_redirect_drive(void* instance, char* name, char* path);
