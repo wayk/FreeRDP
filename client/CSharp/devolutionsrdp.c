@@ -469,7 +469,21 @@ BOOL csharp_freerdp_set_redirect_clipboard(void* instance, BOOL redirectClipboar
 	return TRUE;
 }
 
-BOOL csharp_freerdp_set_connection_info(void* instance, const char* hostname, const char* username, const char* password, const char* domain, UINT32 width, UINT32 height, UINT32 color_depth, UINT32 port, int codecLevel, int security)
+BOOL csharp_freerdp_set_redirect_audio(void* instance, int redirectSound, BOOL redirectCapture)
+{
+	freerdp* inst = (freerdp*)instance;
+	rdpSettings * settings = inst->settings;
+	
+	settings->AudioCapture = redirectCapture;
+	
+	settings->AudioPlayback = redirectSound == 0;
+	settings->RemoteConsoleAudio = redirectSound == 2;
+	
+	
+	return TRUE;
+}
+
+BOOL csharp_freerdp_set_connection_info(void* instance, const char* hostname, const char* username, const char* password,                       const char* domain, UINT32 width, UINT32 height, UINT32 color_depth, UINT32 port, int codecLevel, int security)
 {
 	freerdp* inst = (freerdp*)instance;
 	rdpSettings * settings = inst->settings;
@@ -851,6 +865,7 @@ void csharp_freerdp_set_smart_sizing(void* instance, bool smartSizing)
 
 void csharp_freerdp_sync_toggle_keys(void* instance)
 {
+#ifdef WIN32
 	UINT16 syncFlags = 0;
 	freerdp* inst = (freerdp*)instance;
 
@@ -870,4 +885,5 @@ void csharp_freerdp_sync_toggle_keys(void* instance)
 		syncFlags |= KBD_SYNC_KANA_LOCK;
 
 	inst->input->FocusInEvent(inst->input, syncFlags);
+#endif
 }

@@ -70,5 +70,6 @@ FREERDP_API const char* csharp_get_error_info_string(int code);
 FREERDP_API void csharp_freerdp_redirect_drive(void* instance, char* name, char* path);
 FREERDP_API void csharp_freerdp_set_redirect_all_drives(void* instance, BOOL redirect);
 FREERDP_API void csharp_freerdp_set_redirect_home_drive(void* instance, BOOL redirect);
+FREERDP_API BOOL csharp_freerdp_set_redirect_audio(void* instance, int redirectSound, BOOL redirectCapture);
 
 #endif /* CS_DEVOLUTIONSRDP_H_ */
