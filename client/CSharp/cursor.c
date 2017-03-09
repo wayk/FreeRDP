@@ -13,8 +13,14 @@ BOOL cs_Pointer_New(rdpContext* context, rdpPointer* pointer)
 	
 	if (!cursor_data)
 		return FALSE;
+
+#ifdef WIN32
+	int pixelFormat = PIXEL_FORMAT_BGRA32;
+#else
+	int pixelFormat = PIXEL_FORMAT_RGBA32;
+#endif
 	
-	if (freerdp_image_copy_from_pointer_data(cursor_data, PIXEL_FORMAT_RGBA32,
+	if (freerdp_image_copy_from_pointer_data(cursor_data, pixelFormat,
 						  pointer->width * 4, 0, 0, pointer->width, pointer->height,
 						  pointer->xorMaskData, pointer->lengthXorMask,
 						  pointer->andMaskData, pointer->lengthAndMask,
