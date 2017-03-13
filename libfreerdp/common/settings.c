@@ -1754,7 +1754,13 @@ UINT32 freerdp_get_param_uint32(rdpSettings* settings, int id)
 
 		case FreeRDP_DesktopHeight:
 			return settings->DesktopHeight;
-
+            
+        case FreeRDP_DesktopScaleFactor:
+            return settings->DesktopScaleFactor;
+            
+        case FreeRDP_DeviceScaleFactor:
+            return settings->DeviceScaleFactor;
+            
 		case FreeRDP_ColorDepth:
 			return settings->ColorDepth;
 
@@ -2013,8 +2019,16 @@ int freerdp_set_param_uint32(rdpSettings* settings, int id, UINT32 param)
 
 		case FreeRDP_DesktopHeight:
 			settings->DesktopHeight = param;
-			break;
-
+            break;
+            
+        case FreeRDP_DesktopScaleFactor:
+            settings->DesktopScaleFactor = param;
+            break;
+            
+        case FreeRDP_DeviceScaleFactor:
+            settings->DeviceScaleFactor = param;
+            break;
+            
 		case FreeRDP_ColorDepth:
 			settings->ColorDepth = param;
 			break;

@@ -514,6 +514,8 @@ typedef struct _RDPDR_PARALLEL RDPDR_PARALLEL;
 #define FreeRDP_SupportGraphicsPipeline				142
 #define FreeRDP_SupportDynamicTimeZone				143
 #define FreeRDP_SupportHeartbeatPdu				144
+#define FreeRDP_DesktopScaleFactor              148
+#define FreeRDP_DeviceScaleFactor               149
 #define FreeRDP_UseRdpSecurityLayer				192
 #define FreeRDP_EncryptionMethods				193
 #define FreeRDP_ExtEncryptionMethods				194
