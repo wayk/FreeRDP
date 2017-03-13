@@ -180,7 +180,7 @@ static BOOL cs_pre_connect(freerdp* instance)
     rdpContext* context = instance->context;
 	rdpSettings* settings = instance->settings;
 	BOOL bitmap_cache = settings->BitmapCacheEnabled;
-    
+	
     ZeroMemory(settings->OrderSupport, 32);
 	settings->OrderSupport[NEG_DSTBLT_INDEX] = TRUE;
 	settings->OrderSupport[NEG_PATBLT_INDEX] = TRUE;
@@ -293,7 +293,7 @@ static void cs_post_disconnect(freerdp* instance)
     rdpContext* context = instance->context;
     
 	gdi_free(instance);
-    
+	
     if (context->cache)
     {
         cache_free(context->cache);
@@ -338,7 +338,7 @@ void cs_error_info(void* ctx, ErrorInfoEventArgs* e)
 void* csharp_freerdp_new()
 {
 #ifdef WIN32
-	WSADATA wsaData;
+        WSADATA wsaData;
 #endif
 	freerdp* instance;
 
@@ -377,9 +377,11 @@ void* csharp_freerdp_new()
 	}
 
 	freerdp_register_addin_provider(freerdp_channels_load_static_addin_entry, 0);
+
 #ifdef WIN32
-	WSAStartup(MAKEWORD(2, 2), &wsaData);
+        WSAStartup(MAKEWORD(2, 2), &wsaData);
 #endif
+
 end:
 	return instance;
 }
@@ -442,6 +444,17 @@ BOOL csharp_freerdp_set_gateway_settings(void* instance, const char* hostname, U
     }
     
     return TRUE;
+}
+
+BOOL csharp_freerdp_set_scale_factor(void* instance, UINT32 desktopScaleFactor, UINT32 deviceScaleFactor)
+{
+	freerdp* inst = (freerdp*)instance;
+	rdpSettings* settings = inst->settings;
+	
+	settings->DeviceScaleFactor = deviceScaleFactor;
+	settings->DesktopScaleFactor = desktopScaleFactor;
+	
+	return TRUE;
 }
 
 BOOL csharp_freerdp_set_console_mode(void* instance, BOOL useConsoleMode, BOOL useRestrictedAdminMode)
@@ -760,6 +773,7 @@ void csharp_freerdp_send_clipboard_data(void* instance, BYTE* buffer, int length
         CopyMemory(data, buffer, size);
         data[size] = '\0';
         ClipboardSetData(ctxt->clipboard, formatId, (void*) data, size);
+	free(data);
     }
     else
     {
