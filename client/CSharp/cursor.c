@@ -80,6 +80,14 @@ BOOL cs_Pointer_SetDefault(rdpContext* context)
 	return TRUE;
 }
 
+BOOL cs_Pointer_SetPosition(rdpContext* context, UINT32 x, UINT32 y)
+{
+       if (!context)
+               return FALSE;
+       
+       return TRUE;
+}
+
 void cs_register_pointer(rdpContext* context)
 {
 	rdpPointer rdp_pointer;
@@ -91,6 +99,7 @@ void cs_register_pointer(rdpContext* context)
 	rdp_pointer.Set = cs_Pointer_Set;
 	rdp_pointer.SetNull = cs_Pointer_SetNull;
 	rdp_pointer.SetDefault = cs_Pointer_SetDefault;
+	rdp_pointer.SetPosition = cs_Pointer_SetPosition;
 	
 	graphics_register_pointer(context->graphics, &rdp_pointer);
 }
