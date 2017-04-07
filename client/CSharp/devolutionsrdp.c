@@ -636,6 +636,17 @@ BOOL csharp_freerdp_set_data_directory(void* instance, const char* directory)
 	return FALSE;
 }
 
+BOOL csharp_freerdp_set_scale_factor(void* instance, UINT32 desktopScaleFactor, UINT32 deviceScaleFactor)
+{
+	freerdp* inst = (freerdp*)instance;
+	rdpSettings * settings = inst->settings;
+	
+	settings->DesktopScaleFactor = desktopScaleFactor;
+	settings->DeviceScaleFactor = deviceScaleFactor;
+	
+	return TRUE;
+}
+
 BOOL csharp_shall_disconnect(void* instance)
 {
 	return freerdp_shall_disconnect((freerdp*)instance);
