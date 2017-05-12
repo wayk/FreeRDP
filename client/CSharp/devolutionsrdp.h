@@ -50,6 +50,14 @@ FREERDP_API BOOL csharp_freerdp_set_gateway_settings(void* instance, const char*
 FREERDP_API BOOL csharp_freerdp_set_data_directory(void* instance, const char* directory);
 FREERDP_API void csharp_freerdp_set_load_balance_info(void* instance, const char* info);
 FREERDP_API BOOL csharp_freerdp_set_scale_factor(void* instance, UINT32 desktopScaleFactor, UINT32 deviceScaleFactor);
+FREERDP_API BOOL csharp_freerdp_set_performance_flags(void* instance,
+							   BOOL disableWallpaper,
+							   BOOL allowFontSmoothing,
+							   BOOL allowDesktopComposition,
+							   BOOL bitmapCacheEnabled,
+							   BOOL disableFullWindowDrag,
+							   BOOL disableMenuAnims,
+							   BOOL disableThemes);
 FREERDP_API BOOL csharp_shall_disconnect(void* instance);
 FREERDP_API BOOL csharp_waitforsingleobject(void* instance);
 FREERDP_API BOOL csharp_check_event_handles(void* instance, void* buffer);

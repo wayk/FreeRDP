@@ -898,6 +898,23 @@ void csharp_freerdp_set_load_balance_info(void* instance, const char* info)
 	settings->LoadBalanceInfoLength = (UINT32)strlen((char*) settings->LoadBalanceInfo);
 }
 
+BOOL csharp_freerdp_set_performance_flags(void* instance, BOOL disableWallpaper, BOOL allowFontSmoothing, BOOL allowDesktopComposition,
+					  BOOL bitmapCacheEnabled, BOOL disableFullWindowDrag, BOOL disableMenuAnims, BOOL disableThemes)
+{
+	freerdp* inst = (freerdp*)instance;
+	rdpSettings * settings = inst->settings;
+	
+	settings->DisableWallpaper = disableWallpaper;
+	settings->AllowFontSmoothing = allowFontSmoothing;
+	settings->AllowDesktopComposition = allowDesktopComposition;
+	settings->BitmapCacheEnabled = bitmapCacheEnabled;
+	settings->DisableFullWindowDrag = disableFullWindowDrag;
+	settings->DisableMenuAnims = disableMenuAnims;
+	settings->DisableThemes = disableThemes;
+	
+	return TRUE;
+}
+
 void csharp_freerdp_sync_toggle_keys(void* instance)
 {
 #ifdef WIN32
