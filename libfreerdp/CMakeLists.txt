@@ -183,7 +183,6 @@ if(FAAC_FOUND)
 endif()
 
 if(WITH_NEON)
-	set_source_files_properties(${CODEC_NEON_SRCS} PROPERTIES COMPILE_FLAGS "-mfpu=neon -Wno-unused-variable" )
 	set(CODEC_SRCS ${CODEC_SRCS} ${CODEC_NEON_SRCS})
 endif()
 
@@ -287,8 +286,9 @@ endif()
 
 if(WITH_NEON)
 	if(CMAKE_COMPILER_IS_GNUCC)
-		set_source_files_properties(${PRIMITIVES_OPT_SRCS}
-			PROPERTIES COMPILE_FLAGS "${OPTIMIZATION} -mfpu=neon")
+		if(NOT "${CMAKE_SIZEOF_VOID_P}" STREQUAL "8")
+			set(OPTIMIZATION "${OPTIMIZATION} -mfpu=neon")
+		endif()
 	endif()
 	# TODO: Add MSVC equivalent
 endif()
