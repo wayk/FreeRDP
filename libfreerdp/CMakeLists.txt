@@ -183,6 +183,12 @@ if(FAAC_FOUND)
 endif()
 
 if(WITH_NEON)
+	if(CMAKE_COMPILER_IS_GNUCC)
+		if(NOT "${CMAKE_SIZEOF_VOID_P}" STREQUAL "8")
+			set_source_files_properties(${CODEC_NEON_SRCS} PROPERTIES COMPILE_FLAGS "-mfpu=neon")
+		endif()
+	endif()
+
 	set(CODEC_SRCS ${CODEC_SRCS} ${CODEC_NEON_SRCS})
 endif()
 
