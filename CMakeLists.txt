@@ -998,6 +998,8 @@ if(WITH_SERVER)
 	add_subdirectory(server)
 endif()
 
+add_subdirectory(dotnet)
+
 # Packaging
 
 set(CMAKE_CPACK_INCLUDE_FILE "CMakeCPack.cmake")
