@@ -59,6 +59,7 @@ include(FindPkgConfig)
 include(TestBigEndian)
 
 include(FindFeature)
+include(AutoVersioning)
 include(ConfigOptions)
 include(ComplexLibrary)
 include(FeatureSummary)
@@ -138,16 +139,11 @@ if(CCACHE AND WITH_CCACHE)
 	endif()
 endif(CCACHE AND WITH_CCACHE)
 
-if(EXISTS "${CMAKE_SOURCE_DIR}/.source_version" )
-	file(READ ${CMAKE_SOURCE_DIR}/.source_version GIT_REVISION)
+include(GetGitRevisionDescription)
+git_get_exact_tag(GIT_REVISION --tags --always)
 
-  string(STRIP ${GIT_REVISION} GIT_REVISION)
-else()
-	git_get_exact_tag(GIT_REVISION --tags --always)
-
-	if (${GIT_REVISION} STREQUAL "n/a")
-		git_rev_parse (GIT_REVISION --short)
-	endif()
+if (${GIT_REVISION} STREQUAL "n/a")
+	git_rev_parse (GIT_REVISION --short)
 endif()
 
 if(CMAKE_CROSSCOMPILING)
