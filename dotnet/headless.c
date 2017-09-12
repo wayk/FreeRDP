@@ -1,5 +1,4 @@
-
-#include "DevolutionsRdp.h"
+#include "devolutionsrdp.h"
 
 #ifndef _WIN32
 #include <sys/mman.h>

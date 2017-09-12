@@ -1,7 +1,7 @@
 #ifndef CS_CURSOR_H_
 #define CS_CURSOR_H_
 
-#include "DevolutionsRdp.h"
+#include "devolutionsrdp.h"
 
 void cs_register_pointer(rdpContext* context);
 
