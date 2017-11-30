@@ -181,8 +181,11 @@ static BOOL drive_file_remove_dir(const WCHAR* path)
 	return ret;
 }
 
-static void drive_file_set_fullpath(DRIVE_FILE* file, WCHAR* fullpath)
+static BOOL drive_file_set_fullpath(DRIVE_FILE* file, WCHAR* fullpath)
 {
+	if (!file || !fullpath)
+		return FALSE;
+
 	free(file->fullpath);
 	file->fullpath = fullpath;
 	file->filename = _wcsrchr(file->fullpath, L'/');
@@ -191,9 +194,11 @@ static void drive_file_set_fullpath(DRIVE_FILE* file, WCHAR* fullpath)
 		file->filename = file->fullpath;
 	else
 		file->filename += 1;
+
+	return TRUE;
 }
 
-BOOL drive_file_init(DRIVE_FILE* file)
+static BOOL drive_file_init(DRIVE_FILE* file)
 {
 	UINT CreateDisposition = 0;
 	DWORD dwAttr = GetFileAttributesW(file->fullpath);
@@ -315,6 +320,10 @@ DRIVE_FILE* drive_file_new(const WCHAR* base_path, const WCHAR* path, UINT32 Pat
                            UINT32 CreateOptions, UINT32 FileAttributes, UINT32 SharedAccess)
 {
 	DRIVE_FILE* file;
+
+	if (!base_path || !path)
+		return NULL;
+
 	file = (DRIVE_FILE*) calloc(1, sizeof(DRIVE_FILE));
 
 	if (!file)
@@ -350,6 +359,7 @@ DRIVE_FILE* drive_file_new(const WCHAR* base_path, const WCHAR* path, UINT32 Pat
 
 BOOL drive_file_free(DRIVE_FILE* file)
 {
+	BOOL rc = FALSE;
 	if (!file)
 		return FALSE;
 
@@ -368,19 +378,21 @@ BOOL drive_file_free(DRIVE_FILE* file)
 	if (file->delete_pending)
 	{
 		if (file->is_dir)
-			drive_file_remove_dir(file->fullpath);
-		else if (!DeleteFileW(file->fullpath))
 		{
-			free(file->fullpath);
-			free(file);
-			return FALSE;
+			if (!drive_file_remove_dir(file->fullpath))
+				goto fail;
 		}
+		else if (!DeleteFileW(file->fullpath))
+			goto fail;
 	}
 
+	rc = TRUE;
+
+fail:
 	DEBUG_WSTR("Free %s", file->fullpath);
 	free(file->fullpath);
 	free(file);
-	return TRUE;
+	return rc;
 }
 
 BOOL drive_file_seek(DRIVE_FILE* file, UINT64 Offset)
@@ -549,6 +561,9 @@ BOOL drive_file_set_information(DRIVE_FILE* file, UINT32 FsInformationClass, UIN
 	switch (FsInformationClass)
 	{
 		case FileBasicInformation:
+			if (Stream_GetRemainingLength(input) < 36)
+				return FALSE;
+
 			/* http://msdn.microsoft.com/en-us/library/cc232094.aspx */
 			Stream_Read_UINT64(input, liCreationTime.QuadPart);
 			Stream_Read_UINT64(input, liLastAccessTime.QuadPart);
@@ -608,6 +623,9 @@ BOOL drive_file_set_information(DRIVE_FILE* file, UINT32 FsInformationClass, UIN
 
 		/* http://msdn.microsoft.com/en-us/library/cc232067.aspx */
 		case FileAllocationInformation:
+			if (Stream_GetRemainingLength(input) < 8)
+				return FALSE;
+
 			/* http://msdn.microsoft.com/en-us/library/cc232076.aspx */
 			Stream_Read_INT64(input, size);
 
@@ -644,7 +662,12 @@ BOOL drive_file_set_information(DRIVE_FILE* file, UINT32 FsInformationClass, UIN
 				break; /* TODO: SetLastError ??? */
 
 			if (Length)
+			{
+				if (Stream_GetRemainingLength(input) < 1)
+					return FALSE;
+
 				Stream_Read_UINT8(input, delete_pending);
+			}
 			else
 				delete_pending = 1;
 
@@ -664,13 +687,19 @@ BOOL drive_file_set_information(DRIVE_FILE* file, UINT32 FsInformationClass, UIN
 			break;
 
 		case FileRenameInformation:
+			if (Stream_GetRemainingLength(input) < 6)
+				return FALSE;
+
 			/* http://msdn.microsoft.com/en-us/library/cc232085.aspx */
 			Stream_Read_UINT8(input, ReplaceIfExists);
 			Stream_Seek_UINT8(input); /* RootDirectory */
 			Stream_Read_UINT32(input, FileNameLength);
+
+			if (Stream_GetRemainingLength(input) < FileNameLength)
+				return FALSE;
+
 			fullpath = drive_file_combine_fullpath(file->basepath, (WCHAR*)Stream_Pointer(input),
 			                                       FileNameLength);
-
 			if (!fullpath)
 			{
 				WLog_ERR(TAG, "drive_file_combine_fullpath failed!");
@@ -691,7 +720,8 @@ BOOL drive_file_set_information(DRIVE_FILE* file, UINT32 FsInformationClass, UIN
 			if (MoveFileExW(file->fullpath, fullpath,
 			                MOVEFILE_COPY_ALLOWED | (ReplaceIfExists ? MOVEFILE_REPLACE_EXISTING : 0)))
 			{
-				drive_file_set_fullpath(file, fullpath);
+				if (!drive_file_set_fullpath(file, fullpath))
+					return FALSE;
 			}
 			else
 			{

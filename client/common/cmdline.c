@@ -25,6 +25,7 @@
 
 #include <ctype.h>
 #include <assert.h>
+#include <errno.h>
 
 #include <winpr/crt.h>
 #include <winpr/wlog.h>
@@ -36,6 +37,7 @@
 #include <freerdp/crypto/crypto.h>
 #include <freerdp/locale/keyboard.h>
 
+#include <freerdp/utils/passphrase.h>
 
 #include <freerdp/client/cmdline.h>
 #include <freerdp/version.h>
@@ -47,188 +49,177 @@
 
 static COMMAND_LINE_ARGUMENT_A args[] =
 {
-	{ "v", COMMAND_LINE_VALUE_REQUIRED, "<server>[:port]", NULL, NULL, -1, NULL, "Server hostname" },
-	{ "port", COMMAND_LINE_VALUE_REQUIRED, "<number>", NULL, NULL, -1, NULL, "Server port" },
-	{ "w", COMMAND_LINE_VALUE_REQUIRED, "<width>", "1024", NULL, -1, NULL, "Width" },
-	{ "h", COMMAND_LINE_VALUE_REQUIRED, "<height>", "768", NULL, -1, NULL, "Height" },
-	{ "size", COMMAND_LINE_VALUE_REQUIRED, "<width>x<height> or <percent>%", "1024x768", NULL, -1, NULL, "Screen size" },
-	{ "f", COMMAND_LINE_VALUE_FLAG, NULL, NULL, NULL, -1, NULL, "Fullscreen mode" },
-	{ "bpp", COMMAND_LINE_VALUE_REQUIRED, "<depth>", "16", NULL, -1, NULL, "Session bpp (color depth)" },
-	{ "kbd", COMMAND_LINE_VALUE_REQUIRED, "0x<layout id> or <layout name>", NULL, NULL, -1, NULL, "Keyboard layout" },
-	{ "kbd-list", COMMAND_LINE_VALUE_FLAG | COMMAND_LINE_PRINT, NULL, NULL, NULL, -1, NULL, "List keyboard layouts" },
-	{ "kbd-type", COMMAND_LINE_VALUE_REQUIRED, "<type id>", NULL, NULL, -1, NULL, "Keyboard type" },
-	{ "kbd-subtype", COMMAND_LINE_VALUE_REQUIRED, "<subtype id>", NULL, NULL, -1, NULL, "Keyboard subtype" },
-	{ "kbd-fn-key", COMMAND_LINE_VALUE_REQUIRED, "<function key count>", NULL, NULL, -1, NULL, "Keyboard function key count" },
+	{ "a", COMMAND_LINE_VALUE_REQUIRED, "<addin>[,<options>]", NULL, NULL, -1, "addin", "Addin" },
+	{ "action-script", COMMAND_LINE_VALUE_REQUIRED, "<file-name>", "~/.config/freerdp/action.sh", NULL, -1, NULL, "Action script" },
 	{ "admin", COMMAND_LINE_VALUE_FLAG, NULL, NULL, NULL, -1, "console", "Admin (or console) session" },
-	{ "restricted-admin", COMMAND_LINE_VALUE_FLAG, NULL, NULL, NULL, -1, "restrictedAdmin", "Restricted admin mode" },
-	{ "pth", COMMAND_LINE_VALUE_REQUIRED, "<password hash>", NULL, NULL, -1, "pass-the-hash", "Pass the hash (restricted admin mode)" },
-	{ "client-hostname", COMMAND_LINE_VALUE_REQUIRED, "<name>", NULL, NULL, -1, NULL, "Client Hostname to send to server" },
-	{ "multimon", COMMAND_LINE_VALUE_OPTIONAL, NULL, NULL, NULL, -1, NULL, "Use multiple monitors" },
-	{ "span", COMMAND_LINE_VALUE_OPTIONAL, NULL, NULL, NULL, -1, NULL, "Span screen over multiple monitors" },
-	{ "workarea", COMMAND_LINE_VALUE_FLAG, NULL, NULL, NULL, -1, NULL, "Use available work area" },
-	{ "monitors", COMMAND_LINE_VALUE_REQUIRED, "<0,1,2...>", NULL, NULL, -1, NULL, "Select monitors to use" },
-	{ "monitor-list", COMMAND_LINE_VALUE_FLAG | COMMAND_LINE_PRINT, NULL, NULL, NULL, -1, NULL, "List detected monitors" },
-	{ "t", COMMAND_LINE_VALUE_REQUIRED, "<title>", NULL, NULL, -1, "title", "Window title" },
-	{ "decorations", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "Window decorations" },
-	{ "smart-sizing", COMMAND_LINE_VALUE_OPTIONAL, "<width>x<height>", NULL, NULL, -1, NULL, "Scale remote desktop to window size" },
-	{ "a", COMMAND_LINE_VALUE_REQUIRED, NULL, NULL, NULL, -1, "addin", "Addin" },
-	{ "vc", COMMAND_LINE_VALUE_REQUIRED, NULL, NULL, NULL, -1, NULL, "Static virtual channel" },
-	{ "dvc", COMMAND_LINE_VALUE_REQUIRED, NULL, NULL, NULL, -1, NULL, "Dynamic virtual channel" },
-	{ "u", COMMAND_LINE_VALUE_REQUIRED, "[<domain>\\]<user> or <user>[@<domain>]", NULL, NULL, -1, NULL, "Username" },
-	{ "p", COMMAND_LINE_VALUE_REQUIRED, "<password>", NULL, NULL, -1, NULL, "Password" },
-	{ "d", COMMAND_LINE_VALUE_REQUIRED, "<domain>", NULL, NULL, -1, NULL, "Domain" },
-	{ "g", COMMAND_LINE_VALUE_REQUIRED, "<gateway>[:port]", NULL, NULL, -1, NULL, "Gateway Hostname" },
-	{ "gu", COMMAND_LINE_VALUE_REQUIRED, "[<domain>\\]<user> or <user>[@<domain>]", NULL, NULL, -1, NULL, "Gateway username" },
-	{ "gp", COMMAND_LINE_VALUE_REQUIRED, "<password>", NULL, NULL, -1, NULL, "Gateway password" },
-	{ "gd", COMMAND_LINE_VALUE_REQUIRED, "<domain>", NULL, NULL, -1, NULL, "Gateway domain" },
-	{ "gt", COMMAND_LINE_VALUE_REQUIRED, "<rpc|http|auto>", NULL, NULL, -1, NULL, "Gateway transport type" },
-	{ "gateway-usage-method", COMMAND_LINE_VALUE_REQUIRED, "<direct|detect>", NULL, NULL, -1, "gum", "Gateway usage method" },
-	{ "proxy", COMMAND_LINE_VALUE_REQUIRED, "[<protocol>://]<host>:<port>", NULL, NULL, -1, NULL, "Proxy (see also environment variable below)" },
-	{ "load-balance-info", COMMAND_LINE_VALUE_REQUIRED, "<info string>", NULL, NULL, -1, NULL, "Load balance info" },
-	{ "app", COMMAND_LINE_VALUE_REQUIRED, "<executable path> or <||alias>", NULL, NULL, -1, NULL, "Remote application program" },
-	{ "app-name", COMMAND_LINE_VALUE_REQUIRED, "<app name>", NULL, NULL, -1, NULL, "Remote application name for user interface" },
-	{ "app-icon", COMMAND_LINE_VALUE_REQUIRED, "<icon path>", NULL, NULL, -1, NULL, "Remote application icon for user interface" },
+	{ "aero", COMMAND_LINE_VALUE_BOOL, NULL, NULL, BoolValueFalse, -1, NULL, "Enable desktop composition" },
+	{ "app", COMMAND_LINE_VALUE_REQUIRED, "<path> or ||<alias>", NULL, NULL, -1, NULL, "Remote application program" },
 	{ "app-cmd", COMMAND_LINE_VALUE_REQUIRED, "<parameters>", NULL, NULL, -1, NULL, "Remote application command-line parameters" },
-	{ "app-file", COMMAND_LINE_VALUE_REQUIRED, "<file name>", NULL, NULL, -1, NULL, "File to open with remote application" },
-	{ "app-guid", COMMAND_LINE_VALUE_REQUIRED, "<app guid>", NULL, NULL, -1, NULL, "Remote application GUID" },
+	{ "app-file", COMMAND_LINE_VALUE_REQUIRED, "<file-name>", NULL, NULL, -1, NULL, "File to open with remote application" },
+	{ "app-guid", COMMAND_LINE_VALUE_REQUIRED, "<app-guid>", NULL, NULL, -1, NULL, "Remote application GUID" },
+	{ "app-icon", COMMAND_LINE_VALUE_REQUIRED, "<icon-path>", NULL, NULL, -1, NULL, "Remote application icon for user interface" },
+	{ "app-name", COMMAND_LINE_VALUE_REQUIRED, "<app-name>", NULL, NULL, -1, NULL, "Remote application name for user interface" },
+	{ "assistance", COMMAND_LINE_VALUE_REQUIRED, "<password>", NULL, NULL, -1, NULL, "Remote assistance password" },
+	{ "async-channels", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Asynchronous channels (experimental)" },
+	{ "async-input", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Asynchronous input" },
+	{ "async-transport", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Asynchronous transport (experimental)" },
+	{ "async-update", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Asynchronous update" },
+	{ "audio-mode", COMMAND_LINE_VALUE_REQUIRED, "<mode>", NULL, NULL, -1, NULL, "Audio output mode" },
+	{ "auth-only", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Authenticate only" },
+	{ "authentication", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "Authentication (expermiental)" },
+	{ "auto-reconnect", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Automatic reconnection" },
+	{ "auto-reconnect-max-retries", COMMAND_LINE_VALUE_REQUIRED, "<retries>", NULL, NULL, -1, NULL, "Automatic reconnection maximum retries, 0 for unlimited [0,1000]" },
+	{ "bitmap-cache", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "Enable bitmap cache" },
+	{ "bpp", COMMAND_LINE_VALUE_REQUIRED, "<depth>", "16", NULL, -1, NULL, "Session bpp (color depth)" },
+	{ "buildconfig", COMMAND_LINE_VALUE_FLAG | COMMAND_LINE_PRINT_BUILDCONFIG, NULL, NULL, NULL, -1, NULL, "Print the build configuration" },
+	{ "cert-ignore", COMMAND_LINE_VALUE_FLAG, NULL, NULL, NULL, -1, NULL, "Ignore certificate" },
+	{ "cert-name", COMMAND_LINE_VALUE_REQUIRED, "<name>", NULL, NULL, -1, NULL, "Certificate name" },
+	{ "cert-tofu", COMMAND_LINE_VALUE_FLAG, NULL, NULL, NULL, -1, NULL, "Automatically accept certificate on first connect" },
+	{ "client-hostname", COMMAND_LINE_VALUE_REQUIRED, "<name>", NULL, NULL, -1, NULL, "Client Hostname to send to server" },
+	{ "clipboard", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "Redirect clipboard" },
+	{ "codec-cache", COMMAND_LINE_VALUE_REQUIRED, "rfx|nsc|jpeg", NULL, NULL, -1, NULL, "Bitmap codec cache" },
 	{ "compression", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, "z", "Enable compression" },
 	{ "compression-level", COMMAND_LINE_VALUE_REQUIRED, "<level>", NULL, NULL, -1, NULL, "Compression level (0,1,2)" },
-	{ "shell", COMMAND_LINE_VALUE_REQUIRED, NULL, NULL, NULL, -1, NULL, "Alternate shell" },
-	{ "shell-dir", COMMAND_LINE_VALUE_REQUIRED, NULL, NULL, NULL, -1, NULL, "Shell working directory" },
-	{ "sound", COMMAND_LINE_VALUE_OPTIONAL, "[sys][dev][format][rate][channel][latency][quality]", NULL, NULL, -1, "audio", "Audio output (sound)" },
-	{ "microphone", COMMAND_LINE_VALUE_OPTIONAL, "[sys][dev][format][rate][channel]", NULL, NULL, -1, "mic", "Audio input (microphone)" },
-	{ "audio-mode", COMMAND_LINE_VALUE_REQUIRED, NULL, NULL, NULL, -1, NULL, "Audio output mode" },
-	{ "multimedia", COMMAND_LINE_VALUE_OPTIONAL, "[sys][dev][decoder]", NULL, NULL, -1, "mmr", "Redirect multimedia (video)" },
-	{ "network", COMMAND_LINE_VALUE_REQUIRED, NULL, NULL, NULL, -1, NULL, "Network connection type" },
-	{ "drive", COMMAND_LINE_VALUE_REQUIRED, NULL, NULL, NULL, -1, NULL, "Redirect drive" },
-	{ "drives", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Redirect all drives" },
-	{ "home-drive", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Redirect home drive" },
-	{ "clipboard", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Redirect clipboard" },
-	{ "serial", COMMAND_LINE_VALUE_OPTIONAL, NULL, NULL, NULL, -1, "tty", "Redirect serial device" },
-	{ "parallel", COMMAND_LINE_VALUE_OPTIONAL, NULL, NULL, NULL, -1, NULL, "Redirect parallel device" },
-	{ "smartcard", COMMAND_LINE_VALUE_OPTIONAL, NULL, NULL, NULL, -1, NULL, "Redirect smartcard device" },
-	{ "printer", COMMAND_LINE_VALUE_OPTIONAL, NULL, NULL, NULL, -1, NULL, "Redirect printer device" },
-	{ "usb", COMMAND_LINE_VALUE_REQUIRED, "[dbg][dev][id|addr][auto]", NULL, NULL, -1, NULL, "Redirect USB device" },
-	{ "multitouch", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Redirect multitouch input" },
-	{ "gestures", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Consume multitouch input locally" },
-	{ "unmap-buttons", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Let server see real physical pointer button"},
-	{ "echo", COMMAND_LINE_VALUE_FLAG, NULL, NULL, NULL, -1, "echo", "Echo channel" },
+	{ "credentials-delegation", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Disable credentials delegation" },
+	{ "d", COMMAND_LINE_VALUE_REQUIRED, "<domain>", NULL, NULL, -1, NULL, "Domain" },
+	{ "decorations", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "Window decorations" },
 	{ "disp", COMMAND_LINE_VALUE_FLAG, NULL, NULL, NULL, -1, NULL, "Display control" },
+	{ "drive", COMMAND_LINE_VALUE_REQUIRED, "<name>,<path>", NULL, NULL, -1, NULL, "Redirect directory <path> as named share <name>" },
+	{ "drives", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Redirect all mount points as shares" },
+	{ "dvc", COMMAND_LINE_VALUE_REQUIRED, "<channel>[,<options>]", NULL, NULL, -1, NULL, "Dynamic virtual channel" },
+	{ "echo", COMMAND_LINE_VALUE_FLAG, NULL, NULL, NULL, -1, "echo", "Echo channel" },
+	{ "encryption", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "Encryption (experimental)" },
+	{ "encryption-methods", COMMAND_LINE_VALUE_REQUIRED, "[40,][56,][128,][FIPS]", NULL, NULL, -1, NULL, "RDP standard security encryption methods" },
+	{ "f", COMMAND_LINE_VALUE_FLAG, NULL, NULL, NULL, -1, NULL, "Fullscreen mode (<Ctrl>+<Alt>+<Enter> toggles fullscreen)" },
+	{ "fast-path", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "Enable fast-path input/output" },
+	{ "fipsmode", COMMAND_LINE_VALUE_BOOL, NULL, NULL, NULL, -1, NULL, "Enable FIPS mode" },
 	{ "fonts", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Enable smooth fonts (ClearType)" },
-	{ "aero", COMMAND_LINE_VALUE_BOOL, NULL, NULL, BoolValueFalse, -1, NULL, "Enable desktop composition" },
-	{ "window-drag", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Enable full window drag" },
-	{ "menu-anims", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Enable menu animations" },
-	{ "themes", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "Enable themes" },
-	{ "wallpaper", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "Enable wallpaper" },
-	{ "gdi", COMMAND_LINE_VALUE_REQUIRED, "<sw|hw>", NULL, NULL, -1, NULL, "GDI rendering" },
-#ifdef WITH_GFX_H264
-	{ "gfx", COMMAND_LINE_VALUE_OPTIONAL, "<RFX|AVC420|AVC444>", NULL, NULL, -1, NULL, "RDP8 graphics pipeline (experimental)" },
-#else
-	{ "gfx", COMMAND_LINE_VALUE_OPTIONAL, "<RFX>", NULL, NULL, -1, NULL, "RDP8 graphics pipeline (experimental)" },
-#endif
-	{ "gfx-thin-client", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "RDP8 graphics pipeline using thin client mode" },
-	{ "gfx-small-cache", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "RDP8 graphics pipeline using small cache mode" },
-	{ "gfx-progressive", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "RDP8 graphics pipeline using progressive codec" },
-#ifdef WITH_GFX_H264
-	{ "gfx-h264", COMMAND_LINE_VALUE_OPTIONAL, "<AVC420|AVC444>", NULL, NULL, -1, NULL, "RDP8.1 graphics pipeline using H264 codec" },
-#endif
-	{ "rfx", COMMAND_LINE_VALUE_FLAG, NULL, NULL, NULL, -1, NULL, "RemoteFX" },
-	{ "rfx-mode", COMMAND_LINE_VALUE_REQUIRED, "<image|video>", NULL, NULL, -1, NULL, "RemoteFX mode" },
 	{ "frame-ack", COMMAND_LINE_VALUE_REQUIRED, "<number>", NULL, NULL, -1, NULL, "Number of frame acknowledgement" },
-	{ "nsc", COMMAND_LINE_VALUE_FLAG, NULL, NULL, NULL, -1, "nscodec", "Enable NSCodec" },
+	{ "from-stdin", COMMAND_LINE_VALUE_OPTIONAL, "force", NULL, NULL, -1, NULL, "Read credentials from stdin. With <force> the prompt is done before connection, otherwise on server request." },
+	{ "g", COMMAND_LINE_VALUE_REQUIRED, "<gateway>[:<port>]", NULL, NULL, -1, NULL, "Gateway Hostname" },
+	{ "gateway-usage-method", COMMAND_LINE_VALUE_REQUIRED, "direct|detect", NULL, NULL, -1, "gum", "Gateway usage method" },
+	{ "gd", COMMAND_LINE_VALUE_REQUIRED, "<domain>", NULL, NULL, -1, NULL, "Gateway domain" },
+	{ "gdi", COMMAND_LINE_VALUE_REQUIRED, "sw|hw", NULL, NULL, -1, NULL, "GDI rendering" },
+	{ "gestures", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Consume multitouch input locally" },
+#ifdef WITH_GFX_H264
+	{ "gfx", COMMAND_LINE_VALUE_OPTIONAL, "RFX|AVC420|AVC444", NULL, NULL, -1, NULL, "RDP8 graphics pipeline (experimental)" },
+	{ "gfx-h264", COMMAND_LINE_VALUE_OPTIONAL, "AVC420|AVC444", NULL, NULL, -1, NULL, "RDP8.1 graphics pipeline using H264 codec" },
+#else
+	{ "gfx", COMMAND_LINE_VALUE_OPTIONAL, "RFX", NULL, NULL, -1, NULL, "RDP8 graphics pipeline (experimental)" },
+#endif
+	{ "gfx-progressive", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "RDP8 graphics pipeline using progressive codec" },
+	{ "gfx-small-cache", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "RDP8 graphics pipeline using small cache mode" },
+	{ "gfx-thin-client", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "RDP8 graphics pipeline using thin client mode" },
+	{ "glyph-cache", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Glyph cache (experimental)" },
+	{ "gp", COMMAND_LINE_VALUE_REQUIRED, "<password>", NULL, NULL, -1, NULL, "Gateway password" },
+	{ "grab-keyboard", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "Grab keyboard" },
+	{ "gt", COMMAND_LINE_VALUE_REQUIRED, "rpc|http|auto", NULL, NULL, -1, NULL, "Gateway transport type" },
+	{ "gu", COMMAND_LINE_VALUE_REQUIRED, "[<domain>\\]<user> or <user>[@<domain>]", NULL, NULL, -1, NULL, "Gateway username" },
+	{ "h", COMMAND_LINE_VALUE_REQUIRED, "<height>", "768", NULL, -1, NULL, "Height" },
+	{ "heartbeat", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Support heartbeat PDUs" },
+	{ "help", COMMAND_LINE_VALUE_FLAG | COMMAND_LINE_PRINT_HELP, NULL, NULL, NULL, -1, "?", "Print help" },
+	{ "home-drive", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Redirect user home as share" },
+	{ "ipv6", COMMAND_LINE_VALUE_FLAG, NULL, NULL, NULL, -1, "6", "Prefer IPv6 AAA record over IPv4 A record"},
 #if defined(WITH_JPEG)
 	{ "jpeg", COMMAND_LINE_VALUE_FLAG, NULL, NULL, NULL, -1, NULL, "Enable JPEG codec" },
 	{ "jpeg-quality", COMMAND_LINE_VALUE_REQUIRED, "<percentage>", NULL, NULL, -1, NULL, "JPEG quality" },
 #endif
+	{ "kbd", COMMAND_LINE_VALUE_REQUIRED, "0x<id> or <name>", NULL, NULL, -1, NULL, "Keyboard layout" },
+	{ "kbd-fn-key", COMMAND_LINE_VALUE_REQUIRED, "<value>", NULL, NULL, -1, NULL, "Function key value" },
+	{ "kbd-list", COMMAND_LINE_VALUE_FLAG | COMMAND_LINE_PRINT, NULL, NULL, NULL, -1, NULL, "List keyboard layouts" },
+	{ "kbd-subtype", COMMAND_LINE_VALUE_REQUIRED, "<id>", NULL, NULL, -1, NULL, "Keyboard subtype" },
+	{ "kbd-type", COMMAND_LINE_VALUE_REQUIRED, "<id>", NULL, NULL, -1, NULL, "Keyboard type" },
+	{ "load-balance-info", COMMAND_LINE_VALUE_REQUIRED, "<info-string>", NULL, NULL, -1, NULL, "Load balance info" },
+	{ "log-filters", COMMAND_LINE_VALUE_REQUIRED, "<tag>:<level>[,<tag>:<level>[,...]]", NULL, NULL, -1, NULL, "Set logger filters, see wLog(7) for details" },
+	{ "log-level", COMMAND_LINE_VALUE_REQUIRED, "OFF|FATAL|ERROR|WARN|INFO|DEBUG|TRACE", NULL, NULL, -1, NULL, "Set the default log level, see wLog(7) for details" },
+	{ "max-fast-path-size", COMMAND_LINE_VALUE_REQUIRED, "<size>", NULL, NULL, -1, NULL, "Specify maximum fast-path update size" },
+	{ "max-loop-time", COMMAND_LINE_VALUE_REQUIRED, "<time>", NULL, NULL, -1, NULL, "Specify maximum time in milliseconds spend treating packets"},
+	{ "menu-anims", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Enable menu animations" },
+	{ "microphone", COMMAND_LINE_VALUE_OPTIONAL, "[sys:<sys>,][dev:<dev>,][format:<format>,][rate:<rate>,][channel:<channel>]", NULL, NULL, -1, "mic", "Audio input (microphone)" },
+	{ "monitor-list", COMMAND_LINE_VALUE_FLAG | COMMAND_LINE_PRINT, NULL, NULL, NULL, -1, NULL, "List detected monitors" },
+	{ "monitors", COMMAND_LINE_VALUE_REQUIRED, "<id>[,<id>[,...]]", NULL, NULL, -1, NULL, "Select monitors to use" },
+	{ "mouse-motion", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "Send mouse motion" },
+	{ "multimedia", COMMAND_LINE_VALUE_OPTIONAL, "[sys:<sys>,][dev:<dev>,][decoder:<decoder>]", NULL, NULL, -1, "mmr", "Redirect multimedia (video)" },
+	{ "multimon", COMMAND_LINE_VALUE_OPTIONAL, "force", NULL, NULL, -1, NULL, "Use multiple monitors" },
+	{ "multitouch", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Redirect multitouch input" },
+	{ "multitransport", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Support multitransport protocol" },
 	{ "nego", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "Enable protocol security negotiation" },
-	{ "sec", COMMAND_LINE_VALUE_REQUIRED, "<rdp|tls|nla|ext>", NULL, NULL, -1, NULL, "force specific protocol security" },
-	{ "sec-rdp", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "rdp protocol security" },
-	{ "sec-tls", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "tls protocol security" },
-	{ "sec-nla", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "nla protocol security" },
-	{ "sec-ext", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "nla extended protocol security" },
-	{ "tls-ciphers", COMMAND_LINE_VALUE_REQUIRED, "<netmon|ma|ciphers>", NULL, NULL, -1, NULL, "Allowed TLS ciphers" },
-	{ "cert-name", COMMAND_LINE_VALUE_REQUIRED, "<name>", NULL, NULL, -1, NULL, "certificate name" },
-	{ "cert-ignore", COMMAND_LINE_VALUE_FLAG, NULL, NULL, NULL, -1, NULL, "ignore certificate" },
-	{ "cert-tofu", COMMAND_LINE_VALUE_FLAG, NULL, NULL, NULL, -1, NULL, "Automatically accept certificate on first connect" },
+	{ "network", COMMAND_LINE_VALUE_REQUIRED, "modem|broadband|broadband-low|broadband-higg|wan|lan|auto", NULL, NULL, -1, NULL, "Network connection type" },
+	{ "nsc", COMMAND_LINE_VALUE_FLAG, NULL, NULL, NULL, -1, "nscodec", "Enable NSCodec" },
+	{ "offscreen-cache", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "Enable offscreen bitmap cache" },
+	{ "orientation", COMMAND_LINE_VALUE_REQUIRED, "0|90|180|270", NULL, NULL, -1, NULL, "Orientation of display in degrees" },
+	{ "p", COMMAND_LINE_VALUE_REQUIRED, "<password>", NULL, NULL, -1, NULL, "Password" },
+	{ "parallel", COMMAND_LINE_VALUE_OPTIONAL, "<name>[,<path>]", NULL, NULL, -1, NULL, "Redirect parallel device" },
+	{ "parent-window", COMMAND_LINE_VALUE_REQUIRED, "<window-id>", NULL, NULL, -1, NULL, "Parent window id" },
+	{ "password-is-pin", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Use smart card authentication with password as smart card PIN"},
 	{ "pcb", COMMAND_LINE_VALUE_REQUIRED, "<blob>", NULL, NULL, -1, NULL, "Preconnection Blob" },
 	{ "pcid", COMMAND_LINE_VALUE_REQUIRED, "<id>", NULL, NULL, -1, NULL, "Preconnection Id" },
-	{ "spn-class", COMMAND_LINE_VALUE_REQUIRED, "<service class>", NULL, NULL, -1, NULL, "SPN authentication service class" },
-	{ "credentials-delegation", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Disable credentials delegation" },
-	{ "vmconnect", COMMAND_LINE_VALUE_OPTIONAL, "<vmid>", NULL, NULL, -1, NULL, "Hyper-V console (use port 2179, disable negotiation)" },
-	{ "authentication", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "authentication (hack!)" },
-	{ "encryption", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "encryption (hack!)" },
-	{ "grab-keyboard", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "grab keyboard" },
-	{ "toggle-fullscreen", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "Alt+Ctrl+Enter toggles fullscreen" },
-	{ "mouse-motion", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "mouse-motion" },
-	{ "parent-window", COMMAND_LINE_VALUE_REQUIRED, "<window id>", NULL, NULL, -1, NULL, "Parent window id" },
-	{ "bitmap-cache", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "Enable bitmap cache" },
-	{ "offscreen-cache", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "Enable offscreen bitmap cache" },
-	{ "glyph-cache", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Glyph cache (EXPERIMENTAL)" },
-	{ "codec-cache", COMMAND_LINE_VALUE_REQUIRED, "<rfx|nsc|jpeg>", NULL, NULL, -1, NULL, "bitmap codec cache" },
-	{ "fast-path", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "Enable fast-path input/output" },
-	{ "max-fast-path-size", COMMAND_LINE_VALUE_OPTIONAL, "<size>", NULL, NULL, -1, NULL, "specify maximum fast-path update size" },
-	{ "max-loop-time", COMMAND_LINE_VALUE_REQUIRED, "<time>", NULL, NULL, -1, NULL, "specify maximum time in milliseconds spend treating packets"},
-	{ "async-input", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "asynchronous input" },
-	{ "async-update", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "asynchronous update" },
-	{ "async-transport", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "asynchronous transport (unstable)" },
-	{ "async-channels", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "asynchronous channels (unstable)" },
-	{ "wm-class", COMMAND_LINE_VALUE_REQUIRED, "<class name>", NULL, NULL, -1, NULL, "set the WM_CLASS hint for the window instance" },
-	{ "version", COMMAND_LINE_VALUE_FLAG | COMMAND_LINE_PRINT_VERSION, NULL, NULL, NULL, -1, NULL, "print version" },
-	{ "help", COMMAND_LINE_VALUE_FLAG | COMMAND_LINE_PRINT_HELP, NULL, NULL, NULL, -1, "?", "print help" },
-	{ "play-rfx", COMMAND_LINE_VALUE_REQUIRED, "<pcap file>", NULL, NULL, -1, NULL, "Replay rfx pcap file" },
-	{ "auth-only", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Authenticate only." },
-	{ "auto-reconnect", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Automatic reconnection" },
-	{ "auto-reconnect-max-retries", COMMAND_LINE_VALUE_REQUIRED, "<retries>", NULL, NULL, -1, NULL, "Automatic reconnection maximum retries, 0 for unlimited [0,1000]" },
-	{ "reconnect-cookie", COMMAND_LINE_VALUE_REQUIRED, "<base64 cookie>", NULL, NULL, -1, NULL, "Pass base64 reconnect cookie to the connection" },
+	{ "pheight", COMMAND_LINE_VALUE_REQUIRED, "<height>", NULL, NULL, -1, NULL, "Physical height of display (in millimeters)" },
+	{ "play-rfx", COMMAND_LINE_VALUE_REQUIRED, "<pcap-file>", NULL, NULL, -1, NULL, "Replay rfx pcap file" },
+	{ "port", COMMAND_LINE_VALUE_REQUIRED, "<number>", NULL, NULL, -1, NULL, "Server port" },
 	{ "print-reconnect-cookie", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Print base64 reconnect cookie after connecting" },
-	{ "heartbeat", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Support heartbeat PDUs" },
-	{ "multitransport", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Support multitransport protocol" },
-	{ "assistance", COMMAND_LINE_VALUE_REQUIRED, "<password>", NULL, NULL, -1, NULL, "Remote assistance password" },
-	{ "encryption-methods", COMMAND_LINE_VALUE_REQUIRED, "<40,56,128,FIPS>", NULL, NULL, -1, NULL, "RDP standard security encryption methods" },
-	{ "from-stdin", COMMAND_LINE_VALUE_FLAG, NULL, NULL, NULL, -1, NULL, "Read credentials from stdin, do not use defaults." },
-	{ "buildconfig", COMMAND_LINE_VALUE_FLAG | COMMAND_LINE_PRINT_BUILDCONFIG, NULL, NULL, NULL, -1, NULL, "print the build configuration" },
-	{ "log-level", COMMAND_LINE_VALUE_REQUIRED, "[OFF|FATAL|ERROR|WARN|INFO|DEBUG|TRACE]", NULL, NULL, -1, NULL, "Set the default log level, see wLog(7) for details" },
-	{ "log-filters", COMMAND_LINE_VALUE_REQUIRED, "<logger tag>:<log level>[, <logger tag>:<log level>][, ...]]", NULL, NULL, -1, NULL, "Set logger filters, see wLog(7) for details" },
-	{ "pwidth", COMMAND_LINE_VALUE_REQUIRED, "<physical width (mm)>", NULL, NULL, -1, NULL, "Physical width of display (in millimeters)" },
-	{ "pheight", COMMAND_LINE_VALUE_REQUIRED, "<physical height (mm)>", NULL, NULL, -1, NULL, "Physical height of display (in millimeters)" },
-	{ "orientation", COMMAND_LINE_VALUE_REQUIRED, "<orientation>", NULL, NULL, -1, NULL, "Orientation of display in degrees (0, 90, 180, 270)" },
-	{ "scale", COMMAND_LINE_VALUE_REQUIRED, "<scale amount (%%)>", "100", NULL, -1, NULL, "Scaling factor of the display (value of 100, 140, or 180)" },
-	{ "scale-desktop", COMMAND_LINE_VALUE_REQUIRED, "<scale amount (%%)>", "100", NULL, -1, NULL, "Scaling factor for desktop applications (value between 100 and 500)" },
-	{ "scale-device", COMMAND_LINE_VALUE_REQUIRED, "<scale amount (%%)>", "100", NULL, -1, NULL, "Scaling factor for app store applications (100, 140, or 180)" },
-	{ "action-script", COMMAND_LINE_VALUE_REQUIRED, "<file name>", "~/.config/freerdp/action.sh", NULL, -1, NULL, "Action script" },
+	{ "printer", COMMAND_LINE_VALUE_OPTIONAL, "<name>[,<driver>]", NULL, NULL, -1, NULL, "Redirect printer device" },
+	{ "proxy", COMMAND_LINE_VALUE_REQUIRED, "[<proto>://]<host>:<port>", NULL, NULL, -1, NULL, "Proxy (see also environment variable below)" },
+	{ "pth", COMMAND_LINE_VALUE_REQUIRED, "<password-hash>", NULL, NULL, -1, "pass-the-hash", "Pass the hash (restricted admin mode)" },
+	{ "pwidth", COMMAND_LINE_VALUE_REQUIRED, "<width>", NULL, NULL, -1, NULL, "Physical width of display (in millimeters)" },
+	{ "reconnect-cookie", COMMAND_LINE_VALUE_REQUIRED, "<base64-cookie>", NULL, NULL, -1, NULL, "Pass base64 reconnect cookie to the connection" },
+	{ "restricted-admin", COMMAND_LINE_VALUE_FLAG, NULL, NULL, NULL, -1, "restrictedAdmin", "Restricted admin mode" },
+	{ "rfx", COMMAND_LINE_VALUE_FLAG, NULL, NULL, NULL, -1, NULL, "RemoteFX" },
+	{ "rfx-mode", COMMAND_LINE_VALUE_REQUIRED, "image|video", NULL, NULL, -1, NULL, "RemoteFX mode" },
+	{ "scale", COMMAND_LINE_VALUE_REQUIRED, "100|140|180", "100", NULL, -1, NULL, "Scaling factor of the display" },
+	{ "scale-desktop", COMMAND_LINE_VALUE_REQUIRED, "<percentage>", "100", NULL, -1, NULL, "Scaling factor for desktop applications (value between 100 and 500)" },
+	{ "scale-device", COMMAND_LINE_VALUE_REQUIRED, "100|140|180", "100", NULL, -1, NULL, "Scaling factor for app store applications" },
+	{ "sec", COMMAND_LINE_VALUE_REQUIRED, "rdp|tls|nla|ext", NULL, NULL, -1, NULL, "Force specific protocol security" },
+	{ "sec-ext", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "NLA extended protocol security" },
+	{ "sec-nla", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "NLA protocol security" },
+	{ "sec-rdp", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "RDP protocol security" },
+	{ "sec-tls", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "TLS protocol security" },
+	{ "serial", COMMAND_LINE_VALUE_OPTIONAL, "<name>[,<path>[,<driver>[,permissive]]]", NULL, NULL, -1, "tty", "Redirect serial device" },
+	{ "shell", COMMAND_LINE_VALUE_REQUIRED, "<shell>", NULL, NULL, -1, NULL, "Alternate shell" },
+	{ "shell-dir", COMMAND_LINE_VALUE_REQUIRED, "<dir>", NULL, NULL, -1, NULL, "Shell working directory" },
+	{ "size", COMMAND_LINE_VALUE_REQUIRED, "<width>x<height> or <percent>%[wh]", "1024x768", NULL, -1, NULL, "Screen size" },
+	{ "smart-sizing", COMMAND_LINE_VALUE_OPTIONAL, "<width>x<height>", NULL, NULL, -1, NULL, "Scale remote desktop to window size" },
+	{ "smartcard", COMMAND_LINE_VALUE_OPTIONAL, "<name>[,<path>]", NULL, NULL, -1, NULL, "Redirect smartcard device" },
+	{ "sound", COMMAND_LINE_VALUE_OPTIONAL, "[sys:<sys>,][dev:<dev>,][format:<format>,][rate:<rate>,][channel:<channel>,][latency:<latency>,][quality:<quality>]", NULL, NULL, -1, "audio", "Audio output (sound)" },
+	{ "span", COMMAND_LINE_VALUE_FLAG, NULL, NULL, NULL, -1, NULL, "Span screen over multiple monitors" },
+	{ "spn-class", COMMAND_LINE_VALUE_REQUIRED, "<service-class>", NULL, NULL, -1, NULL, "SPN authentication service class" },
+	{ "ssh-agent", COMMAND_LINE_VALUE_FLAG, NULL, NULL, NULL, -1, "ssh-agent", "SSH Agent forwarding channel" },
+	{ "t", COMMAND_LINE_VALUE_REQUIRED, "<title>", NULL, NULL, -1, "title", "Window title" },
+	{ "themes", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "Enable themes" },
+	{ "tls-ciphers", COMMAND_LINE_VALUE_REQUIRED, "netmon|ma|ciphers", NULL, NULL, -1, NULL, "Allowed TLS ciphers" },
+	{ "toggle-fullscreen", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "Alt+Ctrl+Enter toggles fullscreen" },
+	{ "u", COMMAND_LINE_VALUE_REQUIRED, "[<domain>\\]<user> or <user>[@<domain>]", NULL, NULL, -1, NULL, "Username" },
+	{ "unmap-buttons", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Let server see real physical pointer button"},
+	{ "usb", COMMAND_LINE_VALUE_REQUIRED, "[dbg,][dev:<dev>,][id|addr,][auto]", NULL, NULL, -1, NULL, "Redirect USB device" },
+	{ "v", COMMAND_LINE_VALUE_REQUIRED, "<server>[:port]", NULL, NULL, -1, NULL, "Server hostname" },
+	{ "vc", COMMAND_LINE_VALUE_REQUIRED, "<channel>[,<options>]", NULL, NULL, -1, NULL, "Static virtual channel" },
+	{ "version", COMMAND_LINE_VALUE_FLAG | COMMAND_LINE_PRINT_VERSION, NULL, NULL, NULL, -1, NULL, "Print version" },
+	{ "vmconnect", COMMAND_LINE_VALUE_OPTIONAL, "<vmid>", NULL, NULL, -1, NULL, "Hyper-V console (use port 2179, disable negotiation)" },
+	{ "w", COMMAND_LINE_VALUE_REQUIRED, "<width>", "1024", NULL, -1, NULL, "Width" },
+	{ "wallpaper", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueTrue, NULL, -1, NULL, "Enable wallpaper" },
+	{ "window-drag", COMMAND_LINE_VALUE_BOOL, NULL, BoolValueFalse, NULL, -1, NULL, "Enable full window drag" },
+	{ "wm-class", COMMAND_LINE_VALUE_REQUIRED, "<class-name>", NULL, NULL, -1, NULL, "Set the WM_CLASS hint for the window instance" },
+	{ "workarea", COMMAND_LINE_VALUE_FLAG, NULL, NULL, NULL, -1, NULL, "Use available work area" },
 	{ NULL, 0, NULL, NULL, NULL, -1, NULL, NULL }
 };
 
-BOOL freerdp_client_print_version()
+BOOL freerdp_client_print_version(void)
 {
-	printf("This is FreeRDP version %s (git %s)\n", FREERDP_VERSION_FULL,
+	printf("This is FreeRDP version %s (%s)\n", FREERDP_VERSION_FULL,
 	       GIT_REVISION);
 	return TRUE;
 }
 
-BOOL freerdp_client_print_buildconfig()
+BOOL freerdp_client_print_buildconfig(void)
 {
 	printf("%s", freerdp_get_build_config());
 	return TRUE;
 }
 
-BOOL freerdp_client_print_command_line_help(int argc, char** argv)
+static void freerdp_client_print_command_line_args(COMMAND_LINE_ARGUMENT_A* arg)
 {
-	char* str;
-	int length;
-	COMMAND_LINE_ARGUMENT_A* arg;
-	printf("\n");
-	printf("FreeRDP - A Free Remote Desktop Protocol Implementation\n");
-	printf("See www.freerdp.com for more information\n");
-	printf("\n");
-	printf("Usage: %s [file] [options] [/v:<server>[:port]]\n", argv[0]);
-	printf("\n");
-	printf("Syntax:\n");
-	printf("    /flag (enables flag)\n");
-	printf("    /option:<value> (specifies option with value)\n");
-	printf("    +toggle -toggle (enables or disables toggle, where '/' is a synonym of '+')\n");
-	printf("\n");
-	arg = args;
+	if (!arg)
+		return;
 
 	do
 	{
@@ -241,19 +232,26 @@ BOOL freerdp_client_print_command_line_help(int argc, char** argv)
 		else if ((arg->Flags & COMMAND_LINE_VALUE_REQUIRED)
 		         || (arg->Flags & COMMAND_LINE_VALUE_OPTIONAL))
 		{
+			BOOL overlong = FALSE;
 			printf("    %s", "/");
 
 			if (arg->Format)
 			{
-				length = (int)(strlen(arg->Name) + strlen(arg->Format) + 2);
-				str = (char*) calloc(length + 1UL, sizeof(char));
+				size_t length = (strlen(arg->Name) + strlen(arg->Format) + 2);
 
-				if (!str)
-					return FALSE;
+				if (arg->Flags & COMMAND_LINE_VALUE_OPTIONAL)
+					length += 2;
 
-				sprintf_s(str, length + 1, "%s:%s", arg->Name, arg->Format);
-				printf("%-20s", str);
-				free(str);
+				if (length >= 20 + 8 + 8)
+				{
+					length += 3 - strlen(arg->Format);
+					overlong = TRUE;
+				}
+
+				if (arg->Flags & COMMAND_LINE_VALUE_OPTIONAL)
+					printf("%s[:%s]", arg->Name, overlong ? "..." : arg->Format);
+				else
+					printf("%s:%s", arg->Name, overlong ? "..." : arg->Format);
 			}
 			else
 			{
@@ -264,22 +262,35 @@ BOOL freerdp_client_print_command_line_help(int argc, char** argv)
 		}
 		else if (arg->Flags & COMMAND_LINE_VALUE_BOOL)
 		{
-			length = (int) strlen(arg->Name) + 32;
-			str = (char*) calloc(length + 1UL, sizeof(char));
-
-			if (!str)
-				return FALSE;
-
-			sprintf_s(str, length + 1, "%s (default:%s)", arg->Name,
-			          arg->Default ? "on" : "off");
 			printf("    %s", arg->Default ? "-" : "+");
-			printf("%-20s", str);
-			free(str);
-			printf("\t%s\n", arg->Text);
+			printf("%-20s", arg->Name);
+			printf("\t%s (default:%s)\n", arg->Text, arg->Default ? "on" : "off");
 		}
 	}
 	while ((arg = CommandLineFindNextArgumentA(arg)) != NULL);
+}
 
+BOOL freerdp_client_print_command_line_help(int argc, char** argv)
+{
+	return freerdp_client_print_command_line_help_ex(argc, argv, NULL);
+}
+
+BOOL freerdp_client_print_command_line_help_ex(int argc, char** argv,
+        COMMAND_LINE_ARGUMENT_A* custom)
+{
+	printf("\n");
+	printf("FreeRDP - A Free Remote Desktop Protocol Implementation\n");
+	printf("See www.freerdp.com for more information\n");
+	printf("\n");
+	printf("Usage: %s [file] [options] [/v:<server>[:port]]\n", argv[0]);
+	printf("\n");
+	printf("Syntax:\n");
+	printf("    /flag (enables flag)\n");
+	printf("    /option:<value> (specifies option with value)\n");
+	printf("    +toggle -toggle (enables or disables toggle, where '/' is a synonym of '+')\n");
+	printf("\n");
+	freerdp_client_print_command_line_args(custom);
+	freerdp_client_print_command_line_args(args);
 	printf("\n");
 	printf("Examples:\n");
 	printf("    xfreerdp connection.rdp /p:Pwd123! /f\n");
@@ -305,7 +316,6 @@ BOOL freerdp_client_print_command_line_help(int argc, char** argv)
 	printf("Multimedia Redirection: /multimedia:sys:alsa\n");
 	printf("USB Device Redirection: /usb:id,dev:054c:0268\n");
 	printf("\n");
-
 	printf("For Gateways, the https_proxy environment variable is respected:\n");
 #ifdef _WIN32
 	printf("    set HTTPS_PROXY=http://proxy.contoso.com:3128/\n");
@@ -314,7 +324,6 @@ BOOL freerdp_client_print_command_line_help(int argc, char** argv)
 #endif
 	printf("    xfreerdp /g:rdp.contoso.com ...\n");
 	printf("\n");
-
 	printf("More documentation is coming, in the meantime consult source files\n");
 	printf("\n");
 	return TRUE;
@@ -338,10 +347,6 @@ static int freerdp_client_command_line_pre_filter(void* context, int index,
 				if (!(settings->ConnectionFile = _strdup(argv[index])))
 					return COMMAND_LINE_ERROR_MEMORY;
 
-				if (freerdp_client_settings_parse_connection_file(settings,
-				        settings->ConnectionFile))
-					return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
-
 				return 1;
 			}
 		}
@@ -354,10 +359,6 @@ static int freerdp_client_command_line_pre_filter(void* context, int index,
 
 				if (!(settings->AssistanceFile = _strdup(argv[index])))
 					return COMMAND_LINE_ERROR_MEMORY;
-
-				if (freerdp_client_settings_parse_assistance_file(settings,
-				        settings->AssistanceFile) < 0)
-					return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
 
 				return 1;
 			}
@@ -861,24 +862,13 @@ static int freerdp_client_command_line_post_filter(void* context,
 	}
 	CommandLineSwitchCase(arg, "smartcard")
 	{
-		if (arg->Flags & COMMAND_LINE_VALUE_PRESENT)
-		{
-			char** p;
-			int count;
-			p = freerdp_command_line_parse_comma_separated_values_offset(arg->Value,
-			        &count);
-			p[0] = "smartcard";
-			status = freerdp_client_add_device_channel(settings, count, p);
-			free(p);
-		}
-		else
-		{
-			char* p[1];
-			int count;
-			count = 1;
-			p[0] = "smartcard";
-			status = freerdp_client_add_device_channel(settings, count, p);
-		}
+		char** p;
+		int count;
+		p = freerdp_command_line_parse_comma_separated_values_offset(arg->Value,
+		        &count);
+		p[0] = "smartcard";
+		status = freerdp_client_add_device_channel(settings, count, p);
+		free(p);
 	}
 	CommandLineSwitchCase(arg, "printer")
 	{
@@ -922,6 +912,10 @@ static int freerdp_client_command_line_post_filter(void* context,
 	CommandLineSwitchCase(arg, "echo")
 	{
 		settings->SupportEchoChannel = TRUE;
+	}
+	CommandLineSwitchCase(arg, "ssh-agent")
+	{
+		settings->SupportSSHAgentChannel = TRUE;
 	}
 	CommandLineSwitchCase(arg, "disp")
 	{
@@ -1000,6 +994,10 @@ static int freerdp_client_command_line_post_filter(void* context,
 		settings->MultitransportFlags = (TRANSPORT_TYPE_UDP_FECR |
 		                                 TRANSPORT_TYPE_UDP_FECL | TRANSPORT_TYPE_UDP_PREFERRED);
 	}
+	CommandLineSwitchCase(arg, "password-is-pin")
+	{
+		settings->PasswordIsSmartcardPin = TRUE;
+	}
 	CommandLineSwitchEnd(arg)
 	return status ? 1 : 0;
 }
@@ -1061,12 +1059,18 @@ BOOL freerdp_parse_username(char* username, char** user, char** domain)
 BOOL freerdp_parse_hostname(char* hostname, char** host, int* port)
 {
 	char* p;
-	int length;
 	p = strrchr(hostname, ':');
 
 	if (p)
 	{
-		length = (p - hostname);
+		unsigned long val;
+		SSIZE_T length = (p - hostname);
+		errno = 0;
+		val = strtoul(p + 1, NULL, 0);
+
+		if ((errno != 0) || (val <= 0) || (val > UINT16_MAX))
+			return FALSE;
+
 		*host = (char*) calloc(length + 1UL, sizeof(char));
 
 		if (!(*host))
@@ -1074,7 +1078,7 @@ BOOL freerdp_parse_hostname(char* hostname, char** host, int* port)
 
 		CopyMemory(*host, hostname, length);
 		(*host)[length] = '\0';
-		*port = atoi(p + 1);
+		*port = val;
 	}
 	else
 	{
@@ -1382,6 +1386,13 @@ static BOOL freerdp_client_detect_command_line(int argc, char** argv,
 int freerdp_client_settings_command_line_status_print(rdpSettings* settings,
         int status, int argc, char** argv)
 {
+	return freerdp_client_settings_command_line_status_print_ex(
+	           settings, status, argc, argv, NULL);
+}
+
+int freerdp_client_settings_command_line_status_print_ex(rdpSettings* settings,
+        int status, int argc, char** argv, COMMAND_LINE_ARGUMENT_A* custom)
+{
 	COMMAND_LINE_ARGUMENT_A* arg;
 
 	if (status == COMMAND_LINE_STATUS_PRINT_VERSION)
@@ -1402,7 +1413,7 @@ int freerdp_client_settings_command_line_status_print(rdpSettings* settings,
 
 		if (arg->Flags & COMMAND_LINE_VALUE_PRESENT)
 		{
-			int i;
+			DWORD i;
 			RDP_KEYBOARD_LAYOUT* layouts;
 			layouts = freerdp_keyboard_get_layouts(RDP_KEYBOARD_LAYOUT_TYPE_STANDARD);
 			//if (!layouts) /* FIXME*/
@@ -1442,13 +1453,23 @@ int freerdp_client_settings_command_line_status_print(rdpSettings* settings,
 	}
 	else if (status < 0)
 	{
-		freerdp_client_print_command_line_help(argc, argv);
+		freerdp_client_print_command_line_help_ex(argc, argv, custom);
 		return COMMAND_LINE_STATUS_PRINT_HELP;
 	}
 
 	return 0;
 }
 
+static BOOL ends_with(const char* str, const char* ext)
+{
+	const size_t strLen = strlen(str);
+	const size_t extLen = strlen(ext);
+
+	if (strLen < extLen)
+		return FALSE;
+
+	return strncmp(&str[strLen - extLen], ext, extLen) == 0;
+}
 int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
         int argc, char** argv, BOOL allowUnknown)
 {
@@ -1459,6 +1480,7 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 	int length;
 	int status;
 	DWORD flags;
+	BOOL promptForPassword = FALSE;
 	BOOL compatibility;
 	COMMAND_LINE_ARGUMENT_A* arg;
 	compatibility = freerdp_client_detect_command_line(argc, argv, &flags,
@@ -1471,13 +1493,31 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 	}
 	else
 	{
-		CommandLineClearArgumentsA(args);
-
 		if (allowUnknown)
 		{
 			flags |= COMMAND_LINE_IGN_UNKNOWN_KEYWORD;
 		}
 
+		if (argc > 1)
+		{
+			const BOOL ext = ends_with(argv[1], ".rdp");
+			const BOOL assist = ends_with(argv[1], ".msrcIncident");
+
+			if (ext)
+			{
+				if (freerdp_client_settings_parse_connection_file(settings, argv[1]))
+					return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+			}
+
+			if (assist)
+			{
+				if (freerdp_client_settings_parse_assistance_file(settings,
+				        settings->AssistanceFile) < 0)
+					return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+			}
+		}
+
+		CommandLineClearArgumentsA(args);
 		status = CommandLineParseArgumentsA(argc, (const char**) argv, args, flags,
 		                                    settings,
 		                                    freerdp_client_command_line_pre_filter,
@@ -1489,6 +1529,7 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 
 	CommandLineFindArgumentA(args, "v");
 	arg = args;
+	errno = 0;
 
 	do
 	{
@@ -1509,8 +1550,13 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 
 				if (p)
 				{
+					unsigned long val = strtoul(&p[1], NULL, 0);
+
+					if ((errno != 0) || (val == 0) || (val > UINT16_MAX))
+						return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+
 					length = (int)(p - arg->Value);
-					settings->ServerPort = atoi(&p[1]);
+					settings->ServerPort = val;
 
 					if (!(settings->ServerHostname = (char*) calloc(length + 1UL, sizeof(char))))
 						return COMMAND_LINE_ERROR_MEMORY;
@@ -1541,7 +1587,12 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 
 				if (*(p2 + 1) == ':')
 				{
-					settings->ServerPort = atoi(&p2[2]);
+					unsigned long val = strtoul(&p2[2], NULL, 0);
+
+					if ((errno != 0) || (val == 0) || (val > UINT16_MAX))
+						return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+
+					settings->ServerPort = val;
 				}
 
 				printf("hostname %s port %"PRIu32"\n", settings->ServerHostname, settings->ServerPort);
@@ -1575,11 +1626,21 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 		}
 		CommandLineSwitchCase(arg, "w")
 		{
-			settings->DesktopWidth = atoi(arg->Value);
+			long val = strtol(arg->Value, NULL, 0);
+
+			if ((errno != 0) || (val <= 0) || (val > UINT16_MAX))
+				return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+
+			settings->DesktopWidth = val;
 		}
 		CommandLineSwitchCase(arg, "h")
 		{
-			settings->DesktopHeight = atoi(arg->Value);
+			long val = strtol(arg->Value, NULL, 0);
+
+			if ((errno != 0) || (val <= 0) || (val > UINT16_MAX))
+				return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+
+			settings->DesktopHeight = val;
 		}
 		CommandLineSwitchCase(arg, "size")
 		{
@@ -1591,8 +1652,28 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 			if (p)
 			{
 				*p = '\0';
-				settings->DesktopWidth = atoi(str);
-				settings->DesktopHeight = atoi(&p[1]);
+				{
+					long val = strtol(str, NULL, 0);
+
+					if ((errno != 0) || (val <= 0) || (val > UINT16_MAX))
+					{
+						free(str);
+						return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+					}
+
+					settings->DesktopWidth = val;
+				}
+				{
+					long val = strtol(&p[1], NULL, 0);
+
+					if ((errno != 0) || (val <= 0) || (val > UINT16_MAX))
+					{
+						free(str);
+						return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+					}
+
+					settings->DesktopHeight = val;
+				}
 			}
 			else
 			{
@@ -1600,7 +1681,38 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 
 				if (p)
 				{
-					settings->PercentScreen = atoi(str);
+					BOOL partial = FALSE;
+
+					if (strchr(p, 'w'))
+					{
+						settings->PercentScreenUseWidth = 1;
+						partial = TRUE;
+					}
+
+					if (strchr(p, 'h'))
+					{
+						settings->PercentScreenUseHeight = 1;
+						partial = TRUE;
+					}
+
+					if (!partial)
+					{
+						settings->PercentScreenUseWidth = 1;
+						settings->PercentScreenUseHeight = 1;
+					}
+
+					*p = '\0';
+					{
+						long val = strtol(str, NULL, 0);
+
+						if ((errno != 0) || (val < 0) || (val > 100))
+						{
+							free(str);
+							return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+						}
+
+						settings->PercentScreen = val;
+					}
 				}
 			}
 
@@ -1649,7 +1761,12 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 
 				for (i = 0; i < settings->NumMonitorIds; i++)
 				{
-					settings->MonitorIds[i] = atoi(p[i]);
+					unsigned long val = strtoul(p[i], NULL, 0);
+
+					if ((errno != 0) || (val > UINT16_MAX))
+						return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+
+					settings->MonitorIds[i] = val;
 				}
 
 				free(p);
@@ -1681,9 +1798,26 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 
 				if ((p = strchr(str, 'x')))
 				{
+					unsigned long w, h;
 					*p = '\0';
-					settings->SmartSizingWidth = atoi(str);
-					settings->SmartSizingHeight = atoi(&p[1]);
+					w = strtoul(str, NULL, 0);
+
+					if ((errno != 0) || (w == 0) || (w > UINT16_MAX))
+					{
+						free(str);
+						return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+					}
+
+					h = strtoul(&p[1], NULL, 0);
+
+					if ((errno != 0) || (h == 0) || (h > UINT16_MAX))
+					{
+						free(str);
+						return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+					}
+
+					settings->SmartSizingWidth = w;
+					settings->SmartSizingHeight = h;
 				}
 
 				free(str);
@@ -1691,7 +1825,12 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 		}
 		CommandLineSwitchCase(arg, "bpp")
 		{
-			settings->ColorDepth = atoi(arg->Value);
+			unsigned long val = strtoul(arg->Value, NULL, 0);
+
+			if (errno != 0)
+				return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+
+			settings->ColorDepth = val;
 
 			switch (settings->ColorDepth)
 			{
@@ -1733,42 +1872,52 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 		}
 		CommandLineSwitchCase(arg, "kbd")
 		{
-			unsigned long int id;
-			char* pEnd;
-			id = strtoul(arg->Value, &pEnd, 16);
+			unsigned long id = strtoul(arg->Value, NULL, 0);
 
-			if (pEnd != (arg->Value + strlen(arg->Value)))
-				id = 0;
-
-			if (id == 0)
+			if ((errno != 0) || (id > UINT32_MAX) || (id == 0))
 			{
-				id = (unsigned long int) freerdp_map_keyboard_layout_name_to_id(arg->Value);
+				const int rc = freerdp_map_keyboard_layout_name_to_id(arg->Value);
 
-				if (id == -1)
-					WLog_ERR(TAG, "A problem occurred while mapping the layout name to id");
-				else if (id == 0)
+				if (rc <= 0)
 				{
 					WLog_ERR(TAG, "Could not identify keyboard layout: %s", arg->Value);
 					WLog_ERR(TAG, "Use /kbd-list to list available layouts");
+					return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
 				}
 
-				if (id <= 0)
-					return COMMAND_LINE_STATUS_PRINT;
+				/* Found a valid mapping, reset errno */
+				id = (unsigned long)rc;
+				errno = 0;
 			}
 
 			settings->KeyboardLayout = (UINT32) id;
 		}
 		CommandLineSwitchCase(arg, "kbd-type")
 		{
-			settings->KeyboardType = atoi(arg->Value);
+			unsigned long val = strtoul(arg->Value, NULL, 0);
+
+			if ((errno != 0) || (val > UINT32_MAX))
+				return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+
+			settings->KeyboardType = val;
 		}
 		CommandLineSwitchCase(arg, "kbd-subtype")
 		{
-			settings->KeyboardSubType = atoi(arg->Value);
+			unsigned long val = strtoul(arg->Value, NULL, 0);
+
+			if ((errno != 0) || (val > UINT32_MAX))
+				return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+
+			settings->KeyboardSubType = val;
 		}
 		CommandLineSwitchCase(arg, "kbd-fn-key")
 		{
-			settings->KeyboardFunctionKey = atoi(arg->Value);
+			unsigned long val = strtoul(arg->Value, NULL, 0);
+
+			if ((errno != 0) || (val > UINT32_MAX))
+				return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+
+			settings->KeyboardFunctionKey = val;
 		}
 		CommandLineSwitchCase(arg, "u")
 		{
@@ -1798,8 +1947,13 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 
 				if (p)
 				{
+					unsigned long val = strtoul(&p[1], NULL, 0);
+
+					if ((errno != 0) || (val == 0) || (val > UINT16_MAX))
+						return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+
 					length = (int)(p - arg->Value);
-					settings->GatewayPort = atoi(&p[1]);
+					settings->GatewayPort = val;
 
 					if (!(settings->GatewayHostname = (char*) calloc(length + 1UL, sizeof(char))))
 						return COMMAND_LINE_ERROR_MEMORY;
@@ -1850,15 +2004,13 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 
 				if (p)
 				{
-					length = (int)(p - arg->Value);
+					unsigned long val = strtoul(&p[1], NULL, 0);
 
-					if (!isdigit(p[1]))
-					{
-						WLog_ERR(TAG, "Could not parse proxy port");
+					if ((errno != 0) || (val == 0) || (val > UINT16_MAX))
 						return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
-					}
 
-					settings->ProxyPort = atoi(&p[1]);
+					length = (p - arg->Value);
+					settings->ProxyPort = val;
 					settings->ProxyHostname = (char*) malloc(length + 1);
 					strncpy(settings->ProxyHostname, arg->Value, length);
 					settings->ProxyHostname[length] = '\0';
@@ -1916,9 +2068,12 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 		}
 		CommandLineSwitchCase(arg, "gateway-usage-method")
 		{
-			int type;
+			long type;
 			char* pEnd;
 			type = strtol(arg->Value, &pEnd, 10);
+
+			if (errno != 0)
+				return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
 
 			if (type == 0)
 			{
@@ -1998,7 +2153,12 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 		}
 		CommandLineSwitchCase(arg, "compression-level")
 		{
-			settings->CompressionLevel = atoi(arg->Value);
+			unsigned long val = strtol(arg->Value, NULL, 0);
+
+			if ((errno != 0) || (val > UINT32_MAX))
+				return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+
+			settings->CompressionLevel = val;
 		}
 		CommandLineSwitchCase(arg, "drives")
 		{
@@ -2007,6 +2167,10 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 		CommandLineSwitchCase(arg, "home-drive")
 		{
 			settings->RedirectHomeDrive = arg->Value ? TRUE : FALSE;
+		}
+		CommandLineSwitchCase(arg, "ipv6")
+		{
+			settings->PreferIPv6OverIPv4 = TRUE;
 		}
 		CommandLineSwitchCase(arg, "clipboard")
 		{
@@ -2028,8 +2192,10 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 		}
 		CommandLineSwitchCase(arg, "audio-mode")
 		{
-			int mode;
-			mode = atoi(arg->Value);
+			long mode = strtol(arg->Value, NULL, 0);
+
+			if (errno != 0)
+				return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
 
 			if (mode == AUDIO_MODE_REDIRECT)
 			{
@@ -2047,9 +2213,12 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 		}
 		CommandLineSwitchCase(arg, "network")
 		{
-			int type;
+			long type;
 			char* pEnd;
 			type = strtol(arg->Value, &pEnd, 10);
+
+			if (errno != 0)
+				return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
 
 			if (type == 0)
 			{
@@ -2114,6 +2283,7 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 			if (arg->Value)
 			{
 #ifdef WITH_GFX_H264
+
 				if (_strnicmp("AVC444", arg->Value, 6) == 0)
 				{
 					settings->GfxH264 = TRUE;
@@ -2125,13 +2295,17 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 				}
 				else
 #endif
-				if (_strnicmp("RFX", arg->Value, 3) != 0)
-					return COMMAND_LINE_ERROR;
+					if (_strnicmp("RFX", arg->Value, 3) != 0)
+						return COMMAND_LINE_ERROR;
 			}
 		}
 		CommandLineSwitchCase(arg, "gfx-thin-client")
 		{
 			settings->GfxThinClient = arg->Value ? TRUE : FALSE;
+
+			if (settings->GfxThinClient)
+				settings->GfxSmallCache = TRUE;
+
 			settings->SupportGraphicsPipeline = TRUE;
 		}
 		CommandLineSwitchCase(arg, "gfx-small-cache")
@@ -2175,7 +2349,12 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 		}
 		CommandLineSwitchCase(arg, "frame-ack")
 		{
-			settings->FrameAcknowledge = atoi(arg->Value);
+			unsigned long val = strtoul(arg->Value, NULL, 0);
+
+			if ((errno != 0) || (val > UINT32_MAX))
+				return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+
+			settings->FrameAcknowledge = val;
 		}
 		CommandLineSwitchCase(arg, "nsc")
 		{
@@ -2189,7 +2368,12 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 		}
 		CommandLineSwitchCase(arg, "jpeg-quality")
 		{
-			settings->JpegQuality = atoi(arg->Value) % 100;
+			unsigned long val = strtoul(arg->Value, NULL, 0);
+
+			if ((errno != 0) || (val > 100))
+				return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+
+			settings->JpegQuality = val;
 		}
 #endif
 		CommandLineSwitchCase(arg, "nego")
@@ -2206,8 +2390,13 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 		}
 		CommandLineSwitchCase(arg, "pcid")
 		{
+			unsigned long val = strtoul(arg->Value, NULL, 0);
+
+			if ((errno != 0) || (val > UINT32_MAX))
+				return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+
 			settings->SendPreconnectionPdu = TRUE;
-			settings->PreconnectionId = atoi(arg->Value);
+			settings->PreconnectionId = val;
 		}
 		CommandLineSwitchCase(arg, "sec")
 		{
@@ -2274,6 +2463,14 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 		CommandLineSwitchCase(arg, "from-stdin")
 		{
 			settings->CredentialsFromStdin = TRUE;
+
+			if (arg->Flags & COMMAND_LINE_VALUE_PRESENT)
+			{
+				promptForPassword = (strncmp(arg->Value, "force", 6) == 0);
+
+				if (!promptForPassword)
+					return COMMAND_LINE_ERROR;
+			}
 		}
 		CommandLineSwitchCase(arg, "log-level")
 		{
@@ -2364,7 +2561,12 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 		}
 		CommandLineSwitchCase(arg, "parent-window")
 		{
-			settings->ParentWindowId = strtol(arg->Value, NULL, 0);
+			UINT64 val = _strtoui64(arg->Value, NULL, 0);
+
+			if (errno != 0)
+				return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+
+			settings->ParentWindowId = val;
 		}
 		CommandLineSwitchCase(arg, "bitmap-cache")
 		{
@@ -2391,6 +2593,7 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 			{
 				settings->NSCodec = TRUE;
 			}
+
 #if defined(WITH_JPEG)
 			else if (strcmp(arg->Value, "jpeg") == 0)
 			{
@@ -2399,6 +2602,7 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 				if (settings->JpegQuality == 0)
 					settings->JpegQuality = 75;
 			}
+
 #endif
 		}
 		CommandLineSwitchCase(arg, "fast-path")
@@ -2408,11 +2612,21 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 		}
 		CommandLineSwitchCase(arg, "max-fast-path-size")
 		{
-			settings->MultifragMaxRequestSize = atoi(arg->Value);
+			unsigned long val = strtoul(arg->Value, NULL, 0);
+
+			if ((errno != 0) || (val > UINT32_MAX))
+				return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+
+			settings->MultifragMaxRequestSize = val;
 		}
 		CommandLineSwitchCase(arg, "max-loop-time")
 		{
-			settings->MaxTimeInCheckLoop = atoi(arg->Value);
+			unsigned long val = strtoul(arg->Value, NULL, 0);
+
+			if ((errno != 0) || (val > UINT32_MAX))
+				return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+
+			settings->MaxTimeInCheckLoop = val;
 
 			if ((long) settings->MaxTimeInCheckLoop < 0)
 			{
@@ -2467,7 +2681,12 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 		}
 		CommandLineSwitchCase(arg, "auto-reconnect-max-retries")
 		{
-			settings->AutoReconnectMaxRetries = atoi(arg->Value);
+			unsigned long val = strtoul(arg->Value, NULL, 0);
+
+			if ((errno != 0) || (val > UINT32_MAX))
+				return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+
+			settings->AutoReconnectMaxRetries = val;
 
 			if (settings->AutoReconnectMaxRetries > 1000)
 				return COMMAND_LINE_ERROR;
@@ -2503,19 +2722,37 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 		}
 		CommandLineSwitchCase(arg, "pwidth")
 		{
-			settings->DesktopPhysicalWidth = atoi(arg->Value);
+			unsigned long val = strtoul(arg->Value, NULL, 0);
+
+			if ((errno != 0) || (val > UINT32_MAX))
+				return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+
+			settings->DesktopPhysicalWidth = val;
 		}
 		CommandLineSwitchCase(arg, "pheight")
 		{
-			settings->DesktopPhysicalHeight = atoi(arg->Value);
+			unsigned long val = strtoul(arg->Value, NULL, 0);
+
+			if ((errno != 0) || (val > UINT32_MAX))
+				return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+
+			settings->DesktopPhysicalHeight = val;
 		}
 		CommandLineSwitchCase(arg, "orientation")
 		{
-			settings->DesktopOrientation = atoi(arg->Value);
+			unsigned long val = strtoul(arg->Value, NULL, 0);
+
+			if ((errno != 0) || (val > INT16_MAX))
+				return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+
+			settings->DesktopOrientation = val;
 		}
 		CommandLineSwitchCase(arg, "scale")
 		{
-			int scaleFactor = atoi(arg->Value);
+			unsigned long scaleFactor = strtoul(arg->Value, NULL, 0);
+
+			if (errno != 0)
+				return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
 
 			if (scaleFactor == 100 || scaleFactor == 140 || scaleFactor == 180)
 			{
@@ -2530,7 +2767,10 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 		}
 		CommandLineSwitchCase(arg, "scale-desktop")
 		{
-			int desktopScaleFactor = atoi(arg->Value);
+			unsigned long desktopScaleFactor = strtoul(arg->Value, NULL, 0);
+
+			if (errno != 0)
+				return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
 
 			if (desktopScaleFactor >= 100 && desktopScaleFactor <= 500)
 			{
@@ -2544,7 +2784,10 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 		}
 		CommandLineSwitchCase(arg, "scale-device")
 		{
-			int deviceScaleFactor = atoi(arg->Value);
+			unsigned long deviceScaleFactor = strtoul(arg->Value, NULL, 0);
+
+			if (errno != 0)
+				return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
 
 			if (deviceScaleFactor == 100 || deviceScaleFactor == 140
 			    || deviceScaleFactor == 180)
@@ -2563,6 +2806,10 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 
 			if (!(settings->ActionScript = _strdup(arg->Value)))
 				return COMMAND_LINE_ERROR_MEMORY;
+		}
+		CommandLineSwitchCase(arg, "fipsmode")
+		{
+			settings->FIPSMode = TRUE;
 		}
 		CommandLineSwitchDefault(arg)
 		{
@@ -2608,6 +2855,36 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 			settings->GatewayUsername = gwUser;
 	}
 
+	if (promptForPassword)
+	{
+		const size_t size = 512;
+
+		if (!settings->Password)
+		{
+			settings->Password = calloc(size, sizeof(char));
+
+			if (!settings->Password)
+				return COMMAND_LINE_ERROR;
+
+			if (!freerdp_passphrase_read("Password: ", settings->Password, size, 1))
+				return COMMAND_LINE_ERROR;
+		}
+
+		if (settings->GatewayEnabled && !settings->GatewayUseSameCredentials)
+		{
+			if (!settings->GatewayPassword)
+			{
+				settings->GatewayPassword = calloc(size, sizeof(char));
+
+				if (!settings->GatewayPassword)
+					return COMMAND_LINE_ERROR;
+
+				if (!freerdp_passphrase_read("Gateway Password: ", settings->GatewayPassword, size, 1))
+					return COMMAND_LINE_ERROR;
+			}
+		}
+	}
+
 	freerdp_performance_flags_make(settings);
 
 	if (settings->RemoteFxCodec || settings->NSCodec
@@ -2623,7 +2900,12 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings,
 
 	if (arg->Flags & COMMAND_LINE_ARGUMENT_PRESENT)
 	{
-		settings->ServerPort = atoi(arg->Value);
+		unsigned long val = strtoul(arg->Value, NULL, 0);
+
+		if ((errno != 0) || (val == 0) || (val > UINT16_MAX))
+			return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+
+		settings->ServerPort = val;
 	}
 
 	arg = CommandLineFindArgumentA(args, "p");
@@ -2868,6 +3150,17 @@ BOOL freerdp_client_load_addins(rdpChannels* channels, rdpSettings* settings)
 		int count;
 		count = 1;
 		p[0] = "echo";
+
+		if (!freerdp_client_add_dynamic_channel(settings, count, p))
+			return FALSE;
+	}
+
+	if (settings->SupportSSHAgentChannel)
+	{
+		char* p[1];
+		int count;
+		count = 1;
+		p[0] = "sshagent";
 
 		if (!freerdp_client_add_dynamic_channel(settings, count, p))
 			return FALSE;

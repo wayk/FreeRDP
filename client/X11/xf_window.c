@@ -6,7 +6,6 @@
  * Copyright 2012 HP Development Company, LLC
  * Copyright 2016 Thincast Technologies GmbH
  * Copyright 2016 Armin Novak <armin.novak@thincast.com>
- * Copyright 2017 Kai Harms <kharms@rangee.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -106,6 +105,16 @@ struct _PropMotifWmHints
 };
 typedef struct _PropMotifWmHints PropMotifWmHints;
 
+static void xf_SetWindowTitleText(xfContext* xfc, Window window, const char* name)
+{
+	const size_t i = strlen(name);
+	XStoreName(xfc->display, window, name);
+	Atom wm_Name = xfc->_NET_WM_NAME;
+	Atom utf8Str = xfc->UTF8_STRING;
+	XChangeProperty(xfc->display, window, wm_Name, utf8Str, 8,
+	                PropModeReplace, (const unsigned char*)name, (int)i);
+}
+
 /**
  * Post an event from the client to the X server
  */
@@ -146,9 +155,6 @@ void xf_SetWindowFullscreen(xfContext* xfc, xfWindow* window, BOOL fullscreen)
 	UINT32 height = window->height;
 	window->decorations = xfc->decorations;
 	xf_SetWindowDecorations(xfc, window->handle, window->decorations);
-	unsigned long nitems, bytes;
-	BYTE* prop;
-	BOOL status;
 
 	if (fullscreen)
 	{
@@ -207,24 +213,16 @@ void xf_SetWindowFullscreen(xfContext* xfc, xfWindow* window, BOOL fullscreen)
 		XMoveWindow(xfc->display, window->handle, startX, startY);
 	}
 
-	status = xf_GetWindowProperty(xfc, DefaultRootWindow(xfc->display),
-	                              xfc->_NET_WM_FULLSCREEN_MONITORS, 1, &nitems, &bytes, &prop);
-
-	if (status)
-	{
-		/* Set the fullscreen state */
-		xf_SendClientEvent(xfc, window->handle, xfc->_NET_WM_STATE, 4,
-		                   fullscreen ? _NET_WM_STATE_ADD : _NET_WM_STATE_REMOVE,
-		                   xfc->_NET_WM_STATE_FULLSCREEN, 0, 0);
-	}
+	/* Set the fullscreen state */
+	xf_SendClientEvent(xfc, window->handle, xfc->_NET_WM_STATE, 4,
+	                   fullscreen ? _NET_WM_STATE_ADD : _NET_WM_STATE_REMOVE,
+	                   xfc->_NET_WM_STATE_FULLSCREEN, 0, 0);
 
 	if (!fullscreen)
 	{
 		/* leave full screen: move the window after removing NET_WM_STATE_FULLSCREEN */
 		XMoveWindow(xfc->display, window->handle, startX, startY);
 	}
-
-	free(prop);
 }
 
 /* http://tronche.com/gui/x/xlib/window-information/XGetWindowProperty.html */
@@ -340,7 +338,7 @@ static void xf_SetWindowPID(xfContext* xfc, Window window, pid_t pid)
 	                32, PropModeReplace, (BYTE*) &pid, 1);
 }
 
-static const char* get_shm_id()
+static const char* get_shm_id(void)
 {
 	static char shm_id[64];
 	sprintf_s(shm_id, sizeof(shm_id), "/com.freerdp.xfreerdp.tsmf_%016X",
@@ -474,7 +472,7 @@ xfWindow* xf_CreateDesktopWindow(xfContext* xfc, char* name, int width,
 		            settings->DesktopPosY);
 	}
 
-	XStoreName(xfc->display, window->handle, name);
+	xf_SetWindowTitleText(xfc, window->handle, name);
 	return window;
 }
 
@@ -588,33 +586,18 @@ void xf_SetWindowStyle(xfContext* xfc, xfAppWindow* appWindow, UINT32 style,
 	                XA_ATOM, 32, PropModeReplace, (BYTE*) &window_type, 1);
 }
 
-void xf_SetWindowText(xfContext* xfc, xfAppWindow* appWindow, char* name)
+void xf_SetWindowText(xfContext* xfc, xfAppWindow* appWindow, const char* name)
 {
-	const size_t i = strlen(name);
-	XStoreName(xfc->display, appWindow->handle, name);
-	Atom wm_Name = xfc->_NET_WM_NAME;
-	Atom utf8Str = xfc->UTF8_STRING;
-	XChangeProperty(xfc->display, appWindow->handle, wm_Name, utf8Str, 8,
-	                PropModeReplace, (unsigned char*)name, i);
+	xf_SetWindowTitleText(xfc, appWindow->handle, name);
 }
 
-void xf_FixWindowCoordinates(xfContext* xfc, int* x, int* y, int* width,
+static void xf_FixWindowCoordinates(xfContext* xfc, int* x, int* y, int* width,
                              int* height)
 {
 	int vscreen_width;
 	int vscreen_height;
 	vscreen_width = xfc->vscreen.area.right - xfc->vscreen.area.left + 1;
 	vscreen_height = xfc->vscreen.area.bottom - xfc->vscreen.area.top + 1;
-
-	if (*width < 1)
-	{
-		*width = 1;
-	}
-
-	if (*height < 1)
-	{
-		*height = 1;
-	}
 
 	if (*x < xfc->vscreen.area.left)
 	{
@@ -636,6 +619,16 @@ void xf_FixWindowCoordinates(xfContext* xfc, int* x, int* y, int* width,
 	if (*height > vscreen_height)
 	{
 		*height = vscreen_height;
+	}
+
+	if (*width < 1)
+	{
+		*width = 1;
+	}
+
+	if (*height < 1)
+	{
+		*height = 1;
 	}
 }
 

@@ -27,6 +27,7 @@
 #include <signal.h>
 
 #include <winpr/crt.h>
+#include <winpr/ssl.h>
 #include <winpr/synch.h>
 #include <winpr/string.h>
 #include <winpr/path.h>
@@ -735,7 +736,8 @@ static BOOL tf_peer_suppress_output(rdpContext* context, BYTE allow,
 {
 	if (allow > 0)
 	{
-		WLog_DBG(TAG, "Client restore output (%"PRIu16", %"PRIu16") (%"PRIu16", %"PRIu16").", area->left, area->top,
+		WLog_DBG(TAG, "Client restore output (%"PRIu16", %"PRIu16") (%"PRIu16", %"PRIu16").", area->left,
+		         area->top,
 		         area->right, area->bottom);
 	}
 	else
@@ -889,8 +891,9 @@ int main(int argc, char* argv[])
 	freerdp_listener* instance;
 	char* file;
 	char name[MAX_PATH];
-	int port = 3389, i;
+	long port = 3389, i;
 	BOOL localOnly = FALSE;
+	errno = 0;
 
 	for (i = 1; i < argc; i++)
 	{
@@ -907,7 +910,7 @@ int main(int argc, char* argv[])
 
 			port = strtol(arg, NULL, 10);
 
-			if ((port < 1) || (port > 0xFFFF))
+			if ((port < 1) || (port > 0xFFFF) || (errno != 0))
 				return -1;
 		}
 		else if (strcmp(arg, "--local-only"))
@@ -917,6 +920,7 @@ int main(int argc, char* argv[])
 	}
 
 	WTSRegisterWtsApiFunctionTable(FreeRDP_InitWtsApi());
+	winpr_InitializeSSL(WINPR_SSL_INIT_DEFAULT);
 	instance = freerdp_listener_new();
 
 	if (!instance)

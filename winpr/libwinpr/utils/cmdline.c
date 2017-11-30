@@ -45,39 +45,26 @@
  *
  */
 
-int CommandLineParseArgumentsA(int argc, LPCSTR* argv, COMMAND_LINE_ARGUMENT_A* options, DWORD flags,
-		void* context, COMMAND_LINE_PRE_FILTER_FN_A preFilter, COMMAND_LINE_POST_FILTER_FN_A postFilter)
+int CommandLineParseArgumentsA(int argc, LPCSTR* argv, COMMAND_LINE_ARGUMENT_A* options,
+                               DWORD flags,
+                               void* context, COMMAND_LINE_PRE_FILTER_FN_A preFilter, COMMAND_LINE_POST_FILTER_FN_A postFilter)
 {
 	int i, j;
 	int status;
 	int count;
-	int length;
-	int index;
-	BOOL match;
-	BOOL found;
-	BOOL argument;
-	BOOL escaped;
+	size_t length;
 	BOOL notescaped;
 	char* sigil;
-	int sigil_length;
-	int sigil_index;
+	size_t sigil_length;
 	char* keyword;
-	int keyword_length;
-	int keyword_index;
+	SSIZE_T keyword_length;
+	SSIZE_T keyword_index;
 	char* separator;
-	int separator_length;
-	int separator_index;
 	char* value;
-	int value_length;
-	int value_index;
 	int toggle;
 
 	status = 0;
 
-	match = FALSE;
-	found = FALSE;
-	argument = FALSE;
-	escaped = TRUE;
 	notescaped = FALSE;
 
 	if (!argv)
@@ -85,15 +72,17 @@ int CommandLineParseArgumentsA(int argc, LPCSTR* argv, COMMAND_LINE_ARGUMENT_A* 
 
 	if (argc == 1)
 	{
-		status = COMMAND_LINE_STATUS_PRINT_HELP;
+		if (flags & COMMAND_LINE_IGN_UNKNOWN_KEYWORD)
+			status = 0;
+		else
+			status = COMMAND_LINE_STATUS_PRINT_HELP;
 		return status;
 	}
 
 	for (i = 1; i < argc; i++)
 	{
-		index = i;
-
-		escaped = TRUE;
+		BOOL found = FALSE;
+		BOOL escaped = TRUE;
 
 		if (preFilter)
 		{
@@ -112,10 +101,8 @@ int CommandLineParseArgumentsA(int argc, LPCSTR* argv, COMMAND_LINE_ARGUMENT_A* 
 			}
 		}
 
-		sigil_index = 0;
-		sigil_length = 0;
-		sigil = (char*) &argv[i][sigil_index];
-		length = (int) strlen(argv[i]);
+		sigil = (char*) argv[i];
+		length = strlen(argv[i]);
 
 		if ((sigil[0] == '/') && (flags & COMMAND_LINE_SIGIL_SLASH))
 		{
@@ -146,7 +133,7 @@ int CommandLineParseArgumentsA(int argc, LPCSTR* argv, COMMAND_LINE_ARGUMENT_A* 
 		else if (flags & COMMAND_LINE_SIGIL_NOT_ESCAPED)
 		{
 			if (notescaped)
-				return COMMAND_LINE_ERROR; 
+				return COMMAND_LINE_ERROR;
 
 			sigil_length = 0;
 			escaped = FALSE;
@@ -158,15 +145,16 @@ int CommandLineParseArgumentsA(int argc, LPCSTR* argv, COMMAND_LINE_ARGUMENT_A* 
 		}
 
 		if ((sigil_length > 0) || (flags & COMMAND_LINE_SIGIL_NONE) ||
-				(flags & COMMAND_LINE_SIGIL_NOT_ESCAPED))
+		    (flags & COMMAND_LINE_SIGIL_NOT_ESCAPED))
 		{
-			if (length < (sigil_length + 1)) {
+			if (length < (sigil_length + 1))
+			{
 				if ((flags & COMMAND_LINE_IGN_UNKNOWN_KEYWORD))
 					continue;
 				return COMMAND_LINE_ERROR_NO_KEYWORD;
 			}
 
-			keyword_index = sigil_index + sigil_length;
+			keyword_index = sigil_length;
 			keyword = (char*) &argv[i][keyword_index];
 
 			toggle = -1;
@@ -197,33 +185,24 @@ int CommandLineParseArgumentsA(int argc, LPCSTR* argv, COMMAND_LINE_ARGUMENT_A* 
 
 			if (separator)
 			{
-				separator_length = 1;
-				separator_index = (int) (separator - argv[i]);
-
-				keyword_length = (int) (separator - keyword);
-
-				value_index = separator_index + separator_length;
+				SSIZE_T separator_index = (separator - argv[i]);
+				SSIZE_T value_index = separator_index + 1;
+				keyword_length = (separator - keyword);
 				value = (char*) &argv[i][value_index];
-				value_length = (length - value_index);
 			}
 			else
 			{
-				separator_length = 0;
-				separator_index = -1;
 				keyword_length = (length - keyword_index);
 
-				value_index = -1;
 				value = NULL;
-				value_length = 0;
 			}
 
 			if (!escaped)
 				continue;
 
-			found = FALSE;
 			for (j = 0; options[j].Name != NULL; j++)
 			{
-				match = FALSE;
+				BOOL match = FALSE;
 
 				if (strncmp(options[j].Name, keyword, keyword_length) == 0)
 				{
@@ -244,10 +223,11 @@ int CommandLineParseArgumentsA(int argc, LPCSTR* argv, COMMAND_LINE_ARGUMENT_A* 
 					continue;
 
 				found = match;
-				options[j].Index = index;
+				options[j].Index = i;
 
 				if ((flags & COMMAND_LINE_SEPARATOR_SPACE) && ((i + 1) < argc))
 				{
+					BOOL argument;
 					int value_present = 1;
 
 					if (flags & COMMAND_LINE_SIGIL_DASH)
@@ -269,25 +249,18 @@ int CommandLineParseArgumentsA(int argc, LPCSTR* argv, COMMAND_LINE_ARGUMENT_A* 
 					}
 
 					if ((options[j].Flags & COMMAND_LINE_VALUE_REQUIRED) ||
-							(options[j].Flags & COMMAND_LINE_VALUE_OPTIONAL))
+					    (options[j].Flags & COMMAND_LINE_VALUE_OPTIONAL))
 						argument = TRUE;
 					else
 						argument = FALSE;
-					
 					if (value_present && argument)
 					{
 						i++;
-						value_index = 0;
-						length = (int) strlen(argv[i]);
-
-						value = (char*) &argv[i][value_index];
-						value_length = (length - value_index);
+						value = (char*) argv[i];
 					}
 					else if (!value_present && (options[j].Flags & COMMAND_LINE_VALUE_OPTIONAL))
 					{
-						value_index = 0;
 						value = NULL;
-						value_length = 0;
 					}
 					else if (!value_present && argument)
 						return COMMAND_LINE_ERROR;
@@ -303,9 +276,7 @@ int CommandLineParseArgumentsA(int argc, LPCSTR* argv, COMMAND_LINE_ARGUMENT_A* 
 					if (value && (options[j].Flags & COMMAND_LINE_VALUE_FLAG))
 					{
 						i--;
-						value_index = -1;
 						value = NULL;
-						value_length = 0;
 					}
 				}
 
@@ -358,15 +329,14 @@ int CommandLineParseArgumentsA(int argc, LPCSTR* argv, COMMAND_LINE_ARGUMENT_A* 
 					postFilter(context, &options[j]);
 
 				if (options[j].Flags & COMMAND_LINE_PRINT)
-						return COMMAND_LINE_STATUS_PRINT;
+					return COMMAND_LINE_STATUS_PRINT;
 				else if (options[j].Flags & COMMAND_LINE_PRINT_HELP)
-						return COMMAND_LINE_STATUS_PRINT_HELP;
+					return COMMAND_LINE_STATUS_PRINT_HELP;
 				else if (options[j].Flags & COMMAND_LINE_PRINT_VERSION)
-						return COMMAND_LINE_STATUS_PRINT_VERSION;
+					return COMMAND_LINE_STATUS_PRINT_VERSION;
 				else if (options[j].Flags & COMMAND_LINE_PRINT_BUILDCONFIG)
-						return COMMAND_LINE_STATUS_PRINT_BUILDCONFIG;
+					return COMMAND_LINE_STATUS_PRINT_BUILDCONFIG;
 			}
-			
 			if (!found && (flags & COMMAND_LINE_IGN_UNKNOWN_KEYWORD) == 0)
 				return COMMAND_LINE_ERROR_NO_KEYWORD;
 		}
@@ -375,8 +345,9 @@ int CommandLineParseArgumentsA(int argc, LPCSTR* argv, COMMAND_LINE_ARGUMENT_A* 
 	return status;
 }
 
-int CommandLineParseArgumentsW(int argc, LPCWSTR* argv, COMMAND_LINE_ARGUMENT_W* options, DWORD flags,
-		void* context, COMMAND_LINE_PRE_FILTER_FN_W preFilter, COMMAND_LINE_POST_FILTER_FN_W postFilter)
+int CommandLineParseArgumentsW(int argc, LPCWSTR* argv, COMMAND_LINE_ARGUMENT_W* options,
+                               DWORD flags,
+                               void* context, COMMAND_LINE_PRE_FILTER_FN_W preFilter, COMMAND_LINE_POST_FILTER_FN_W postFilter)
 {
 	return 0;
 }

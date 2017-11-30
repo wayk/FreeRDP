@@ -21,6 +21,7 @@
 #include "config.h"
 #endif
 
+#include <errno.h>
 
 #include <freerdp/client/file.h>
 #include <freerdp/client/cmdline.h>
@@ -41,6 +42,7 @@
 #include <unistd.h>
 #endif
 
+#include <winpr/wtypes.h>
 #include <winpr/crt.h>
 #include <freerdp/log.h>
 #define TAG CLIENT_TAG("common")
@@ -222,7 +224,7 @@ static BOOL freerdp_client_parse_rdp_file_integer_unicode(rdpFile* file, const W
         const WCHAR* value, int index)
 {
 	int length;
-	int ivalue;
+	long ivalue;
 	char* nameA;
 	char* valueA;
 	BOOL ret = TRUE;
@@ -245,9 +247,12 @@ static BOOL freerdp_client_parse_rdp_file_integer_unicode(rdpFile* file, const W
 
 	WideCharToMultiByte(CP_UTF8, 0, value, length, valueA, length, NULL, NULL);
 	valueA[length] = '\0';
-	ivalue = atoi(valueA);
+	errno = 0;
+	ivalue = strtol(valueA, NULL, 0);
 
-	if (freerdp_client_rdp_file_set_integer(file, nameA, ivalue, index) < 0)
+	if ((errno != 0) || (ivalue < INT32_MIN) || (ivalue > INT32_MAX))
+		ret = FALSE;
+	else if (freerdp_client_rdp_file_set_integer(file, nameA, ivalue, index) < 0)
 		ret = FALSE;
 
 	free(nameA);
@@ -258,7 +263,12 @@ static BOOL freerdp_client_parse_rdp_file_integer_unicode(rdpFile* file, const W
 static BOOL freerdp_client_parse_rdp_file_integer_ascii(rdpFile* file, const char* name,
         const char* value, int index)
 {
-	int ivalue = atoi(value);
+	long ivalue;
+	errno = 0;
+	ivalue = strtol(value, NULL, 0);
+
+	if ((errno != 0) || (ivalue < INT32_MIN) || (ivalue > INT32_MAX))
+		return FALSE;
 
 	if (freerdp_client_rdp_file_set_integer(file, name, ivalue, index) < 0)
 		return FALSE;
@@ -1227,7 +1237,8 @@ BOOL freerdp_client_populate_settings_from_rdp_file(rdpFile* file, rdpSettings* 
 		 * Very similar to DevicesToRedirect, but can contain a
 		 * comma-separated list of drive letters to redirect.
 		 */
-		freerdp_set_param_bool(settings, FreeRDP_RedirectDrives, TRUE);
+		const BOOL empty = !file->DrivesToRedirect || (strlen(file->DrivesToRedirect) == 0);
+		freerdp_set_param_bool(settings, FreeRDP_RedirectDrives, !empty);
 	}
 
 	if (~file->KeyboardHook)

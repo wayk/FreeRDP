@@ -606,6 +606,7 @@ typedef struct _RDPDR_PARALLEL RDPDR_PARALLEL;
 #define FreeRDP_AllowedTlsCiphers				1101
 #define FreeRDP_VmConnectMode					1102
 #define FreeRDP_NtlmSamFile					1103
+#define FreeRDP_FIPSMode					1104
 #define FreeRDP_MstscCookieMode					1152
 #define FreeRDP_CookieMaxLength					1153
 #define FreeRDP_PreconnectionId					1154
@@ -662,6 +663,8 @@ typedef struct _RDPDR_PARALLEL RDPDR_PARALLEL;
 #define FreeRDP_YPan						1553
 #define FreeRDP_SmartSizingWidth				1554
 #define FreeRDP_SmartSizingHeight				1555
+#define FreeRDP_PercentScreenUseWidth				1556
+#define FreeRDP_PercentScreenUseHeight				1557
 #define FreeRDP_SoftwareGdi					1601
 #define FreeRDP_LocalConnection					1602
 #define FreeRDP_AuthenticationOnly				1603
@@ -807,6 +810,7 @@ typedef struct _RDPDR_PARALLEL RDPDR_PARALLEL;
 #define FreeRDP_SupportEchoChannel				5184
 #define FreeRDP_SupportDisplayControl				5185
 #define FreeRDP_SupportGeometryTracking				5186
+#define FreeRDP_SupportSSHAgentChannel				5187
 
 /**
  * FreeRDP Settings Data Structure
@@ -1015,7 +1019,8 @@ struct rdp_settings
 	ALIGN64 char* AllowedTlsCiphers; /* 1101 */
 	ALIGN64 BOOL VmConnectMode; /* 1102 */
 	ALIGN64 char* NtlmSamFile; /* 1103 */
-	UINT64 padding1152[1152 - 1104]; /* 1104 */
+	ALIGN64 BOOL FIPSMode; /* 1104 */
+	UINT64 padding1152[1152 - 1105]; /* 1105 */
 
 	/* Connection Cookie */
 	ALIGN64 BOOL MstscCookieMode; /* 1152 */
@@ -1098,7 +1103,9 @@ struct rdp_settings
 	ALIGN64 int YPan; /* 1553 */
 	ALIGN64 UINT32 SmartSizingWidth; /* 1554 */
 	ALIGN64 UINT32 SmartSizingHeight; /* 1555 */
-	UINT64 padding1601[1601 - 1556]; /* 1556 */
+	ALIGN64 BOOL PercentScreenUseWidth; /* 1556 */
+	ALIGN64 BOOL PercentScreenUseHeight; /* 1557 */
+	UINT64 padding1601[1601 - 1558]; /* 1558 */
 
 	/* Miscellaneous */
 	ALIGN64 BOOL SoftwareGdi; /* 1601 */
@@ -1387,7 +1394,8 @@ struct rdp_settings
 	/* Serial and Parallel Port Redirection */
 	ALIGN64 BOOL RedirectSerialPorts; /* 4672 */
 	ALIGN64 BOOL RedirectParallelPorts; /* 4673 */
-	UINT64 padding4800[4800 - 4674]; /* 4674 */
+	ALIGN64 BOOL PreferIPv6OverIPv4; /* 4674 */
+	UINT64 padding4800[4800 - 4675]; /* 4675 */
 
 	/**
 	 * Other Redirection
@@ -1418,7 +1426,8 @@ struct rdp_settings
 	ALIGN64 BOOL SupportEchoChannel; /* 5184 */
 	ALIGN64 BOOL SupportDisplayControl; /* 5185 */
 	ALIGN64 BOOL SupportGeometryTracking; /* 5186 */
-	UINT64 padding5312[5312 - 5187]; /* 5187 */
+	ALIGN64 BOOL SupportSSHAgentChannel; /* 5187 */
+	UINT64 padding5312[5312 - 5188]; /* 5188 */
 
 	/**
 	 * WARNING: End of ABI stable zone!

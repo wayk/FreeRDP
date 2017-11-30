@@ -23,6 +23,12 @@
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
 
+#if defined(__FreeBSD_kernel__) && defined(__GLIBC__)
+#define _GNU_SOURCE
+#define KFREEBSD
+#endif
+
+#include <winpr/wtypes.h>
 #include <winpr/crt.h>
 #include <winpr/file.h>
 
@@ -489,7 +495,7 @@ static BOOL FileSetFileTime(HANDLE hFile, const FILETIME* lpCreationTime,
                             const FILETIME* lpLastAccessTime, const FILETIME* lpLastWriteTime)
 {
 	int rc;
-#if defined(__APPLE__) || defined(ANDROID) || defined(__FreeBSD__)
+#if defined(__APPLE__) || defined(ANDROID) || defined(__FreeBSD__) || defined(KFREEBSD)
 	struct stat buf;
 	/* OpenBSD, NetBSD and DragonflyBSD support POSIX futimens */
 	struct timeval timevals[2];
@@ -501,7 +507,7 @@ static BOOL FileSetFileTime(HANDLE hFile, const FILETIME* lpCreationTime,
 	if (!hFile)
 		return FALSE;
 
-#if defined(__APPLE__) || defined(ANDROID) || defined(__FreeBSD__)
+#if defined(__APPLE__) || defined(ANDROID) || defined(__FreeBSD__) || defined(KFREEBSD)
 	rc = fstat(fileno(pFile->fp), &buf);
 
 	if (rc < 0)
@@ -511,7 +517,7 @@ static BOOL FileSetFileTime(HANDLE hFile, const FILETIME* lpCreationTime,
 
 	if (!lpLastAccessTime)
 	{
-#if defined(__FreeBSD__) || defined(__APPLE__)
+#if defined(__FreeBSD__) || defined(__APPLE__) || defined(KFREEBSD)
 		timevals[0].tv_sec = buf.st_atime;
 #ifdef _POSIX_SOURCE
 		TIMESPEC_TO_TIMEVAL(&timevals[0], &buf.st_atim);
@@ -529,7 +535,7 @@ static BOOL FileSetFileTime(HANDLE hFile, const FILETIME* lpCreationTime,
 	else
 	{
 		UINT64 tmp = FileTimeToUS(lpLastAccessTime);
-#if defined(ANDROID) || defined(__FreeBSD__) || defined(__APPLE__)
+#if defined(ANDROID) || defined(__FreeBSD__) || defined(__APPLE__) || defined(KFREEBSD)
 		timevals[0].tv_sec = tmp / 1000000ULL;
 		timevals[0].tv_usec = tmp % 1000000ULL;
 #else
@@ -540,7 +546,7 @@ static BOOL FileSetFileTime(HANDLE hFile, const FILETIME* lpCreationTime,
 
 	if (!lpLastWriteTime)
 	{
-#if defined(__FreeBSD__) || defined(__APPLE__)
+#if defined(__FreeBSD__) || defined(__APPLE__) || defined(KFREEBSD)
 		timevals[1].tv_sec = buf.st_mtime;
 #ifdef _POSIX_SOURCE
 		TIMESPEC_TO_TIMEVAL(&timevals[1], &buf.st_mtim);
@@ -558,7 +564,7 @@ static BOOL FileSetFileTime(HANDLE hFile, const FILETIME* lpCreationTime,
 	else
 	{
 		UINT64 tmp = FileTimeToUS(lpLastWriteTime);
-#if defined(ANDROID) || defined(__FreeBSD__) || defined(__APPLE__)
+#if defined(ANDROID) || defined(__FreeBSD__) || defined(__APPLE__) || defined(KFREEBSD)
 		timevals[1].tv_sec = tmp / 1000000ULL;
 		timevals[1].tv_usec = tmp % 1000000ULL;
 #else
@@ -568,7 +574,7 @@ static BOOL FileSetFileTime(HANDLE hFile, const FILETIME* lpCreationTime,
 	}
 
 	// TODO: Creation time can not be handled!
-#if defined(ANDROID) || defined(__FreeBSD__) || defined(__APPLE__)
+#if defined(ANDROID) || defined(__FreeBSD__) || defined(__APPLE__) || defined(KFREEBSD)
 	rc = utimes(pFile->lpFileName, timevals);
 #else
 	rc = futimens(fileno(pFile->fp), times);
@@ -629,7 +635,7 @@ static HANDLE_OPS shmOps = {
 
 static const char* FileGetMode(DWORD dwDesiredAccess, DWORD dwCreationDisposition, BOOL* create)
 {
-	BOOL writeable = (dwDesiredAccess & (GENERIC_WRITE | STANDARD_RIGHTS_WRITE | FILE_WRITE_DATA | FILE_APPEND_DATA)) != 0;
+	BOOL writeable = (dwDesiredAccess & (GENERIC_WRITE |  FILE_WRITE_DATA | FILE_APPEND_DATA)) != 0;
 
 	switch(dwCreationDisposition)
 	{
@@ -666,6 +672,14 @@ UINT32 map_posix_err(int fs_errno)
 			rc = STATUS_SUCCESS;
 			break;
 
+		case ENOTCONN:
+		case ENODEV:
+		case ENOTDIR:
+		case ENXIO:
+			rc = ERROR_FILE_NOT_FOUND;
+			break;
+
+		case EROFS:
 		case EPERM:
 		case EACCES:
 			rc = ERROR_ACCESS_DENIED;
@@ -692,6 +706,8 @@ UINT32 map_posix_err(int fs_errno)
 			break;
 
 		default:
+			WLog_ERR(TAG, "Missing ERRNO mapping %s [%d]",
+			         strerror(fs_errno), fs_errno);
 			rc = STATUS_UNSUCCESSFUL;
 			break;
 	}
@@ -768,6 +784,27 @@ static HANDLE FileCreateFileA(LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dw
 		}
 
 		fp = freopen(pFile->lpFileName, mode, fp);
+	}
+	else
+	{
+		if (stat(pFile->lpFileName, &st) != 0)
+		{
+			SetLastError(map_posix_err(errno));
+			free(pFile->lpFileName);
+			free(pFile);
+			return INVALID_HANDLE_VALUE;
+		}
+
+		/* FIFO (named pipe) would block the following fopen
+		 * call if not connected. This renders the channel unusable,
+		 * therefore abort early. */
+		if (S_ISFIFO(st.st_mode))
+		{
+			SetLastError(ERROR_FILE_NOT_FOUND);
+			free(pFile->lpFileName);
+			free(pFile);
+			return INVALID_HANDLE_VALUE;
+		}
 	}
 
 	if (NULL == fp)

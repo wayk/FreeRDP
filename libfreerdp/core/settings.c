@@ -333,6 +333,7 @@ rdpSettings* freerdp_settings_new(DWORD flags)
 	settings->ConnectionType = CONNECTION_TYPE_LAN;
 	settings->EncryptionMethods = ENCRYPTION_METHOD_NONE;
 	settings->EncryptionLevel = ENCRYPTION_LEVEL_NONE;
+	settings->FIPSMode = FALSE;
 	settings->CompressionEnabled = TRUE;
 	settings->LogonNotify = TRUE;
 
@@ -562,6 +563,7 @@ rdpSettings* freerdp_settings_new(DWORD flags)
 
 	if (!settings->ServerMode)
 	{
+		settings->RedirectClipboard = TRUE;
 		/* these values are used only by the client part */
 		settings->HomePath = GetKnownPath(KNOWN_PATH_HOME);
 
