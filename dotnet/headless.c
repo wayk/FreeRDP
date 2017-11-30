@@ -59,4 +59,3 @@ void csharp_destroy_shared_buffer(char* name)
 }
 
 #endif
-

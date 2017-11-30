@@ -59,7 +59,7 @@ include(FindPkgConfig)
 include(TestBigEndian)
 
 include(FindFeature)
-include(AutoVersioning)
+include(WindowsRC)
 include(ConfigOptions)
 include(ComplexLibrary)
 include(FeatureSummary)
