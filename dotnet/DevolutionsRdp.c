@@ -575,28 +575,20 @@ BOOL csharp_freerdp_set_connection_info(void* instance, const char* hostname, co
     if(codecLevel >= 8)
     {
         settings->SupportGraphicsPipeline = TRUE;
-    }
+	}
 
 	switch (security)
 	{
-		case 1:
+		case 0:
 			/* Standard RDP */
 			settings->RdpSecurity = TRUE;
-			settings->TlsSecurity = FALSE;
+			settings->TlsSecurity = TRUE;
 			settings->NlaSecurity = FALSE;
-			settings->ExtSecurity = FALSE;
+			settings->ExtSecurity = TRUE;
 			settings->UseRdpSecurityLayer = TRUE;
 			break;
 
-		case 2:
-			/* TLS */
-			settings->NlaSecurity = FALSE;
-			settings->TlsSecurity = TRUE;
-			settings->RdpSecurity = FALSE;
-			settings->ExtSecurity = FALSE;
-			break;
-
-		case 3:
+		case 1:
 			/* NLA */
 			settings->NlaSecurity = TRUE;
 			settings->TlsSecurity = FALSE;
