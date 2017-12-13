@@ -631,6 +631,10 @@ else()
 	set(WAYLAND_FEATURE_TYPE "DISABLED")
 endif()
 
+if(ANDROID)
+	set(HAVE_MATH_C99_LONG_DOUBLE 0)
+endif()
+
 if(WITH_PCSC_WINPR)
 	find_package(PCSCWinPR)
 endif()
