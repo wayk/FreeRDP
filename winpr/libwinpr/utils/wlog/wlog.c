@@ -121,10 +121,21 @@ static BOOL log_recursion(LPCSTR file, LPCSTR fkt, int line)
 	return TRUE;
 }
 
+void WLog_Lock(wLog* log)
+{
+	EnterCriticalSection(&log->lock);
+}
+
+void WLog_Unlock(wLog* log)
+{
+	LeaveCriticalSection(&log->lock);
+}
+
 BOOL WLog_Write(wLog* log, wLogMessage* message)
 {
 	BOOL status;
 	wLogAppender* appender;
+
 	appender = WLog_GetLogAppender(log);
 
 	if (!appender)
@@ -669,7 +680,7 @@ wLog* WLog_New(LPCSTR name, wLog* rootLogger)
 
 	log->Parent = rootLogger;
 	log->ChildrenCount = 0;
-	log->ChildrenSize = 16;
+	log->ChildrenSize = 32;
 	log->FilterLevel = -1;
 
 	if (!(log->Children = (wLog**) calloc(log->ChildrenSize, sizeof(wLog*))))
@@ -715,6 +726,8 @@ wLog* WLog_New(LPCSTR name, wLog* rootLogger)
 	if ((iLevel >= 0) && (iLevel != WLOG_LEVEL_INHERIT))
 		log->Level = (DWORD) iLevel;
 
+	InitializeCriticalSectionAndSpinCount(&log->lock, 4000);
+
 	return log;
 out_fail:
 	free(log->Children);
@@ -737,6 +750,9 @@ void WLog_Free(wLog* log)
 		free(log->Names[0]);
 		free(log->Names);
 		free(log->Children);
+
+		DeleteCriticalSection(&log->lock);
+
 		free(log);
 	}
 }
@@ -811,6 +827,10 @@ fail:
 
 BOOL WLog_AddChild(wLog* parent, wLog* child)
 {
+	BOOL status = FALSE;
+
+	WLog_Lock(parent);
+
 	if (parent->ChildrenCount >= parent->ChildrenSize)
 	{
 		wLog** tmp;
@@ -833,7 +853,7 @@ BOOL WLog_AddChild(wLog* parent, wLog* child)
 					free(parent->Children);
 
 				parent->Children = NULL;
-				return FALSE;
+				goto exit;
 			}
 
 			parent->Children = tmp;
@@ -841,11 +861,16 @@ BOOL WLog_AddChild(wLog* parent, wLog* child)
 	}
 
 	if (!parent->Children)
-		return FALSE;
+		goto exit;
 
 	parent->Children[parent->ChildrenCount++] = child;
 	child->Parent = parent;
-	return TRUE;
+
+	WLog_Unlock(parent);
+
+	status = TRUE;
+exit:
+	return status;
 }
 
 wLog* WLog_FindChild(LPCSTR name)
@@ -859,6 +884,8 @@ wLog* WLog_FindChild(LPCSTR name)
 	if (!root)
 		return NULL;
 
+	WLog_Lock(root);
+
 	for (index = 0; index < root->ChildrenCount; index++)
 	{
 		child = root->Children[index];
@@ -869,6 +896,8 @@ wLog* WLog_FindChild(LPCSTR name)
 			break;
 		}
 	}
+
+	WLog_Unlock(root);
 
 	return (found) ? child : NULL;
 }
@@ -911,11 +940,15 @@ BOOL WLog_Uninit(void)
 	if (!root)
 		return FALSE;
 
+	WLog_Lock(root);
+
 	for (index = 0; index < root->ChildrenCount; index++)
 	{
 		child = root->Children[index];
 		WLog_Free(child);
 	}
+
+	WLog_Unlock(root);
 
 	WLog_Free(root);
 	g_RootLog = NULL;
