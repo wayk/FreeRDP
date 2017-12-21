@@ -306,12 +306,13 @@ static BOOL cs_post_connect(freerdp* instance)
 	else
 		gdi_format = PIXEL_FORMAT_BGR16;
 
-	h264 = h264_context_new(FALSE);
-	if(h264)
-	{
-		h264_context_free(h264);
-		settings->GfxH264 = TRUE;
-	}
+	// h264 = h264_context_new(FALSE);
+	// if(h264)
+	// {
+	// 	h264_context_free(h264);
+	// 	settings->GfxH264 = TRUE;
+	// }
+	settings->GfxH264 = FALSE;
 
 	if (!gdi_init(instance, gdi_format))
 		return FALSE;
