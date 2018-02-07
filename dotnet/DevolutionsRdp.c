@@ -526,7 +526,7 @@ BOOL csharp_freerdp_set_redirect_audio(void* instance, int redirectSound, BOOL r
 	return TRUE;
 }
 
-BOOL csharp_freerdp_set_connection_info(void* instance, const char* hostname, const char* username, const char* password,                       const char* domain, UINT32 width, UINT32 height, UINT32 color_depth, UINT32 port, int codecLevel, int security)
+BOOL csharp_freerdp_set_connection_info(void* instance, const char* hostname, const char* username, const char* password, const char* domain, UINT32 width, UINT32 height, UINT32 color_depth, UINT32 port, int codecLevel)
 {
 	freerdp* inst = (freerdp*)instance;
 	rdpSettings * settings = inst->settings;
@@ -578,29 +578,6 @@ BOOL csharp_freerdp_set_connection_info(void* instance, const char* hostname, co
         settings->SupportGraphicsPipeline = TRUE;
 	}
 
-	switch (security)
-	{
-		case 0:
-			/* Standard RDP */
-			settings->RdpSecurity = TRUE;
-			settings->TlsSecurity = TRUE;
-			settings->NlaSecurity = FALSE;
-			settings->ExtSecurity = TRUE;
-			settings->UseRdpSecurityLayer = TRUE;
-			break;
-
-		case 1:
-			/* NLA */
-			settings->NlaSecurity = TRUE;
-			settings->TlsSecurity = FALSE;
-			settings->RdpSecurity = FALSE;
-			settings->ExtSecurity = FALSE;
-			break;
-
-		default:
-			break;
-	}
-
 	// set US keyboard layout
 	settings->KeyboardLayout = 0x0409;
 
@@ -608,6 +585,22 @@ BOOL csharp_freerdp_set_connection_info(void* instance, const char* hostname, co
 
 	out_fail_strdup:
 	return FALSE;
+}
+
+BOOL csharp_freerdp_set_security_info(void* instance, BOOL useTLS, BOOL useNLA)
+{
+	freerdp* inst = (freerdp*)instance;
+	rdpSettings * settings = inst->settings;
+
+	settings->RdpSecurity = TRUE;
+
+	if(useTLS)
+		settings->TlsSecurity = TRUE;
+
+	if(useNLA)
+		settings->NlaSecurity = TRUE;
+
+	return true;
 }
 
 void csharp_freerdp_set_hyperv_info(void* instance, char* pcb)
