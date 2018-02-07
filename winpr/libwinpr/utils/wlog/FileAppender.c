@@ -104,7 +104,7 @@ static BOOL WLog_FileAppender_Open(wLog* log, wLogAppender* appender)
 		UnixChangeFileMode(fileAppender->FilePath, 0xFFFF);
 	}
 
-	fileAppender->FileDescriptor = fopen(fileAppender->FullFileName, "a+");
+	fileAppender->FileDescriptor = winpr_fopen(fileAppender->FullFileName, "a+");
 
 	if (!fileAppender->FileDescriptor)
 		return FALSE;

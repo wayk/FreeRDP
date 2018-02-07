@@ -189,7 +189,7 @@ static BOOL Pcap_Write_Record(wPcap* pcap, wPcapRecord* record)
 wPcap* Pcap_Open(char* name, BOOL write)
 {
 	wPcap* pcap = NULL;
-	FILE* pcap_fp = fopen(name, write ? "w+b" : "rb");
+	FILE* pcap_fp = winpr_fopen(name, write ? "w+b" : "rb");
 
 	if (!pcap_fp)
 	{

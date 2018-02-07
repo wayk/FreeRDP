@@ -77,7 +77,7 @@ static BOOL WLog_BinaryAppender_Open(wLog* log, wLogAppender* appender)
 		UnixChangeFileMode(binaryAppender->FilePath, 0xFFFF);
 	}
 
-	binaryAppender->FileDescriptor = fopen(binaryAppender->FullFileName, "a+");
+	binaryAppender->FileDescriptor = winpr_fopen(binaryAppender->FullFileName, "a+");
 
 	if (!binaryAppender->FileDescriptor)
 		return FALSE;
