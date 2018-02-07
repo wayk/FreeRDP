@@ -66,7 +66,7 @@ char* GetEnvAlloc(LPCSTR lpName)
 	DWORD nStatus;
 	char* env = NULL;
 
-	nSize = GetEnvironmentVariableX(lpName, NULL, 0);
+	nSize = GetEnvironmentVariableX((char*) lpName, NULL, 0);
 
 	if (nSize > 0)
 	{
@@ -75,7 +75,7 @@ char* GetEnvAlloc(LPCSTR lpName)
 		if (!env)
 			return NULL;
 
-		nStatus = GetEnvironmentVariableX(lpName, env, nSize);
+		nStatus = GetEnvironmentVariableX((char*) lpName, env, nSize);
 
 		if (nStatus != (nSize - 1))
 		{
