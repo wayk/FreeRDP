@@ -641,3 +641,43 @@ char** EnvironmentBlockToEnvpA(LPCH lpszEnvironmentBlock)
 
 	return envp;
 }
+
+#ifdef _WIN32
+
+DWORD GetEnvironmentVariableX(char* lpName, char* lpBuffer, DWORD nSize)
+{
+	WCHAR* lpNameW = NULL;
+	WCHAR* lpBufferW = NULL;
+	DWORD result = 0;
+
+	lpBufferW = calloc(nSize, sizeof(WCHAR));
+
+	if (!lpBufferW)
+		goto cleanup;
+
+	if (ConvertToUnicode(CP_UTF8, 0, lpName, -1, &lpNameW, 0) < 1)
+		goto cleanup;
+
+	result = GetEnvironmentVariableW(lpNameW, lpBufferW, nSize);
+
+	if (result == 0 || result > nSize)
+		goto cleanup;
+
+	if (ConvertFromUnicode(CP_UTF8, 0, lpBufferW, -1, &lpBuffer, nSize, NULL, NULL) < 1)
+		result = 0;
+
+cleanup:
+	free(lpBufferW);
+	free(lpNameW);
+
+	return result;
+}
+
+#else
+
+DWORD GetEnvironmentVariableX(char* lpName, char* lpBuffer, DWORD nSize)
+{
+	return GetEnvironmentVariableA(lpName, lpBuffer, nSize);
+}
+
+#endif

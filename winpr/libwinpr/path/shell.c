@@ -60,11 +60,11 @@ static char* GetPath_XDG_RUNTIME_DIR(void);
  * http://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
  */
 
-static char* GetEnvAlloc(LPCSTR lpName)
+char* GetEnvAlloc(LPCSTR lpName)
 {
 	DWORD length;
 	char* env = NULL;
-	length = GetEnvironmentVariableA(lpName, NULL, 0);
+	length = GetEnvironmentVariableX(lpName, NULL, 0);
 
 	if (length > 0)
 	{
@@ -73,7 +73,7 @@ static char* GetEnvAlloc(LPCSTR lpName)
 		if (!env)
 			return NULL;
 
-		if (GetEnvironmentVariableA(lpName, env, length) != length - 1)
+		if (GetEnvironmentVariableX(lpName, env, length) != length - 1)
 		{
 			free(env);
 			return NULL;
@@ -364,7 +364,7 @@ char* GetEnvironmentPath(char* name)
 {
 	char* env = NULL;
 	DWORD nSize;
-	nSize = GetEnvironmentVariableA(name, NULL, 0);
+	nSize = GetEnvironmentVariableX(name, NULL, 0);
 
 	if (nSize)
 	{
@@ -373,7 +373,7 @@ char* GetEnvironmentPath(char* name)
 		if (!env)
 			return NULL;
 
-		if (GetEnvironmentVariableA(name, env, nSize) != nSize - 1)
+		if (GetEnvironmentVariableX(name, env, nSize) != nSize - 1)
 		{
 			free(env);
 			return NULL;
