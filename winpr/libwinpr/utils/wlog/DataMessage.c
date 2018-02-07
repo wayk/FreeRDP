@@ -25,6 +25,8 @@
 
 #include "wlog/DataMessage.h"
 
+#include <winpr/file.h>
+
 #include "../../log.h"
 #define TAG WINPR_TAG("utils.wlog")
 
