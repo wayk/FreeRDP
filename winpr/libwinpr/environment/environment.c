@@ -646,25 +646,54 @@ char** EnvironmentBlockToEnvpA(LPCH lpszEnvironmentBlock)
 
 DWORD GetEnvironmentVariableX(char* lpName, char* lpBuffer, DWORD nSize)
 {
-	WCHAR* lpNameW = NULL;
-	WCHAR* lpBufferW = NULL;
+	int status;
 	DWORD result = 0;
-
-	lpBufferW = calloc(nSize, sizeof(WCHAR));
-
-	if (!lpBufferW)
-		goto cleanup;
+	DWORD nSizeW = 0;
+	LPWSTR lpNameW = NULL;
+	LPWSTR lpBufferW = NULL;
+	LPSTR lpBufferA = lpBuffer;
 
 	if (ConvertToUnicode(CP_UTF8, 0, lpName, -1, &lpNameW, 0) < 1)
 		goto cleanup;
 
-	result = GetEnvironmentVariableW(lpNameW, lpBufferW, nSize);
+	if (!lpBuffer)
+	{
+		char lpBufferMaxA[2048];
+		WCHAR lpBufferMaxW[2048];
 
-	if (result == 0 || result > nSize)
-		goto cleanup;
+		lpBufferA = lpBufferMaxA;
+		lpBufferW = lpBufferMaxW;
+		nSizeW = sizeof(lpBufferMaxW) / 2;
 
-	if (ConvertFromUnicode(CP_UTF8, 0, lpBufferW, -1, &lpBuffer, nSize, NULL, NULL) < 1)
-		result = 0;
+		result = GetEnvironmentVariableW(lpNameW, lpBufferW, nSizeW);
+
+		status = ConvertFromUnicode(CP_UTF8, 0, lpBufferW, -1,
+			&lpBufferA, sizeof(lpBufferMaxA), NULL, NULL);
+
+		if (status > 0)
+			result = (DWORD) status;
+
+		return result;
+	}
+	else
+	{
+		nSizeW = (nSize + 1) * 2;
+		lpBufferW = calloc(1, nSizeW);
+
+		if (!lpBufferW)
+			goto cleanup;
+
+		result = GetEnvironmentVariableW(lpNameW, lpBufferW, nSizeW / 2);
+
+		if (result == 0)
+			goto cleanup;
+
+		status = ConvertFromUnicode(CP_UTF8, 0, lpBufferW, -1,
+			&lpBufferA, nSize, NULL, NULL);
+
+		if (status > 0)
+			result = (DWORD) (status - 1);
+	}
 
 cleanup:
 	free(lpBufferW);

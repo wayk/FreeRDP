@@ -62,18 +62,22 @@ static char* GetPath_XDG_RUNTIME_DIR(void);
 
 char* GetEnvAlloc(LPCSTR lpName)
 {
-	DWORD length;
+	DWORD nSize;
+	DWORD nStatus;
 	char* env = NULL;
-	length = GetEnvironmentVariableX(lpName, NULL, 0);
 
-	if (length > 0)
+	nSize = GetEnvironmentVariableX(lpName, NULL, 0);
+
+	if (nSize > 0)
 	{
-		env = malloc(length);
+		env = malloc(nSize);
 
 		if (!env)
 			return NULL;
 
-		if (GetEnvironmentVariableX(lpName, env, length) != length - 1)
+		nStatus = GetEnvironmentVariableX(lpName, env, nSize);
+
+		if (nStatus != (nSize - 1))
 		{
 			free(env);
 			return NULL;
@@ -364,6 +368,7 @@ char* GetEnvironmentPath(char* name)
 {
 	char* env = NULL;
 	DWORD nSize;
+	DWORD nStatus;
 	nSize = GetEnvironmentVariableX(name, NULL, 0);
 
 	if (nSize)
@@ -373,7 +378,9 @@ char* GetEnvironmentPath(char* name)
 		if (!env)
 			return NULL;
 
-		if (GetEnvironmentVariableX(name, env, nSize) != nSize - 1)
+		nStatus = GetEnvironmentVariableX(name, env, nSize);
+
+		if (nStatus != (nSize - 1))
 		{
 			free(env);
 			return NULL;
