@@ -593,6 +593,8 @@ BOOL csharp_freerdp_set_security_info(void* instance, BOOL useTLS, BOOL useNLA)
 	rdpSettings * settings = inst->settings;
 
 	settings->RdpSecurity = TRUE;
+	settings->TlsSecurity = FALSE;
+	settings->NlaSecurity = FALSE;
 
 	if(useTLS)
 		settings->TlsSecurity = TRUE;
