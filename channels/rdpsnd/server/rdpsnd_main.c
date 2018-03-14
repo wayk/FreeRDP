@@ -42,7 +42,7 @@
  */
 UINT rdpsnd_server_send_formats(RdpsndServerContext* context, wStream* s)
 {
-	int pos;
+	size_t pos;
 	UINT16 i;
 	BOOL status;
 	ULONG written;
@@ -239,7 +239,7 @@ out_free:
 	return error;
 }
 
-static void* rdpsnd_server_thread(void* arg)
+static DWORD WINAPI rdpsnd_server_thread(LPVOID arg)
 {
 	DWORD nCount, status;
 	HANDLE events[8];
@@ -293,8 +293,8 @@ out:
 		setChannelError(context->rdpcontext, error,
 		                "rdpsnd_server_thread reported an error");
 
-	ExitThread((DWORD)error);
-	return NULL;
+	ExitThread(error);
+	return error;
 }
 
 /**
@@ -574,10 +574,11 @@ out:
 static UINT rdpsnd_server_set_volume(RdpsndServerContext* context, int left,
                                      int right)
 {
-	int pos;
+	size_t pos;
 	BOOL status;
 	ULONG written;
 	wStream* s = context->priv->rdpsnd_pdu;
+
 	Stream_Write_UINT8(s, SNDC_SETVOLUME);
 	Stream_Write_UINT8(s, 0);
 	Stream_Seek_UINT16(s);
@@ -600,7 +601,7 @@ static UINT rdpsnd_server_set_volume(RdpsndServerContext* context, int left,
  */
 static UINT rdpsnd_server_close(RdpsndServerContext* context)
 {
-	int pos;
+	size_t pos;
 	BOOL status;
 	ULONG written;
 	wStream* s = context->priv->rdpsnd_pdu;
@@ -700,7 +701,7 @@ static UINT rdpsnd_server_start(RdpsndServerContext* context)
 		}
 
 		context->priv->Thread = CreateThread(NULL, 0,
-		                                     (LPTHREAD_START_ROUTINE) rdpsnd_server_thread, (void*) context, 0, NULL);
+											 rdpsnd_server_thread, (void*) context, 0, NULL);
 
 		if (!context->priv->Thread)
 		{

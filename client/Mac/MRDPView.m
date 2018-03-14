@@ -135,7 +135,7 @@ static DWORD mac_client_update_thread(void* param)
 	return 0;
 }
 
-static DWORD mac_client_input_thread(void* param)
+static DWORD WINAPI mac_client_input_thread(LPVOID param)
 {
 	int status;
 	wMessage message;
@@ -194,8 +194,7 @@ DWORD mac_client_thread(void* param)
 
 		if (settings->AsyncInput)
 		{
-			if (!(inputThread = CreateThread(NULL, 0,
-			(LPTHREAD_START_ROUTINE) mac_client_input_thread, context, 0, NULL)))
+			if (!(inputThread = CreateThread(NULL, 0, mac_client_input_thread, context, 0, NULL)))
 			{
 				WLog_ERR(TAG,  "failed to create async input thread");
 				goto disconnect;
@@ -738,7 +737,7 @@ DWORD fixKeyCode(DWORD keyCode, unichar keyChar, enum APPLE_KEYBOARD_TYPE type)
 
 - (void) onPasteboardTimerFired :(NSTimer*) timer
 {
-	BYTE* data;
+	const BYTE* data;
 	UINT32 size;
 	UINT32 formatId;
 	BOOL formatMatch;
@@ -823,11 +822,11 @@ DWORD fixKeyCode(DWORD keyCode, unichar keyChar, enum APPLE_KEYBOARD_TYPE type)
 	mfc->client_width = width;
 }
 
-void mac_OnChannelConnectedEventHandler(rdpContext* context,
+void mac_OnChannelConnectedEventHandler(void* context,
                                         ChannelConnectedEventArgs* e)
 {
-	rdpSettings* settings = context->settings;
 	mfContext* mfc = (mfContext*) context;
+	rdpSettings* settings = mfc->context.settings;
 
 	if (strcmp(e->name, RDPEI_DVC_CHANNEL_NAME) == 0)
 	{
@@ -835,7 +834,7 @@ void mac_OnChannelConnectedEventHandler(rdpContext* context,
 	else if (strcmp(e->name, RDPGFX_DVC_CHANNEL_NAME) == 0)
 	{
 		if (settings->SoftwareGdi)
-			gdi_graphics_pipeline_init(context->gdi, (RdpgfxClientContext*) e->pInterface);
+			gdi_graphics_pipeline_init(mfc->context.gdi, (RdpgfxClientContext*) e->pInterface);
 	}
 	else if (strcmp(e->name, CLIPRDR_SVC_CHANNEL_NAME) == 0)
 	{
@@ -846,11 +845,11 @@ void mac_OnChannelConnectedEventHandler(rdpContext* context,
 	}
 }
 
-void mac_OnChannelDisconnectedEventHandler(rdpContext* context,
+void mac_OnChannelDisconnectedEventHandler(void* context,
         ChannelDisconnectedEventArgs* e)
 {
-	rdpSettings* settings = context->settings;
 	mfContext* mfc = (mfContext*) context;
+	rdpSettings* settings = mfc->context.settings;
 
 	if (strcmp(e->name, RDPEI_DVC_CHANNEL_NAME) == 0)
 	{
@@ -858,7 +857,7 @@ void mac_OnChannelDisconnectedEventHandler(rdpContext* context,
 	else if (strcmp(e->name, RDPGFX_DVC_CHANNEL_NAME) == 0)
 	{
 		if (settings->SoftwareGdi)
-			gdi_graphics_pipeline_uninit(context->gdi,
+			gdi_graphics_pipeline_uninit(mfc->context.gdi,
 			                             (RdpgfxClientContext*) e->pInterface);
 	}
 	else if (strcmp(e->name, CLIPRDR_SVC_CHANNEL_NAME) == 0)
@@ -916,9 +915,9 @@ BOOL mac_pre_connect(freerdp* instance)
 	settings->OrderSupport[NEG_ELLIPSE_SC_INDEX] = FALSE;
 	settings->OrderSupport[NEG_ELLIPSE_CB_INDEX] = FALSE;
 	PubSub_SubscribeChannelConnected(instance->context->pubSub,
-	                                 (pChannelConnectedEventHandler) mac_OnChannelConnectedEventHandler);
+	                                 mac_OnChannelConnectedEventHandler);
 	PubSub_SubscribeChannelDisconnected(instance->context->pubSub,
-	                                    (pChannelDisconnectedEventHandler) mac_OnChannelDisconnectedEventHandler);
+	                                    mac_OnChannelDisconnectedEventHandler);
 
 	if (!freerdp_client_load_addins(instance->context->channels,
 	                                instance->settings))
@@ -1340,7 +1339,8 @@ void windows_to_apple_cords(MRDPView* view, NSRect* r)
 	r->origin.y = [view frame].size.height - (r->origin.y + r->size.height);
 }
 
-void sync_keyboard_state(freerdp *instance) {
+void sync_keyboard_state(freerdp* instance)
+{
 	mfContext* context = (mfContext*)instance->context;
 	UINT32 flags = 0;
 	CGEventFlags currentFlags = CGEventSourceFlagsState(kCGEventSourceStateHIDSystemState);

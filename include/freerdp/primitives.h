@@ -254,6 +254,7 @@ typedef struct
 	__YUV444SplitToYUV420_t YUV444SplitToYUV420;
 	__YUV444ToRGB_8u_P3AC4R_t YUV444ToRGB_8u_P3AC4R;
 	__RGBToAVC444YUV_t RGBToAVC444YUV;
+	__RGBToAVC444YUV_t RGBToAVC444YUVv2;
 } primitives_t;
 
 #ifdef __cplusplus

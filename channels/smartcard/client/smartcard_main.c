@@ -34,8 +34,9 @@
 
 #include "smartcard_main.h"
 
-void* smartcard_context_thread(SMARTCARD_CONTEXT* pContext)
+static DWORD WINAPI smartcard_context_thread(LPVOID arg)
 {
+	SMARTCARD_CONTEXT* pContext = (SMARTCARD_CONTEXT*)arg;
 	DWORD nCount;
 	LONG status = 0;
 	DWORD waitStatus;
@@ -107,8 +108,8 @@ void* smartcard_context_thread(SMARTCARD_CONTEXT* pContext)
 		setChannelError(smartcard->rdpcontext, error,
 		                "smartcard_context_thread reported an error");
 
-	ExitThread((DWORD)status);
-	return NULL;
+	ExitThread(status);
+	return error;
 }
 
 SMARTCARD_CONTEXT* smartcard_context_new(SMARTCARD_DEVICE* smartcard,
@@ -134,7 +135,7 @@ SMARTCARD_CONTEXT* smartcard_context_new(SMARTCARD_DEVICE* smartcard,
 	}
 
 	pContext->thread = CreateThread(NULL, 0,
-	                                (LPTHREAD_START_ROUTINE) smartcard_context_thread,
+									smartcard_context_thread,
 	                                pContext, 0, NULL);
 
 	if (!pContext->thread)
@@ -385,17 +386,17 @@ UINT smartcard_process_irp(SMARTCARD_DEVICE* smartcard, IRP* irp)
 
 		asyncIrp = TRUE;
 
-		/**
-		 * The following matches mstsc's behavior of processing
-		 * only certain requests asynchronously while processing
-		 * those expected to return fast synchronously.
-		 */
-
 		switch (operation->ioControlCode)
 		{
 			case SCARD_IOCTL_ESTABLISHCONTEXT:
 			case SCARD_IOCTL_RELEASECONTEXT:
 			case SCARD_IOCTL_ISVALIDCONTEXT:
+			case SCARD_IOCTL_CANCEL:
+			case SCARD_IOCTL_ACCESSSTARTEDEVENT:
+			case SCARD_IOCTL_RELEASESTARTEDEVENT:
+				asyncIrp = FALSE;
+				break;
+
 			case SCARD_IOCTL_LISTREADERGROUPSA:
 			case SCARD_IOCTL_LISTREADERGROUPSW:
 			case SCARD_IOCTL_LISTREADERSA:
@@ -416,21 +417,14 @@ UINT smartcard_process_irp(SMARTCARD_DEVICE* smartcard, IRP* irp)
 			case SCARD_IOCTL_LOCATECARDSW:
 			case SCARD_IOCTL_LOCATECARDSBYATRA:
 			case SCARD_IOCTL_LOCATECARDSBYATRW:
-			case SCARD_IOCTL_CANCEL:
 			case SCARD_IOCTL_READCACHEA:
 			case SCARD_IOCTL_READCACHEW:
 			case SCARD_IOCTL_WRITECACHEA:
 			case SCARD_IOCTL_WRITECACHEW:
 			case SCARD_IOCTL_GETREADERICON:
 			case SCARD_IOCTL_GETDEVICETYPEID:
-				asyncIrp = FALSE;
-				break;
-
 			case SCARD_IOCTL_GETSTATUSCHANGEA:
 			case SCARD_IOCTL_GETSTATUSCHANGEW:
-				asyncIrp = TRUE;
-				break;
-
 			case SCARD_IOCTL_CONNECTA:
 			case SCARD_IOCTL_CONNECTW:
 			case SCARD_IOCTL_RECONNECT:
@@ -446,11 +440,6 @@ UINT smartcard_process_irp(SMARTCARD_DEVICE* smartcard, IRP* irp)
 			case SCARD_IOCTL_SETATTRIB:
 			case SCARD_IOCTL_GETTRANSMITCOUNT:
 				asyncIrp = TRUE;
-				break;
-
-			case SCARD_IOCTL_ACCESSSTARTEDEVENT:
-			case SCARD_IOCTL_RELEASESTARTEDEVENT:
-				asyncIrp = FALSE;
 				break;
 		}
 
@@ -506,7 +495,7 @@ UINT smartcard_process_irp(SMARTCARD_DEVICE* smartcard, IRP* irp)
 	return CHANNEL_RC_OK;
 }
 
-static void* smartcard_thread_func(void* arg)
+static DWORD WINAPI smartcard_thread_func(LPVOID arg)
 {
 	IRP* irp;
 	DWORD nCount;
@@ -657,8 +646,8 @@ out:
 		setChannelError(smartcard->rdpcontext, error,
 		                "smartcard_thread_func reported an error");
 
-	ExitThread((DWORD)error);
-	return NULL;
+	ExitThread(error);
+	return error;
 }
 
 /**
@@ -689,17 +678,9 @@ static UINT smartcard_irp_request(DEVICE* device, IRP* irp)
  */
 UINT DeviceServiceEntry(PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints)
 {
-	char* name;
-	char* path;
 	size_t length;
-	int ck;
-	RDPDR_SMARTCARD* device;
 	SMARTCARD_DEVICE* smartcard;
-	LONG status;
 	UINT error = CHANNEL_RC_NO_MEMORY;
-	device = (RDPDR_SMARTCARD*) pEntryPoints->device;
-	name = device->Name;
-	path = device->Path;
 	smartcard = (SMARTCARD_DEVICE*) calloc(1, sizeof(SMARTCARD_DEVICE));
 
 	if (!smartcard)
@@ -724,30 +705,6 @@ UINT DeviceServiceEntry(PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints)
 	}
 
 	Stream_Write(smartcard->device.data, "SCARD", 6);
-	smartcard->name = NULL;
-	smartcard->path = NULL;
-
-	if (path)
-	{
-		smartcard->path = path;
-		smartcard->name = name;
-	}
-	else if (name)
-	{
-		if (1 == sscanf(name, "%d", &ck))
-			smartcard->path = name;
-		else
-			smartcard->name = name;
-	}
-
-	status = SCardAddReaderName(&smartcard->thread, (LPSTR) name);
-
-	if (status != SCARD_S_SUCCESS)
-	{
-		WLog_ERR(TAG, "Failed to add reader name!");
-		goto error_device_data;
-	}
-
 	smartcard->IrpQueue = MessageQueue_New(NULL);
 
 	if (!smartcard->IrpQueue)
@@ -790,7 +747,7 @@ UINT DeviceServiceEntry(PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints)
 	}
 
 	smartcard->thread = CreateThread(NULL, 0,
-	                                 (LPTHREAD_START_ROUTINE) smartcard_thread_func,
+									 smartcard_thread_func,
 	                                 smartcard, CREATE_SUSPENDED, NULL);
 
 	if (!smartcard->thread)

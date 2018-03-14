@@ -57,7 +57,7 @@
 
 #define BUFFER_SIZE 16384
 
-static void* transport_client_thread(void* arg);
+static DWORD WINAPI transport_client_thread(LPVOID arg);
 
 #ifdef WITH_GSSAPI
 
@@ -425,8 +425,7 @@ BOOL transport_connect(rdpTransport* transport, const char* hostname,
 				return FALSE;
 			}
 
-			if (!(transport->thread = CreateThread(NULL, 0,
-			                                       (LPTHREAD_START_ROUTINE) transport_client_thread, transport, 0, NULL)))
+			if (!(transport->thread = CreateThread(NULL, 0, transport_client_thread, transport, 0, NULL)))
 			{
 				WLog_Print(transport->log, WLOG_ERROR, "Failed to create transport client thread");
 				CloseHandle(transport->stopEvent);
@@ -642,7 +641,7 @@ static int transport_read_layer_bytes(rdpTransport* transport, wStream* s,
 int transport_read_pdu(rdpTransport* transport, wStream* s)
 {
 	int status;
-	int position;
+	size_t position;
 	int pduLength;
 	BYTE* header;
 	pduLength = 0;
@@ -767,8 +766,7 @@ int transport_read_pdu(rdpTransport* transport, wStream* s)
 	if (!Stream_EnsureCapacity(s, Stream_GetPosition(s) + pduLength))
 		return -1;
 
-	status = transport_read_layer_bytes(transport, s,
-	                                    pduLength - Stream_GetPosition(s));
+	status = transport_read_layer_bytes(transport, s, pduLength - Stream_GetPosition(s));
 
 	if (status != 1)
 		return status;
@@ -784,7 +782,7 @@ int transport_read_pdu(rdpTransport* transport, wStream* s)
 
 int transport_write(rdpTransport* transport, wStream* s)
 {
-	int length;
+	size_t length;
 	int status = -1;
 	int writtenlength = 0;
 
@@ -955,7 +953,7 @@ void transport_get_fds(rdpTransport* transport, void** rfds, int* rcount)
 		rfds[index] = GetEventWaitObject(events[index]);
 	}
 
-	rfds[nCount + 1] = GetEventWaitObject(transport->rereadEvent);
+	rfds[nCount] = GetEventWaitObject(transport->rereadEvent);
 }
 
 BOOL transport_is_write_blocked(rdpTransport* transport)
@@ -1032,8 +1030,7 @@ int transport_check_fds(rdpTransport* transport)
 		 * 	 0: success
 		 * 	 1: redirection
 		 */
-		recv_status = transport->ReceiveCallback(transport, received,
-		              transport->ReceiveExtra);
+		recv_status = transport->ReceiveCallback(transport, received, transport->ReceiveExtra);
 		Stream_Release(received);
 
 		/* session redirection or activation */
@@ -1134,7 +1131,7 @@ BOOL transport_disconnect(rdpTransport* transport)
 	return status;
 }
 
-static void* transport_client_thread(void* arg)
+DWORD WINAPI transport_client_thread(LPVOID arg)
 {
 	DWORD dwExitCode = 0;
 	DWORD status;
@@ -1219,7 +1216,7 @@ static void* transport_client_thread(void* arg)
 out:
 	WLog_Print(transport->log, WLOG_DEBUG, "Terminating transport thread");
 	ExitThread(dwExitCode);
-	return NULL;
+	return dwExitCode;
 }
 
 rdpTransport* transport_new(rdpContext* context)

@@ -245,7 +245,9 @@ static Pixmap xf_brush_new(xfContext* xfc, UINT32 width, UINT32 height,
 		image->bitmap_bit_order = LSBFirst;
 		gc = XCreateGC(xfc->display, xfc->drawable, 0, NULL);
 		XPutImage(xfc->display, bitmap, gc, image, 0, 0, 0, 0, width, height);
-		XFree(image);
+
+		image->data = NULL;
+		XDestroyImage(image);
 
 		if (cdata != data)
 			_aligned_free(cdata);
@@ -269,7 +271,8 @@ static Pixmap xf_mono_bitmap_new(xfContext* xfc, int width, int height,
 	image->byte_order = LSBFirst;
 	image->bitmap_bit_order = LSBFirst;
 	XPutImage(xfc->display, bitmap, xfc->gc_mono, image, 0, 0, 0, 0, width, height);
-	XFree(image);
+	image->data = NULL;
+	XDestroyImage(image);
 	return bitmap;
 }
 
@@ -1028,7 +1031,8 @@ static BOOL xf_gdi_update_screen(xfContext* xfc, const BYTE* pSrcData,
 		image->bitmap_bit_order = LSBFirst;
 
 		XPutImage(xfc->display, xfc->primary, xfc->gc, image, 0, 0, left, top, width, height);
-		XFree(image);
+		image->data = NULL;
+		XDestroyImage(image);
 		ret = xf_gdi_surface_update_frame(xfc, left, top, width, height);
 	}
 
@@ -1053,19 +1057,19 @@ static BOOL xf_gdi_surface_bits(rdpContext* context,
 	region16_init(&region);
 	cmdRect.left = cmd->destLeft;
 	cmdRect.top = cmd->destTop;
-	cmdRect.right = cmdRect.left + cmd->width;
-	cmdRect.bottom = cmdRect.top + cmd->height;
+	cmdRect.right = cmdRect.left + cmd->bmp.width;
+	cmdRect.bottom = cmdRect.top + cmd->bmp.height;
 
 
 	gdi = context->gdi;
 
 	xf_lock_x11(xfc, FALSE);
 
-	switch (cmd->codecID)
+	switch (cmd->bmp.codecID)
 	{
 		case RDP_CODEC_ID_REMOTEFX:
-			if (!rfx_process_message(context->codecs->rfx, cmd->bitmapData,
-			                         cmd->bitmapDataLength, cmd->destLeft, cmd->destTop,
+			if (!rfx_process_message(context->codecs->rfx, cmd->bmp.bitmapData,
+									 cmd->bmp.bitmapDataLength, cmd->destLeft, cmd->destTop,
 			                         gdi->primary_buffer, gdi->dstFormat, gdi->stride,
 			                         gdi->height, &region))
 				goto fail;
@@ -1073,21 +1077,21 @@ static BOOL xf_gdi_surface_bits(rdpContext* context,
 			break;
 
 		case RDP_CODEC_ID_NSCODEC:
-			if (!nsc_process_message(context->codecs->nsc, cmd->bpp, cmd->width,
-			                         cmd->height, cmd->bitmapData, cmd->bitmapDataLength,
+			if (!nsc_process_message(context->codecs->nsc, cmd->bmp.bpp, cmd->bmp.width,
+									 cmd->bmp.height, cmd->bmp.bitmapData, cmd->bmp.bitmapDataLength,
 			                         gdi->primary_buffer, gdi->dstFormat, gdi->stride,
-			                         0, 0, cmd->width, cmd->height, FREERDP_FLIP_VERTICAL))
+									 0, 0, cmd->bmp.width, cmd->bmp.height, FREERDP_FLIP_VERTICAL))
 				goto fail;
 
 			region16_union_rect(&region, &region, &cmdRect);
 			break;
 
 		case RDP_CODEC_ID_NONE:
-			pSrcData = cmd->bitmapData;
-			format = gdi_get_pixel_format(cmd->bpp);
+			pSrcData = cmd->bmp.bitmapData;
+			format = gdi_get_pixel_format(cmd->bmp.bpp);
 
 			if (!freerdp_image_copy(gdi->primary_buffer, gdi->dstFormat, gdi->stride,
-			                        cmd->destLeft, cmd->destTop, cmd->width, cmd->height,
+									cmd->destLeft, cmd->destTop, cmd->bmp.width, cmd->bmp.height,
 			                        pSrcData, format, 0, 0, 0,
 			                        &xfc->context.gdi->palette, FREERDP_FLIP_VERTICAL))
 				goto fail;
@@ -1096,7 +1100,7 @@ static BOOL xf_gdi_surface_bits(rdpContext* context,
 			break;
 
 		default:
-			WLog_ERR(TAG, "Unsupported codecID %"PRIu32"", cmd->codecID);
+			WLog_ERR(TAG, "Unsupported codecID %"PRIu16"", cmd->bmp.codecID);
 			ret = TRUE;
 			goto fail;
 	}

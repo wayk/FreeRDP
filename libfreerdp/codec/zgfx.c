@@ -317,7 +317,10 @@ int zgfx_decompress(ZGFX_CONTEXT* zgfx, const BYTE* pSrcData, UINT32 SrcSize, BY
 {
 	int status = -1;
 	BYTE descriptor;
+
 	wStream* stream = Stream_New((BYTE*)pSrcData, SrcSize);
+	if (!stream)
+		return -1;
 
 	if (Stream_GetRemainingLength(stream) < 1)
 		goto fail;
@@ -329,7 +332,9 @@ int zgfx_decompress(ZGFX_CONTEXT* zgfx, const BYTE* pSrcData, UINT32 SrcSize, BY
 		if (!zgfx_decompress_segment(zgfx, stream, Stream_GetRemainingLength(stream)))
 			goto fail;
 
-		*ppDstData = (BYTE*) malloc(zgfx->OutputCount);
+		*ppDstData = NULL;
+		if (zgfx->OutputCount > 0)
+			*ppDstData = (BYTE*) malloc(zgfx->OutputCount);
 
 		if (!*ppDstData)
 			goto fail;
@@ -342,10 +347,8 @@ int zgfx_decompress(ZGFX_CONTEXT* zgfx, const BYTE* pSrcData, UINT32 SrcSize, BY
 		UINT32 segmentSize;
 		UINT16 segmentNumber;
 		UINT16 segmentCount;
-		UINT32 segmentOffset;
 		UINT32 uncompressedSize;
 		BYTE* pConcatenated;
-		segmentOffset = 7;
 
 		if (Stream_GetRemainingLength(stream) < 6)
 			goto fail;

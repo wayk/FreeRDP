@@ -144,9 +144,9 @@ static BOOL wl_pre_connect(freerdp* instance)
 	settings->OrderSupport[NEG_ELLIPSE_SC_INDEX] = FALSE;
 	settings->OrderSupport[NEG_ELLIPSE_CB_INDEX] = FALSE;
 	PubSub_SubscribeChannelConnected(instance->context->pubSub,
-	                                 (pChannelConnectedEventHandler) wlf_OnChannelConnectedEventHandler);
+	                                 wlf_OnChannelConnectedEventHandler);
 	PubSub_SubscribeChannelDisconnected(instance->context->pubSub,
-	                                    (pChannelDisconnectedEventHandler) wlf_OnChannelDisconnectedEventHandler);
+	                                    wlf_OnChannelDisconnectedEventHandler);
 
 	if (settings->Fullscreen)
 	{
@@ -474,5 +474,5 @@ int main(int argc, char* argv[])
 
 fail:
 	freerdp_client_context_free(context);
-	return rc;
+	return winpr_exit(rc);
 }

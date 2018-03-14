@@ -446,7 +446,6 @@ struct _RDPDR_SMARTCARD
 	UINT32 Id;
 	UINT32 Type;
 	char* Name;
-	char* Path;
 };
 typedef struct _RDPDR_SMARTCARD RDPDR_SMARTCARD;
 
@@ -692,6 +691,7 @@ typedef struct _RDPDR_PARALLEL RDPDR_PARALLEL;
 #define FreeRDP_GatewayRpcTransport				1994
 #define FreeRDP_GatewayHttpTransport				1995
 #define FreeRDP_GatewayUdpTransport				1996
+#define FreeRDP_GatewayAccessToken				1997
 #define FreeRDP_ProxyType					2015
 #define FreeRDP_ProxyHostname					2016
 #define FreeRDP_ProxyPort   					2017
@@ -1105,7 +1105,8 @@ struct rdp_settings
 	ALIGN64 UINT32 SmartSizingHeight; /* 1555 */
 	ALIGN64 BOOL PercentScreenUseWidth; /* 1556 */
 	ALIGN64 BOOL PercentScreenUseHeight; /* 1557 */
-	UINT64 padding1601[1601 - 1558]; /* 1558 */
+	ALIGN64 BOOL DynamicResolutionUpdate; /* 1558 */
+	UINT64 padding1601[1601 - 1559]; /* 1559 */
 
 	/* Miscellaneous */
 	ALIGN64 BOOL SoftwareGdi; /* 1601 */
@@ -1156,7 +1157,8 @@ struct rdp_settings
 	ALIGN64 BOOL GatewayRpcTransport; /* 1994 */
 	ALIGN64 BOOL GatewayHttpTransport; /* 1995 */
 	ALIGN64 BOOL GatewayUdpTransport; /* 1996 */
-	UINT64 padding2048[2015 - 1997]; /* 1997 */
+	ALIGN64 char* GatewayAccessToken; /* 1997 */
+	UINT64 padding2015[2015 - 1998]; /* 1998 */
 
 	/* Proxy */
 	ALIGN64 UINT32 ProxyType; 	/* 2015 */
@@ -1344,7 +1346,8 @@ struct rdp_settings
 	ALIGN64 BOOL GfxH264; /* 3844 */
 	ALIGN64 BOOL GfxAVC444; /* 3845 */
 	ALIGN64 BOOL GfxSendQoeAck; /* 3846 */
-	UINT64 padding3904[3904 - 3847]; /* 3847 */
+	ALIGN64 BOOL GfxAVC444v2; /* 3847 */
+	UINT64 padding3904[3904 - 3848]; /* 3848 */
 
 	/**
 	 * Caches
@@ -1427,7 +1430,8 @@ struct rdp_settings
 	ALIGN64 BOOL SupportDisplayControl; /* 5185 */
 	ALIGN64 BOOL SupportGeometryTracking; /* 5186 */
 	ALIGN64 BOOL SupportSSHAgentChannel; /* 5187 */
-	UINT64 padding5312[5312 - 5188]; /* 5188 */
+	ALIGN64 BOOL SupportVideoOptimized; /* 5188 */
+	UINT64 padding5312[5312 - 5189]; /* 5189 */
 
 	/**
 	 * WARNING: End of ABI stable zone!
@@ -1447,6 +1451,7 @@ struct rdp_settings
 	ALIGN64 BYTE*
 	SettingsModified; /* byte array marking fields that have been modified from their default value */
 	ALIGN64 char* ActionScript;
+
 };
 typedef struct rdp_settings rdpSettings;
 

@@ -91,7 +91,7 @@ wStream* cliprdr_server_packet_new(UINT16 msgType, UINT16 msgFlags,
  */
 UINT cliprdr_server_packet_send(CliprdrServerPrivate* cliprdr, wStream* s)
 {
-	UINT32 pos;
+	size_t pos;
 	BOOL status;
 	UINT32 dataLen;
 	UINT32 written;
@@ -628,7 +628,7 @@ static UINT cliprdr_server_receive_format_list(CliprdrServerContext* context,
 {
 	UINT32 index;
 	UINT32 dataLen;
-	UINT32 position;
+	size_t position;
 	BOOL asciiNames;
 	int formatNameLength;
 	char* szFormatName;
@@ -1185,7 +1185,7 @@ static UINT cliprdr_server_init(CliprdrServerContext* context)
 UINT cliprdr_server_read(CliprdrServerContext* context)
 {
 	wStream* s;
-	int position;
+	size_t position;
 	DWORD BytesToRead;
 	DWORD BytesReturned;
 	CLIPRDR_HEADER header;
@@ -1319,7 +1319,7 @@ UINT cliprdr_server_read(CliprdrServerContext* context)
 	return CHANNEL_RC_OK;
 }
 
-static void* cliprdr_server_thread(void* arg)
+static DWORD WINAPI cliprdr_server_thread(LPVOID arg)
 {
 	DWORD status;
 	DWORD nCount;
@@ -1388,8 +1388,8 @@ out:
 		setChannelError(context->rdpcontext, error,
 		                "cliprdr_server_thread reported an error");
 
-	ExitThread((DWORD)error);
-	return NULL;
+	ExitThread(error);
+	return error;
 }
 
 /**
@@ -1478,8 +1478,7 @@ static UINT cliprdr_server_start(CliprdrServerContext* context)
 		return ERROR_INTERNAL_ERROR;
 	}
 
-	if (!(cliprdr->Thread = CreateThread(NULL, 0,
-	                                     (LPTHREAD_START_ROUTINE) cliprdr_server_thread, (void*) context, 0, NULL)))
+	if (!(cliprdr->Thread = CreateThread(NULL, 0, cliprdr_server_thread, (void*) context, 0, NULL)))
 	{
 		WLog_ERR(TAG, "CreateThread failed!");
 		CloseHandle(cliprdr->StopEvent);

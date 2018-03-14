@@ -81,68 +81,68 @@ static const UINT32 rfx_default_quantization_values[] =
 
 static void rfx_profiler_create(RFX_CONTEXT* context)
 {
-	PROFILER_CREATE(context->priv->prof_rfx_decode_rgb, "rfx_decode_rgb");
+	PROFILER_CREATE(context->priv->prof_rfx_decode_rgb, "rfx_decode_rgb")
 	PROFILER_CREATE(context->priv->prof_rfx_decode_component,
-	                "rfx_decode_component");
-	PROFILER_CREATE(context->priv->prof_rfx_rlgr_decode, "rfx_rlgr_decode");
+	                "rfx_decode_component")
+	PROFILER_CREATE(context->priv->prof_rfx_rlgr_decode, "rfx_rlgr_decode")
 	PROFILER_CREATE(context->priv->prof_rfx_differential_decode,
-	                "rfx_differential_decode");
+	                "rfx_differential_decode")
 	PROFILER_CREATE(context->priv->prof_rfx_quantization_decode,
-	                "rfx_quantization_decode");
-	PROFILER_CREATE(context->priv->prof_rfx_dwt_2d_decode, "rfx_dwt_2d_decode");
-	PROFILER_CREATE(context->priv->prof_rfx_ycbcr_to_rgb, "prims->yCbCrToRGB");
-	PROFILER_CREATE(context->priv->prof_rfx_encode_rgb, "rfx_encode_rgb");
+	                "rfx_quantization_decode")
+	PROFILER_CREATE(context->priv->prof_rfx_dwt_2d_decode, "rfx_dwt_2d_decode")
+	PROFILER_CREATE(context->priv->prof_rfx_ycbcr_to_rgb, "prims->yCbCrToRGB")
+	PROFILER_CREATE(context->priv->prof_rfx_encode_rgb, "rfx_encode_rgb")
 	PROFILER_CREATE(context->priv->prof_rfx_encode_component,
-	                "rfx_encode_component");
-	PROFILER_CREATE(context->priv->prof_rfx_rlgr_encode, "rfx_rlgr_encode");
+	                "rfx_encode_component")
+	PROFILER_CREATE(context->priv->prof_rfx_rlgr_encode, "rfx_rlgr_encode")
 	PROFILER_CREATE(context->priv->prof_rfx_differential_encode,
-	                "rfx_differential_encode");
+	                "rfx_differential_encode")
 	PROFILER_CREATE(context->priv->prof_rfx_quantization_encode,
-	                "rfx_quantization_encode");
-	PROFILER_CREATE(context->priv->prof_rfx_dwt_2d_encode, "rfx_dwt_2d_encode");
-	PROFILER_CREATE(context->priv->prof_rfx_rgb_to_ycbcr, "prims->RGBToYCbCr");
+	                "rfx_quantization_encode")
+	PROFILER_CREATE(context->priv->prof_rfx_dwt_2d_encode, "rfx_dwt_2d_encode")
+	PROFILER_CREATE(context->priv->prof_rfx_rgb_to_ycbcr, "prims->RGBToYCbCr")
 	PROFILER_CREATE(context->priv->prof_rfx_encode_format_rgb,
-	                "rfx_encode_format_rgb");
+	                "rfx_encode_format_rgb")
 }
 
 static void rfx_profiler_free(RFX_CONTEXT* context)
 {
-	PROFILER_FREE(context->priv->prof_rfx_decode_rgb);
-	PROFILER_FREE(context->priv->prof_rfx_decode_component);
-	PROFILER_FREE(context->priv->prof_rfx_rlgr_decode);
-	PROFILER_FREE(context->priv->prof_rfx_differential_decode);
-	PROFILER_FREE(context->priv->prof_rfx_quantization_decode);
-	PROFILER_FREE(context->priv->prof_rfx_dwt_2d_decode);
-	PROFILER_FREE(context->priv->prof_rfx_ycbcr_to_rgb);
-	PROFILER_FREE(context->priv->prof_rfx_encode_rgb);
-	PROFILER_FREE(context->priv->prof_rfx_encode_component);
-	PROFILER_FREE(context->priv->prof_rfx_rlgr_encode);
-	PROFILER_FREE(context->priv->prof_rfx_differential_encode);
-	PROFILER_FREE(context->priv->prof_rfx_quantization_encode);
-	PROFILER_FREE(context->priv->prof_rfx_dwt_2d_encode);
-	PROFILER_FREE(context->priv->prof_rfx_rgb_to_ycbcr);
-	PROFILER_FREE(context->priv->prof_rfx_encode_format_rgb);
+	PROFILER_FREE(context->priv->prof_rfx_decode_rgb)
+	PROFILER_FREE(context->priv->prof_rfx_decode_component)
+	PROFILER_FREE(context->priv->prof_rfx_rlgr_decode)
+	PROFILER_FREE(context->priv->prof_rfx_differential_decode)
+	PROFILER_FREE(context->priv->prof_rfx_quantization_decode)
+	PROFILER_FREE(context->priv->prof_rfx_dwt_2d_decode)
+	PROFILER_FREE(context->priv->prof_rfx_ycbcr_to_rgb)
+	PROFILER_FREE(context->priv->prof_rfx_encode_rgb)
+	PROFILER_FREE(context->priv->prof_rfx_encode_component)
+	PROFILER_FREE(context->priv->prof_rfx_rlgr_encode)
+	PROFILER_FREE(context->priv->prof_rfx_differential_encode)
+	PROFILER_FREE(context->priv->prof_rfx_quantization_encode)
+	PROFILER_FREE(context->priv->prof_rfx_dwt_2d_encode)
+	PROFILER_FREE(context->priv->prof_rfx_rgb_to_ycbcr)
+	PROFILER_FREE(context->priv->prof_rfx_encode_format_rgb)
 }
 
 static void rfx_profiler_print(RFX_CONTEXT* context)
 {
-	PROFILER_PRINT_HEADER;
-	PROFILER_PRINT(context->priv->prof_rfx_decode_rgb);
-	PROFILER_PRINT(context->priv->prof_rfx_decode_component);
-	PROFILER_PRINT(context->priv->prof_rfx_rlgr_decode);
-	PROFILER_PRINT(context->priv->prof_rfx_differential_decode);
-	PROFILER_PRINT(context->priv->prof_rfx_quantization_decode);
-	PROFILER_PRINT(context->priv->prof_rfx_dwt_2d_decode);
-	PROFILER_PRINT(context->priv->prof_rfx_ycbcr_to_rgb);
-	PROFILER_PRINT(context->priv->prof_rfx_encode_rgb);
-	PROFILER_PRINT(context->priv->prof_rfx_encode_component);
-	PROFILER_PRINT(context->priv->prof_rfx_rlgr_encode);
-	PROFILER_PRINT(context->priv->prof_rfx_differential_encode);
-	PROFILER_PRINT(context->priv->prof_rfx_quantization_encode);
-	PROFILER_PRINT(context->priv->prof_rfx_dwt_2d_encode);
-	PROFILER_PRINT(context->priv->prof_rfx_rgb_to_ycbcr);
-	PROFILER_PRINT(context->priv->prof_rfx_encode_format_rgb);
-	PROFILER_PRINT_FOOTER;
+	PROFILER_PRINT_HEADER
+	PROFILER_PRINT(context->priv->prof_rfx_decode_rgb)
+	PROFILER_PRINT(context->priv->prof_rfx_decode_component)
+	PROFILER_PRINT(context->priv->prof_rfx_rlgr_decode)
+	PROFILER_PRINT(context->priv->prof_rfx_differential_decode)
+	PROFILER_PRINT(context->priv->prof_rfx_quantization_decode)
+	PROFILER_PRINT(context->priv->prof_rfx_dwt_2d_decode)
+	PROFILER_PRINT(context->priv->prof_rfx_ycbcr_to_rgb)
+	PROFILER_PRINT(context->priv->prof_rfx_encode_rgb)
+	PROFILER_PRINT(context->priv->prof_rfx_encode_component)
+	PROFILER_PRINT(context->priv->prof_rfx_rlgr_encode)
+	PROFILER_PRINT(context->priv->prof_rfx_differential_encode)
+	PROFILER_PRINT(context->priv->prof_rfx_quantization_encode)
+	PROFILER_PRINT(context->priv->prof_rfx_dwt_2d_encode)
+	PROFILER_PRINT(context->priv->prof_rfx_rgb_to_ycbcr)
+	PROFILER_PRINT(context->priv->prof_rfx_encode_format_rgb)
+	PROFILER_PRINT_FOOTER
 }
 
 static void rfx_tile_init(RFX_TILE* tile)
@@ -756,7 +756,7 @@ static BOOL rfx_process_message_tileset(RFX_CONTEXT* context,
 {
 	BOOL rc;
 	int i, close_cnt;
-	int pos;
+	size_t pos;
 	BYTE quant;
 	RFX_TILE* tile;
 	UINT32* quants;
@@ -949,7 +949,7 @@ static BOOL rfx_process_message_tileset(RFX_CONTEXT* context,
 			params[i].context = context;
 			params[i].tile = message->tiles[i];
 
-			if (!(work_objects[i] = CreateThreadpoolWork((PTP_WORK_CALLBACK)
+			if (!(work_objects[i] = CreateThreadpoolWork(
 			                        rfx_process_message_tile_work_callback,
 			                        (void*) &params[i], &context->priv->ThreadPoolEnv)))
 			{
@@ -999,7 +999,7 @@ BOOL rfx_process_message(RFX_CONTEXT* context, const BYTE* data, UINT32 length,
                          UINT32 dstStride, UINT32 dstHeight,
                          REGION16* invalidRegion)
 {
-	int pos;
+	size_t pos;
 	REGION16 updateRegion;
 	UINT32 blockLen;
 	UINT32 blockType;
@@ -1367,7 +1367,7 @@ struct _RFX_TILE_COMPOSE_WORK_PARAM
 	RFX_CONTEXT* context;
 };
 
-void CALLBACK rfx_compose_message_tile_work_callback(PTP_CALLBACK_INSTANCE
+static void CALLBACK rfx_compose_message_tile_work_callback(PTP_CALLBACK_INSTANCE
         instance, void* context, PTP_WORK work)
 {
 	RFX_TILE_COMPOSE_WORK_PARAM* param = (RFX_TILE_COMPOSE_WORK_PARAM*) context;
@@ -1580,7 +1580,7 @@ RFX_MESSAGE* rfx_encode_message(RFX_CONTEXT* context, const RFX_RECT* rects,
 					workParam->tile = tile;
 
 					if (!(*workObject = CreateThreadpoolWork(
-					                        (PTP_WORK_CALLBACK)rfx_compose_message_tile_work_callback,
+					                        rfx_compose_message_tile_work_callback,
 					                        (void*) workParam,
 					                        &context->priv->ThreadPoolEnv)))
 					{
@@ -1622,32 +1622,34 @@ skip_encoding_loop:
 	}
 
 	/* when using threads ensure all computations are done */
-	message->tilesDataSize = 0;
-	workObject = context->priv->workObjects;
-
-	for (i = 0; i < message->numTiles; i++)
+	if (success)
 	{
-		tile = message->tiles[i];
+		message->tilesDataSize = 0;
+		workObject = context->priv->workObjects;
 
-		if (context->priv->UseThreads)
+		for (i = 0; i < message->numTiles; i++)
 		{
-			if (*workObject)
+			tile = message->tiles[i];
+
+			if (context->priv->UseThreads)
 			{
-				WaitForThreadpoolWorkCallbacks(*workObject, FALSE);
-				CloseThreadpoolWork(*workObject);
+				if (*workObject)
+				{
+					WaitForThreadpoolWorkCallbacks(*workObject, FALSE);
+					CloseThreadpoolWork(*workObject);
+				}
+
+				workObject++;
 			}
 
-			workObject++;
+			message->tilesDataSize += rfx_tile_length(tile);
 		}
 
-		message->tilesDataSize += rfx_tile_length(tile);
-	}
+		region16_uninit(&tilesRegion);
+		region16_uninit(&rectsRegion);
 
-	region16_uninit(&tilesRegion);
-	region16_uninit(&rectsRegion);
-
-	if (success)
 		return message;
+	}
 
 	WLog_ERR(TAG, "%s: failed", __FUNCTION__);
 	message->freeRects = TRUE;

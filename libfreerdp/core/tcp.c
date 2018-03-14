@@ -667,19 +667,25 @@ BIO_METHOD* BIO_s_buffered_socket(void)
 static char* freerdp_tcp_get_ip_address(int sockfd, BOOL* pIPv6)
 {
 	socklen_t length;
-	char ipAddress[INET6_ADDRSTRLEN + 1];
-	struct sockaddr_in sockaddr;
-	length = sizeof(sockaddr);
-	ZeroMemory(&sockaddr, length);
+	char ipAddress[INET6_ADDRSTRLEN + 1] = { 0 };
+	struct sockaddr saddr = { 0 };
+	struct sockaddr_in6* sockaddr_ipv6 = (struct sockaddr_in6*)&saddr;
+	struct sockaddr_in* sockaddr_ipv4 = (struct sockaddr_in*)&saddr;
+	length = sizeof(struct sockaddr);
 
-	if (getsockname(sockfd, (struct sockaddr*) &sockaddr, &length) != 0)
+	if (getsockname(sockfd, &saddr, &length) != 0)
 		return NULL;
 
-	switch (sockaddr.sin_family)
+	switch (sockaddr_ipv4->sin_family)
 	{
 		case AF_INET:
+			if (!inet_ntop(sockaddr_ipv4->sin_family, &sockaddr_ipv4->sin_addr, ipAddress, sizeof(ipAddress)))
+				return NULL;
+
+			break;
+
 		case AF_INET6:
-			if (!inet_ntop(sockaddr.sin_family, &sockaddr.sin_addr, ipAddress, sizeof(ipAddress)))
+			if (!inet_ntop(sockaddr_ipv6->sin6_family, &sockaddr_ipv6->sin6_addr, ipAddress, sizeof(ipAddress)))
 				return NULL;
 
 			break;
@@ -693,7 +699,7 @@ static char* freerdp_tcp_get_ip_address(int sockfd, BOOL* pIPv6)
 	}
 
 	if (pIPv6)
-		*pIPv6 = (sockaddr.sin_family == AF_INET6);
+		*pIPv6 = (sockaddr_ipv4->sin_family == AF_INET6);
 
 	return _strdup(ipAddress);
 }
@@ -754,6 +760,7 @@ static BOOL freerdp_tcp_connect_timeout(rdpContext* context, int sockfd,
                                         struct sockaddr* addr,
                                         socklen_t addrlen, int timeout)
 {
+	BOOL rc = FALSE;
 	HANDLE handles[2];
 	int status = 0;
 	int count = 0;
@@ -769,7 +776,7 @@ static BOOL freerdp_tcp_connect_timeout(rdpContext* context, int sockfd,
 	if (status < 0)
 	{
 		WLog_ERR(TAG, "WSAEventSelect failed with %d", WSAGetLastError());
-		return FALSE;
+		goto fail;
 	}
 
 	handles[count++] = context->abortEvent;
@@ -786,7 +793,7 @@ static BOOL freerdp_tcp_connect_timeout(rdpContext* context, int sockfd,
 				break;
 
 			default:
-				return FALSE;
+				goto fail;
 		}
 	}
 
@@ -797,7 +804,7 @@ static BOOL freerdp_tcp_connect_timeout(rdpContext* context, int sockfd,
 		if (status == WAIT_OBJECT_0 + 1)
 			freerdp_set_last_error(context, FREERDP_ERROR_CONNECT_CANCELLED);
 
-		return FALSE;
+		goto fail;
 	}
 
 	status = recv(sockfd, NULL, 0, 0);
@@ -805,22 +812,24 @@ static BOOL freerdp_tcp_connect_timeout(rdpContext* context, int sockfd,
 	if (status == SOCKET_ERROR)
 	{
 		if (WSAGetLastError() == WSAECONNRESET)
-			return FALSE;
+			goto fail;
 	}
 
 	status = WSAEventSelect(sockfd, handles[0], 0);
-	CloseHandle(handles[0]);
 
 	if (status < 0)
 	{
 		WLog_ERR(TAG, "WSAEventSelect failed with %d", WSAGetLastError());
-		return FALSE;
+		goto fail;
 	}
 
 	if (_ioctlsocket(sockfd, FIONBIO, &arg) != 0)
-		return FALSE;
+		goto fail;
 
-	return TRUE;
+	rc = TRUE;
+fail:
+	CloseHandle(handles[0]);
+	return rc;
 }
 
 static int freerdp_tcp_connect_multi(rdpContext* context, char** hostnames,

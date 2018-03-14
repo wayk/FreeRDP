@@ -280,17 +280,17 @@ static BOOL update_message_SurfaceBits(rdpContext* context,
 
 	CopyMemory(wParam, surfaceBitsCommand, sizeof(SURFACE_BITS_COMMAND));
 #ifdef WITH_STREAM_POOL
-	StreamPool_AddRef(context->rdp->transport->ReceivePool, surfaceBitsCommand->bitmapData);
+	StreamPool_AddRef(context->rdp->transport->ReceivePool, surfaceBitsCommand->bmp.bitmapData);
 #else
-	wParam->bitmapData = (BYTE*) malloc(wParam->bitmapDataLength);
+	wParam->bmp.bitmapData = (BYTE*) malloc(wParam->bmp.bitmapDataLength);
 
-	if (!wParam->bitmapData)
+	if (!wParam->bmp.bitmapData)
 	{
 		free(wParam);
 		return FALSE;
 	}
 
-	CopyMemory(wParam->bitmapData, surfaceBitsCommand->bitmapData, wParam->bitmapDataLength);
+	CopyMemory(wParam->bmp.bitmapData, surfaceBitsCommand->bmp.bitmapData, wParam->bmp.bitmapDataLength);
 #endif
 	return MessageQueue_Post(context->update->queue, (void*) context,
 	                         MakeMessageId(Update, SurfaceBits), (void*) wParam, NULL);
@@ -1702,10 +1702,10 @@ static int update_message_free_update_class(wMessage* msg, int type)
 #ifdef WITH_STREAM_POOL
 				rdpContext* context = (rdpContext*) msg->context;
 				SURFACE_BITS_COMMAND* wParam = (SURFACE_BITS_COMMAND*) msg->wParam;
-				StreamPool_Release(context->rdp->transport->ReceivePool, wParam->bitmapData);
+				StreamPool_Release(context->rdp->transport->ReceivePool, wParam->bmp.bitmapData);
 #else
 				SURFACE_BITS_COMMAND* wParam = (SURFACE_BITS_COMMAND*) msg->wParam;
-				free(wParam->bitmapData);
+				free(wParam->bmp.bitmapData);
 				free(wParam);
 #endif
 			}
@@ -2851,7 +2851,7 @@ static BOOL update_message_register_interface(rdpUpdateProxy* message, rdpUpdate
 	return TRUE;
 }
 
-static void* update_message_proxy_thread(void* arg)
+static DWORD WINAPI update_message_proxy_thread(LPVOID arg)
 {
 	rdpUpdate* update = (rdpUpdate*)arg;
 	wMessage message;
@@ -2860,8 +2860,8 @@ static void* update_message_proxy_thread(void* arg)
 	{
 		WLog_ERR(TAG, "update=%p, update->queue=%p", (void*) update,
 		         (void*)(update ? update->queue : NULL));
-		ExitThread(-1);
-		return NULL;
+		ExitThread(1);
+		return 1;
 	}
 
 	while (MessageQueue_Wait(update->queue))
@@ -2876,7 +2876,7 @@ static void* update_message_proxy_thread(void* arg)
 	}
 
 	ExitThread(0);
-	return NULL;
+	return 0;
 }
 
 rdpUpdateProxy* update_message_proxy_new(rdpUpdate* update)
@@ -2892,7 +2892,7 @@ rdpUpdateProxy* update_message_proxy_new(rdpUpdate* update)
 	message->update = update;
 	update_message_register_interface(message, update);
 
-	if (!(message->thread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE) update_message_proxy_thread,
+	if (!(message->thread = CreateThread(NULL, 0, update_message_proxy_thread,
 	                                     update, 0, NULL)))
 	{
 		WLog_ERR(TAG, "Failed to create proxy thread");

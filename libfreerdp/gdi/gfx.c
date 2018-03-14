@@ -61,8 +61,7 @@ static UINT gdi_ResetGraphics(RdpgfxClientContext* context,
 	DesktopWidth = resetGraphics->width;
 	DesktopHeight = resetGraphics->height;
 
-	if ((DesktopWidth != settings->DesktopWidth)
-	    || (DesktopHeight != settings->DesktopHeight))
+	if ((DesktopWidth != settings->DesktopWidth) || (DesktopHeight != settings->DesktopHeight))
 	{
 		settings->DesktopWidth = DesktopWidth;
 		settings->DesktopHeight = DesktopHeight;
@@ -103,6 +102,10 @@ static UINT gdi_OutputUpdate(rdpGdi* gdi, gdiGfxSurface* surface)
 	const RECTANGLE_16* rects;
 	UINT32 i, nbRects;
 	rdpUpdate* update = gdi->context->update;
+
+	if (gdi->suppressOutput)
+		return CHANNEL_RC_OK;
+
 	surfaceX = surface->outputOriginX;
 	surfaceY = surface->outputOriginY;
 	surfaceRect.left = 0;
@@ -113,7 +116,7 @@ static UINT gdi_OutputUpdate(rdpGdi* gdi, gdiGfxSurface* surface)
 	                        &(surface->invalidRegion), &surfaceRect);
 
 	if (!(rects = region16_rects(&surface->invalidRegion, &nbRects)) || !nbRects)
-                return CHANNEL_RC_OK;
+		return CHANNEL_RC_OK;
 
 	update->BeginPaint(gdi->context);
 
@@ -137,7 +140,6 @@ static UINT gdi_OutputUpdate(rdpGdi* gdi, gdiGfxSurface* surface)
 	}
 
 	update->EndPaint(gdi->context);
-
 	region16_clear(&(surface->invalidRegion));
 	return CHANNEL_RC_OK;
 }
@@ -213,11 +215,12 @@ static UINT gdi_SurfaceCommand_Uncompressed(rdpGdi* gdi,
 	UINT status = CHANNEL_RC_OK;
 	gdiGfxSurface* surface;
 	RECTANGLE_16 invalidRect;
-
 	surface = (gdiGfxSurface*) context->GetSurfaceData(context, cmd->surfaceId);
+
 	if (!surface)
 	{
-		WLog_ERR(TAG, "%s: unable to retrieve surfaceData for surfaceId=%"PRIu32"", __FUNCTION__, cmd->surfaceId);
+		WLog_ERR(TAG, "%s: unable to retrieve surfaceData for surfaceId=%"PRIu32"", __FUNCTION__,
+		         cmd->surfaceId);
 		return ERROR_NOT_FOUND;
 	}
 
@@ -232,7 +235,6 @@ static UINT gdi_SurfaceCommand_Uncompressed(rdpGdi* gdi,
 	invalidRect.bottom = cmd->bottom;
 	region16_union_rect(&(surface->invalidRegion), &(surface->invalidRegion),
 	                    &invalidRect);
-
 	IFCALL(context->UpdateSurfaceArea, context, surface->surfaceId, 1, &invalidRect);
 
 	if (!gdi->inGfxFrame)
@@ -258,17 +260,18 @@ static UINT gdi_SurfaceCommand_RemoteFX(rdpGdi* gdi,
 	REGION16 invalidRegion;
 	const RECTANGLE_16* rects;
 	UINT32 nrRects, x;
-
 	surface = (gdiGfxSurface*) context->GetSurfaceData(context, cmd->surfaceId);
+
 	if (!surface)
 	{
-		WLog_ERR(TAG, "%s: unable to retrieve surfaceData for surfaceId=%"PRIu32"", __FUNCTION__, cmd->surfaceId);
+		WLog_ERR(TAG, "%s: unable to retrieve surfaceData for surfaceId=%"PRIu32"", __FUNCTION__,
+		         cmd->surfaceId);
 		return ERROR_NOT_FOUND;
 	}
 
 	rfx_context_set_pixel_format(surface->codecs->rfx, cmd->format);
-
 	region16_init(&invalidRegion);
+
 	if (!rfx_process_message(surface->codecs->rfx, cmd->data, cmd->length,
 	                         cmd->left, cmd->top,
 	                         surface->data, surface->format, surface->scanline,
@@ -282,10 +285,11 @@ static UINT gdi_SurfaceCommand_RemoteFX(rdpGdi* gdi,
 	rects = region16_rects(&invalidRegion, &nrRects);
 	IFCALL(context->UpdateSurfaceArea, context, surface->surfaceId, nrRects, rects);
 
-	for (x=0; x<nrRects; x++)
+	for (x = 0; x < nrRects; x++)
 		region16_union_rect(&surface->invalidRegion, &surface->invalidRegion, &rects[x]);
 
 	region16_uninit(&invalidRegion);
+
 	if (!gdi->inGfxFrame)
 	{
 		status = CHANNEL_RC_NOT_INITIALIZED;
@@ -308,11 +312,12 @@ static UINT gdi_SurfaceCommand_ClearCodec(rdpGdi* gdi,
 	UINT status = CHANNEL_RC_OK;
 	gdiGfxSurface* surface;
 	RECTANGLE_16 invalidRect;
-
 	surface = (gdiGfxSurface*) context->GetSurfaceData(context, cmd->surfaceId);
+
 	if (!surface)
 	{
-		WLog_ERR(TAG, "%s: unable to retrieve surfaceData for surfaceId=%"PRIu32"", __FUNCTION__, cmd->surfaceId);
+		WLog_ERR(TAG, "%s: unable to retrieve surfaceData for surfaceId=%"PRIu32"", __FUNCTION__,
+		         cmd->surfaceId);
 		return ERROR_NOT_FOUND;
 	}
 
@@ -334,7 +339,6 @@ static UINT gdi_SurfaceCommand_ClearCodec(rdpGdi* gdi,
 	invalidRect.bottom = cmd->bottom;
 	region16_union_rect(&(surface->invalidRegion), &(surface->invalidRegion),
 	                    &invalidRect);
-
 	IFCALL(context->UpdateSurfaceArea, context, surface->surfaceId, 1, &invalidRect);
 
 	if (!gdi->inGfxFrame)
@@ -358,11 +362,12 @@ static UINT gdi_SurfaceCommand_Planar(rdpGdi* gdi, RdpgfxClientContext* context,
 	BYTE* DstData = NULL;
 	gdiGfxSurface* surface;
 	RECTANGLE_16 invalidRect;
-
 	surface = (gdiGfxSurface*) context->GetSurfaceData(context, cmd->surfaceId);
+
 	if (!surface)
 	{
-		WLog_ERR(TAG, "%s: unable to retrieve surfaceData for surfaceId=%"PRIu32"", __FUNCTION__, cmd->surfaceId);
+		WLog_ERR(TAG, "%s: unable to retrieve surfaceData for surfaceId=%"PRIu32"", __FUNCTION__,
+		         cmd->surfaceId);
 		return ERROR_NOT_FOUND;
 	}
 
@@ -381,7 +386,6 @@ static UINT gdi_SurfaceCommand_Planar(rdpGdi* gdi, RdpgfxClientContext* context,
 	invalidRect.bottom = cmd->bottom;
 	region16_union_rect(&(surface->invalidRegion), &(surface->invalidRegion),
 	                    &invalidRect);
-
 	IFCALL(context->UpdateSurfaceArea, context, surface->surfaceId, 1, &invalidRect);
 
 	if (!gdi->inGfxFrame)
@@ -409,17 +413,19 @@ static UINT gdi_SurfaceCommand_AVC420(rdpGdi* gdi,
 	gdiGfxSurface* surface;
 	RDPGFX_H264_METABLOCK* meta;
 	RDPGFX_AVC420_BITMAP_STREAM* bs;
-
 	surface = (gdiGfxSurface*) context->GetSurfaceData(context, cmd->surfaceId);
+
 	if (!surface)
 	{
-		WLog_ERR(TAG, "%s: unable to retrieve surfaceData for surfaceId=%"PRIu32"", __FUNCTION__, cmd->surfaceId);
+		WLog_ERR(TAG, "%s: unable to retrieve surfaceData for surfaceId=%"PRIu32"", __FUNCTION__,
+		         cmd->surfaceId);
 		return ERROR_NOT_FOUND;
 	}
 
 	if (!surface->h264)
 	{
 		surface->h264 = h264_context_new(FALSE);
+
 		if (!surface->h264)
 		{
 			WLog_ERR(TAG, "%s: unable to create h264 context", __FUNCTION__);
@@ -431,6 +437,7 @@ static UINT gdi_SurfaceCommand_AVC420(rdpGdi* gdi,
 	}
 
 	bs = (RDPGFX_AVC420_BITMAP_STREAM*) cmd->extra;
+
 	if (!bs)
 		return ERROR_INTERNAL_ERROR;
 
@@ -451,6 +458,7 @@ static UINT gdi_SurfaceCommand_AVC420(rdpGdi* gdi,
 		region16_union_rect(&(surface->invalidRegion), &(surface->invalidRegion),
 		                    (RECTANGLE_16*) & (meta->regionRects[i]));
 	}
+
 	IFCALL(context->UpdateSurfaceArea, context, surface->surfaceId,
 	       meta->numRegionRects, meta->regionRects);
 
@@ -485,17 +493,19 @@ static UINT gdi_SurfaceCommand_AVC444(rdpGdi* gdi, RdpgfxClientContext* context,
 	RDPGFX_AVC420_BITMAP_STREAM* avc2;
 	RDPGFX_H264_METABLOCK* meta2;
 	RECTANGLE_16* regionRects = NULL;
-
 	surface = (gdiGfxSurface*) context->GetSurfaceData(context, cmd->surfaceId);
+
 	if (!surface)
 	{
-		WLog_ERR(TAG, "%s: unable to retrieve surfaceData for surfaceId=%"PRIu32"", __FUNCTION__, cmd->surfaceId);
+		WLog_ERR(TAG, "%s: unable to retrieve surfaceData for surfaceId=%"PRIu32"", __FUNCTION__,
+		         cmd->surfaceId);
 		return ERROR_NOT_FOUND;
 	}
 
 	if (!surface->h264)
 	{
 		surface->h264 = h264_context_new(FALSE);
+
 		if (!surface->h264)
 		{
 			WLog_ERR(TAG, "%s: unable to create h264 context", __FUNCTION__);
@@ -534,6 +544,7 @@ static UINT gdi_SurfaceCommand_AVC444(rdpGdi* gdi, RdpgfxClientContext* context,
 	{
 		region16_union_rect(&(surface->invalidRegion), &(surface->invalidRegion), &(meta1->regionRects[i]));
 	}
+
 	IFCALL(context->UpdateSurfaceArea, context, surface->surfaceId,
 	       meta1->numRegionRects, meta1->regionRects);
 
@@ -541,6 +552,7 @@ static UINT gdi_SurfaceCommand_AVC444(rdpGdi* gdi, RdpgfxClientContext* context,
 	{
 		region16_union_rect(&(surface->invalidRegion), &(surface->invalidRegion), &(meta2->regionRects[i]));
 	}
+
 	IFCALL(context->UpdateSurfaceArea, context, surface->surfaceId,
 	       meta2->numRegionRects, meta2->regionRects);
 
@@ -569,17 +581,18 @@ static UINT gdi_SurfaceCommand_Alpha(rdpGdi* gdi, RdpgfxClientContext* context,
 	UINT32 color;
 	gdiGfxSurface* surface;
 	RECTANGLE_16 invalidRect;
-
 	surface = (gdiGfxSurface*) context->GetSurfaceData(context, cmd->surfaceId);
+
 	if (!surface)
 	{
-		WLog_ERR(TAG, "%s: unable to retrieve surfaceData for surfaceId=%"PRIu32"", __FUNCTION__, cmd->surfaceId);
+		WLog_ERR(TAG, "%s: unable to retrieve surfaceData for surfaceId=%"PRIu32"", __FUNCTION__,
+		         cmd->surfaceId);
 		return ERROR_NOT_FOUND;
 	}
 
 	WLog_WARN(TAG, "TODO gdi_SurfaceCommand_Alpha: status: %"PRIu32"", status);
 	/* fill with green for now to distinguish from the rest */
-	color = GetColor(surface->format, 0x00, 0xFF, 0x00, 0xFF);
+	color = FreeRDPGetColor(surface->format, 0x00, 0xFF, 0x00, 0xFF);
 
 	if (!freerdp_image_fill(surface->data, surface->format, surface->scanline,
 	                        cmd->left, cmd->top, cmd->width, cmd->height, color))
@@ -591,7 +604,6 @@ static UINT gdi_SurfaceCommand_Alpha(rdpGdi* gdi, RdpgfxClientContext* context,
 	invalidRect.bottom = cmd->bottom;
 	region16_union_rect(&(surface->invalidRegion), &(surface->invalidRegion),
 	                    &invalidRect);
-
 	IFCALL(context->UpdateSurfaceArea, context, surface->surfaceId, 1, &invalidRect);
 
 	if (!gdi->inGfxFrame)
@@ -618,17 +630,17 @@ static UINT gdi_SurfaceCommand_Progressive(rdpGdi* gdi,
 	REGION16 invalidRegion;
 	const RECTANGLE_16* rects;
 	UINT32 nrRects, x;
-
 	/**
 	 * Note: Since this comes via a Wire-To-Surface-2 PDU the
 	 * cmd's top/left/right/bottom/width/height members are always zero!
 	 * The update region is determined during decompression.
 	 */
-
 	surface = (gdiGfxSurface*) context->GetSurfaceData(context, cmd->surfaceId);
+
 	if (!surface)
 	{
-		WLog_ERR(TAG, "%s: unable to retrieve surfaceData for surfaceId=%"PRIu32"", __FUNCTION__, cmd->surfaceId);
+		WLog_ERR(TAG, "%s: unable to retrieve surfaceData for surfaceId=%"PRIu32"", __FUNCTION__,
+		         cmd->surfaceId);
 		return ERROR_NOT_FOUND;
 	}
 
@@ -658,8 +670,9 @@ static UINT gdi_SurfaceCommand_Progressive(rdpGdi* gdi,
 	rects = region16_rects(&invalidRegion, &nrRects);
 	IFCALL(context->UpdateSurfaceArea, context, surface->surfaceId, nrRects, rects);
 
-	for (x=0; x<nrRects; x++)
+	for (x = 0; x < nrRects; x++)
 		region16_union_rect(&surface->invalidRegion, &surface->invalidRegion, &rects[x]);
+
 	region16_uninit(&invalidRegion);
 
 	if (!gdi->inGfxFrame)
@@ -690,7 +703,7 @@ static UINT gdi_SurfaceCommand(RdpgfxClientContext* context,
 	           "left=%"PRIu32", top=%"PRIu32", right=%"PRIu32", bottom=%"PRIu32", width=%"PRIu32", height=%"PRIu32" "
 	           "length=%"PRIu32", data=%p, extra=%p",
 	           cmd->surfaceId, cmd->codecId, cmd->contextId,
-	           GetColorFormatName(cmd->format), cmd->left, cmd->top, cmd->right,
+	           FreeRDPGetColorFormatName(cmd->format), cmd->left, cmd->top, cmd->right,
 	           cmd->bottom, cmd->width, cmd->height, cmd->length, (void*) cmd->data, (void*) cmd->extra);
 
 	switch (cmd->codecId)
@@ -760,7 +773,7 @@ static UINT gdi_CreateSurface(RdpgfxClientContext* context,
                               const RDPGFX_CREATE_SURFACE_PDU* createSurface)
 {
 	gdiGfxSurface* surface;
-		rdpGdi* gdi = (rdpGdi*) context->custom;
+	rdpGdi* gdi = (rdpGdi*) context->custom;
 	surface = (gdiGfxSurface*) calloc(1, sizeof(gdiGfxSurface));
 
 	if (!surface)
@@ -868,7 +881,7 @@ static UINT gdi_SolidFill(RdpgfxClientContext* context,
 	/* a = solidFill->fillPixel.XA;
 	 * Ignore alpha channel, this is a solid fill. */
 	a = 0xFF;
-	color = GetColor(surface->format, r, g, b, a);
+	color = FreeRDPGetColor(surface->format, r, g, b, a);
 
 	for (index = 0; index < solidFill->fillRectCount; index++)
 	{
@@ -887,6 +900,7 @@ static UINT gdi_SolidFill(RdpgfxClientContext* context,
 		region16_union_rect(&(surface->invalidRegion), &(surface->invalidRegion),
 		                    &invalidRect);
 	}
+
 	IFCALL(context->UpdateSurfaceArea, context, surface->surfaceId,
 	       solidFill->fillRectCount, solidFill->fillRects);
 
@@ -976,14 +990,14 @@ static UINT gdi_SurfaceToCache(RdpgfxClientContext* context,
 	const RECTANGLE_16* rect;
 	gdiGfxSurface* surface;
 	gdiGfxCacheEntry* cacheEntry;
-
 	rect = &(surfaceToCache->rectSrc);
-
 	surface = (gdiGfxSurface*) context->GetSurfaceData(context, surfaceToCache->surfaceId);
+
 	if (!surface)
 		return ERROR_INTERNAL_ERROR;
 
 	cacheEntry = (gdiGfxCacheEntry*) calloc(1, sizeof(gdiGfxCacheEntry));
+
 	if (!cacheEntry)
 		return ERROR_NOT_ENOUGH_MEMORY;
 
@@ -991,8 +1005,8 @@ static UINT gdi_SurfaceToCache(RdpgfxClientContext* context,
 	cacheEntry->height = (UINT32)(rect->bottom - rect->top);
 	cacheEntry->format = surface->format;
 	cacheEntry->scanline = gfx_align_scanline(cacheEntry->width * 4, 16);
-
 	cacheEntry->data = (BYTE*) calloc(cacheEntry->height, cacheEntry->scanline);
+
 	if (!cacheEntry->data)
 	{
 		free(cacheEntry);
@@ -1025,7 +1039,6 @@ static UINT gdi_CacheToSurface(RdpgfxClientContext* context,
 	gdiGfxCacheEntry* cacheEntry;
 	RECTANGLE_16 invalidRect;
 	rdpGdi* gdi = (rdpGdi*) context->custom;
-
 	surface = (gdiGfxSurface*) context->GetSurfaceData(context, cacheToSurface->surfaceId);
 	cacheEntry = (gdiGfxCacheEntry*) context->GetCacheSlotData(context, cacheToSurface->cacheSlot);
 
@@ -1146,16 +1159,16 @@ void gdi_graphics_pipeline_init(rdpGdi* gdi, RdpgfxClientContext* gfx)
 	gfx->MapSurfaceToOutput = gdi_MapSurfaceToOutput;
 	gfx->MapSurfaceToWindow = gdi_MapSurfaceToWindow;
 	gfx->UpdateSurfaces = gdi_UpdateSurfaces;
-	PROFILER_CREATE(gfx->SurfaceProfiler, "GFX-PROFILER");
+	PROFILER_CREATE(gfx->SurfaceProfiler, "GFX-PROFILER")
 }
 
 void gdi_graphics_pipeline_uninit(rdpGdi* gdi, RdpgfxClientContext* gfx)
 {
 	gdi->gfx = NULL;
 	gfx->custom = NULL;
-	PROFILER_PRINT_HEADER;
-	PROFILER_PRINT(gfx->SurfaceProfiler);
-	PROFILER_PRINT_FOOTER;
-	PROFILER_FREE(gfx->SurfaceProfiler);
+	PROFILER_PRINT_HEADER
+	PROFILER_PRINT(gfx->SurfaceProfiler)
+	PROFILER_PRINT_FOOTER
+	PROFILER_FREE(gfx->SurfaceProfiler)
 }
 

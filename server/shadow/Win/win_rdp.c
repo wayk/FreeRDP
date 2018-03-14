@@ -28,21 +28,21 @@
 
 #define TAG SERVER_TAG("shadow.win")
 
-void shw_OnChannelConnectedEventHandler(rdpContext* context,
-                                        ChannelConnectedEventArgs* e)
+static void shw_OnChannelConnectedEventHandler(void* context,
+        ChannelConnectedEventArgs* e)
 {
 	shwContext* shw = (shwContext*) context;
 	WLog_INFO(TAG, "OnChannelConnected: %s", e->name);
 }
 
-void shw_OnChannelDisconnectedEventHandler(rdpContext* context,
+static void shw_OnChannelDisconnectedEventHandler(void* context,
         ChannelDisconnectedEventArgs* e)
 {
 	shwContext* shw = (shwContext*) context;
 	WLog_INFO(TAG, "OnChannelDisconnected: %s", e->name);
 }
 
-BOOL shw_begin_paint(rdpContext* context)
+static BOOL shw_begin_paint(rdpContext* context)
 {
 	shwContext* shw;
 	rdpGdi* gdi = context->gdi;
@@ -52,7 +52,7 @@ BOOL shw_begin_paint(rdpContext* context)
 	return TRUE;
 }
 
-BOOL shw_end_paint(rdpContext* context)
+static BOOL shw_end_paint(rdpContext* context)
 {
 	int index;
 	int ninvalid;
@@ -86,15 +86,15 @@ BOOL shw_desktop_resize(rdpContext* context)
 	return TRUE;
 }
 
-BOOL shw_surface_frame_marker(rdpContext* context,
-                              const SURFACE_FRAME_MARKER* surfaceFrameMarker)
+static BOOL shw_surface_frame_marker(rdpContext* context,
+                                     const SURFACE_FRAME_MARKER* surfaceFrameMarker)
 {
 	shwContext* shw = (shwContext*) context;
 	return TRUE;
 }
 
-BOOL shw_authenticate(freerdp* instance, char** username, char** password,
-                      char** domain)
+static BOOL shw_authenticate(freerdp* instance, char** username, char** password,
+                             char** domain)
 {
 	return TRUE;
 }
@@ -106,30 +106,30 @@ static DWORD shw_verify_certificate(freerdp* instance, const char* common_name,
 	return 1;
 }
 
-int shw_verify_x509_certificate(freerdp* instance, BYTE* data, int length,
-                                const char* hostname, int port, DWORD flags)
+static int shw_verify_x509_certificate(freerdp* instance, BYTE* data, int length,
+                                       const char* hostname, int port, DWORD flags)
 {
 	return 1;
 }
 
-void shw_OnConnectionResultEventHandler(rdpContext* context,
-                                        ConnectionResultEventArgs* e)
+static void shw_OnConnectionResultEventHandler(void* context,
+        ConnectionResultEventArgs* e)
 {
 	shwContext* shw = (shwContext*) context;
 	WLog_INFO(TAG, "OnConnectionResult: %d", e->result);
 }
 
-BOOL shw_pre_connect(freerdp* instance)
+static BOOL shw_pre_connect(freerdp* instance)
 {
 	shwContext* shw;
 	rdpContext* context = instance->context;
 	shw = (shwContext*) context;
 	PubSub_SubscribeConnectionResult(context->pubSub,
-	                                 (pConnectionResultEventHandler) shw_OnConnectionResultEventHandler);
+	                                 shw_OnConnectionResultEventHandler);
 	PubSub_SubscribeChannelConnected(context->pubSub,
-	                                 (pChannelConnectedEventHandler) shw_OnChannelConnectedEventHandler);
+	                                 shw_OnChannelConnectedEventHandler);
 	PubSub_SubscribeChannelDisconnected(context->pubSub,
-	                                    (pChannelDisconnectedEventHandler) shw_OnChannelDisconnectedEventHandler);
+	                                    shw_OnChannelDisconnectedEventHandler);
 
 	if (!freerdp_client_load_addins(context->channels, instance->settings))
 		return FALSE;
@@ -137,7 +137,7 @@ BOOL shw_pre_connect(freerdp* instance)
 	return TRUE;
 }
 
-BOOL shw_post_connect(freerdp* instance)
+static BOOL shw_post_connect(freerdp* instance)
 {
 	rdpGdi* gdi;
 	shwContext* shw;
@@ -156,7 +156,7 @@ BOOL shw_post_connect(freerdp* instance)
 	return TRUE;
 }
 
-void* shw_client_thread(void* arg)
+static DWORD WINAPI shw_client_thread(LPVOID arg)
 {
 	int index;
 	int rcount;
@@ -180,7 +180,7 @@ void* shw_client_thread(void* arg)
 	if (!bSuccess)
 	{
 		ExitThread(0);
-		return NULL;
+		return 0;
 	}
 
 	channels = instance->context->channels;
@@ -237,30 +237,29 @@ void* shw_client_thread(void* arg)
 
 	freerdp_free(instance);
 	ExitThread(0);
-	return NULL;
+	return 0;
 }
 
 /**
  * Client Interface
  */
 
-BOOL shw_freerdp_client_global_init(void)
+static BOOL shw_freerdp_client_global_init(void)
 {
 	return TRUE;
 }
 
-void shw_freerdp_client_global_uninit(void)
+static void shw_freerdp_client_global_uninit(void)
 {
 }
 
-int shw_freerdp_client_start(rdpContext* context)
+static int shw_freerdp_client_start(rdpContext* context)
 {
 	shwContext* shw;
 	freerdp* instance = context->instance;
 	shw = (shwContext*) context;
 
-	if (!(shw->thread = CreateThread(NULL, 0,
-	                                 (LPTHREAD_START_ROUTINE) shw_client_thread,
+	if (!(shw->thread = CreateThread(NULL, 0, shw_client_thread,
 	                                 instance, 0, NULL)))
 	{
 		WLog_ERR(TAG, "Failed to create thread");
@@ -270,14 +269,14 @@ int shw_freerdp_client_start(rdpContext* context)
 	return 0;
 }
 
-int shw_freerdp_client_stop(rdpContext* context)
+static int shw_freerdp_client_stop(rdpContext* context)
 {
 	shwContext* shw = (shwContext*) context;
 	SetEvent(shw->StopEvent);
 	return 0;
 }
 
-BOOL shw_freerdp_client_new(freerdp* instance, rdpContext* context)
+static BOOL shw_freerdp_client_new(freerdp* instance, rdpContext* context)
 {
 	shwContext* shw;
 	rdpSettings* settings;
@@ -335,7 +334,7 @@ BOOL shw_freerdp_client_new(freerdp* instance, rdpContext* context)
 	return TRUE;
 }
 
-void shw_freerdp_client_free(freerdp* instance, rdpContext* context)
+static void shw_freerdp_client_free(freerdp* instance, rdpContext* context)
 {
 	shwContext* shw = (shwContext*) instance->context;
 }

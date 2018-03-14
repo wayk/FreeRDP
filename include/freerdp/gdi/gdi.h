@@ -32,6 +32,8 @@
 #include <freerdp/codec/region.h>
 
 #include <freerdp/client/rdpgfx.h>
+#include <freerdp/client/geometry.h>
+#include <freerdp/client/video.h>
 
 /* For more information, see [MS-RDPEGDI] */
 
@@ -517,8 +519,11 @@ struct rdp_gdi
 
 	BOOL inGfxFrame;
 	BOOL graphicsReset;
+	BOOL suppressOutput;
 	UINT16 outputSurfaceId;
 	RdpgfxClientContext* gfx;
+	VideoClientContext* video;
+	GeometryClientContext* geometry;
 
 	wLog* log;
 };
@@ -528,6 +533,9 @@ extern "C" {
 #endif
 
 FREERDP_API DWORD gdi_rop3_code(BYTE code);
+FREERDP_API const char* gdi_rop3_code_string(BYTE code);
+FREERDP_API const char* gdi_rop3_string(DWORD rop);
+
 FREERDP_API UINT32 gdi_get_pixel_format(UINT32 bitsPerPixel);
 FREERDP_API BOOL gdi_decode_color(rdpGdi* gdi, const UINT32 srcColor,
                                   UINT32* color, UINT32* format);
@@ -540,6 +548,8 @@ FREERDP_API BOOL gdi_init_ex(freerdp* instance, UINT32 format,
                              UINT32 stride, BYTE* buffer,
                              void (*pfree)(void*));
 FREERDP_API void gdi_free(freerdp* instance);
+
+FREERDP_API BOOL gdi_send_suppress_output(rdpGdi* gdi, BOOL suppress);
 
 #ifdef __cplusplus
 }

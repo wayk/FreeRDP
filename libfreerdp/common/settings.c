@@ -307,17 +307,8 @@ out_print_name_error:
 				goto out_smartc_name_error;
 		}
 
-		if (smartcard->Path)
-		{
-			_smartcard->Path = _strdup(smartcard->Path);
-			if (!_smartcard->Path)
-				goto out_smartc_path_error;
-		}
-
 		return (RDPDR_DEVICE*) _smartcard;
 
-out_smartc_path_error:
-		free(_smartcard->Name);
 out_smartc_name_error:
 		free(_smartcard);
 		return NULL;
@@ -428,7 +419,7 @@ void freerdp_device_collection_free(rdpSettings* settings)
 		}
 		else if (settings->DeviceArray[index]->Type == RDPDR_DTYP_SMARTCARD)
 		{
-			free(((RDPDR_SMARTCARD*) device)->Path);
+
 		}
 		else if (settings->DeviceArray[index]->Type == RDPDR_DTYP_SERIAL)
 		{
@@ -2512,6 +2503,9 @@ char* freerdp_get_param_string(rdpSettings* settings, int id)
 		case FreeRDP_GatewayDomain:
 			return settings->GatewayDomain;
 
+		case FreeRDP_GatewayAccessToken:
+			return settings->GatewayAccessToken;
+
 		case FreeRDP_ProxyHostname:
 			return settings->ProxyHostname;
 
@@ -2720,6 +2714,10 @@ int freerdp_set_param_string(rdpSettings* settings, int id, const char* param)
 
 		case FreeRDP_GatewayDomain:
 			tmp = &settings->GatewayDomain;
+			break;
+
+		case FreeRDP_GatewayAccessToken:
+			tmp = &settings->GatewayAccessToken;
 			break;
 
 		case FreeRDP_ProxyHostname:

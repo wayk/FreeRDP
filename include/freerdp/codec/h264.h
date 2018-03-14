@@ -20,6 +20,8 @@
 #ifndef FREERDP_CODEC_H264_H
 #define FREERDP_CODEC_H264_H
 
+#include <winpr/wlog.h>
+
 #include <freerdp/api.h>
 #include <freerdp/types.h>
 #include <freerdp/channels/rdpgfx.h>
@@ -31,8 +33,9 @@ typedef void (*pfnH264SubsystemUninit)(H264_CONTEXT* h264);
 
 typedef int (*pfnH264SubsystemDecompress)(H264_CONTEXT* h264, const BYTE* pSrcData,
         UINT32 SrcSize);
-typedef int (*pfnH264SubsystemCompress)(H264_CONTEXT* h264, BYTE** ppDstData,
-                                        UINT32* pDstSize);
+typedef int (*pfnH264SubsystemCompress)(H264_CONTEXT* h264, const BYTE** pSrcYuv,
+                                        const UINT32* pStride,
+                                        BYTE** ppDstData, UINT32* pDstSize);
 
 struct _H264_CONTEXT_SUBSYSTEM
 {
@@ -74,8 +77,10 @@ struct _H264_CONTEXT
 	UINT32 numSystemData;
 	void* pSystemData;
 	H264_CONTEXT_SUBSYSTEM* subsystem;
-};
 
+	void* lumaData;
+	wLog* log;
+};
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -93,7 +98,7 @@ FREERDP_API INT32 avc420_decompress(H264_CONTEXT* h264, const BYTE* pSrcData,
 
 FREERDP_API INT32 avc444_compress(H264_CONTEXT* h264, const BYTE* pSrcData, DWORD SrcFormat,
                                   UINT32 nSrcStep, UINT32 nSrcWidth, UINT32 nSrcHeight,
-                                  BYTE* op,
+                                  BYTE version, BYTE* op,
                                   BYTE** pDstData, UINT32* pDstSize,
                                   BYTE** pAuxDstData, UINT32* pAuxDstSize);
 

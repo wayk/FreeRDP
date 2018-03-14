@@ -304,7 +304,7 @@ static UINT parallel_process_irp(PARALLEL_DEVICE* parallel, IRP* irp)
 	return CHANNEL_RC_OK;
 }
 
-static void* parallel_thread_func(void* arg)
+static DWORD WINAPI parallel_thread_func(LPVOID arg)
 {
 	IRP* irp;
 	wMessage message;
@@ -343,8 +343,8 @@ static void* parallel_thread_func(void* arg)
 		setChannelError(parallel->rdpcontext, error,
 		                "parallel_thread_func reported an error");
 
-	ExitThread((DWORD)error);
-	return NULL;
+	ExitThread(error);
+	return error;
 }
 
 /**
@@ -375,8 +375,8 @@ static UINT parallel_free(DEVICE* device)
 	UINT error;
 	PARALLEL_DEVICE* parallel = (PARALLEL_DEVICE*) device;
 
-	if (MessageQueue_PostQuit(parallel->queue, 0)
-	    && (WaitForSingleObject(parallel->thread, INFINITE) == WAIT_FAILED))
+	if (!MessageQueue_PostQuit(parallel->queue, 0)
+	    || (WaitForSingleObject(parallel->thread, INFINITE) == WAIT_FAILED))
 	{
 		error = GetLastError();
 		WLog_ERR(TAG, "WaitForSingleObject failed with error %"PRIu32"!", error);
@@ -405,7 +405,7 @@ UINT DeviceServiceEntry(PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints)
 {
 	char* name;
 	char* path;
-	int i;
+	size_t i;
 	size_t length;
 	RDPDR_PARALLEL* device;
 	PARALLEL_DEVICE* parallel;
@@ -414,10 +414,10 @@ UINT DeviceServiceEntry(PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints)
 	name = device->Name;
 	path = device->Path;
 
-	if (!name || (name[0] == '*'))
+	if (!name || (name[0] == '*') || !path)
 	{
 		/* TODO: implement auto detection of parallel ports */
-		return CHANNEL_RC_OK;
+		return CHANNEL_RC_INITIALIZATION_ERROR;
 	}
 
 	if (name[0] && path[0])
@@ -466,7 +466,7 @@ UINT DeviceServiceEntry(PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints)
 		}
 
 		if (!(parallel->thread = CreateThread(NULL, 0,
-		                                      (LPTHREAD_START_ROUTINE) parallel_thread_func, (void*) parallel, 0, NULL)))
+											  parallel_thread_func, (void*) parallel, 0, NULL)))
 		{
 			WLog_ERR(TAG, "CreateThread failed!");
 			error = ERROR_INTERNAL_ERROR;

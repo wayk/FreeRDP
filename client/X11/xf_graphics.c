@@ -170,13 +170,22 @@ static void xf_Bitmap_Free(rdpContext* context, rdpBitmap* bitmap)
 
 	xf_lock_x11(xfc, FALSE);
 
-	if (xbitmap->pixmap != 0)
+	if (xbitmap->pixmap != NULL)
+	{
 		XFreePixmap(xfc->display, xbitmap->pixmap);
+		xbitmap->pixmap = NULL;
+	}
 
 	if (xbitmap->image)
-		XFree(xbitmap->image);
+	{
+		xbitmap->image->data = NULL;
+		XDestroyImage(xbitmap->image);
+		xbitmap->image = NULL;
+	}
 
 	xf_unlock_x11(xfc, FALSE);
+	_aligned_free(bitmap->data);
+	free(xbitmap);
 }
 
 static BOOL xf_Bitmap_Paint(rdpContext* context, rdpBitmap* bitmap)
@@ -397,7 +406,8 @@ static BOOL xf_Glyph_New(rdpContext* context, const rdpGlyph* glyph)
 	XInitImage(image);
 	XPutImage(xfc->display, xf_glyph->pixmap, xfc->gc_mono, image, 0, 0, 0, 0,
 	          glyph->cx, glyph->cy);
-	XFree(image);
+	image->data = NULL;
+	XDestroyImage(image);
 	xf_unlock_x11(xfc, FALSE);
 	return TRUE;
 }

@@ -66,6 +66,10 @@ DEFINE_EVENT_BEGIN(ErrorInfo)
 UINT32 code;
 DEFINE_EVENT_END(ErrorInfo)
 
+DEFINE_EVENT_BEGIN(Activated)
+BOOL firstActivation;
+DEFINE_EVENT_END(Activated)
+
 DEFINE_EVENT_BEGIN(Terminate)
 int code;
 DEFINE_EVENT_END(Terminate)
@@ -99,6 +103,15 @@ UINT16 flags;
 UINT16 x;
 UINT16 y;
 DEFINE_EVENT_END(MouseEvent)
+
+DEFINE_EVENT_BEGIN(Timer)
+UINT64 now;
+DEFINE_EVENT_END(Timer)
+
+DEFINE_EVENT_BEGIN(GraphicsReset)
+UINT32 width;
+UINT32 height;
+DEFINE_EVENT_END(GraphicsReset)
 
 #ifdef	__cplusplus
 }

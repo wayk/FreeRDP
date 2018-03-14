@@ -89,7 +89,7 @@ static wStream* cliprdr_packet_new(UINT16 msgType, UINT16 msgFlags,
  */
 static UINT cliprdr_packet_send(cliprdrPlugin* cliprdr, wStream* s)
 {
-	UINT32 pos;
+	size_t pos;
 	UINT32 dataLen;
 	UINT status = CHANNEL_RC_OK;
 	pos = Stream_GetPosition(s);
@@ -1057,7 +1057,7 @@ static VOID VCAPITYPE cliprdr_virtual_channel_open_event_ex(LPVOID lpUserParam, 
 		                "cliprdr_virtual_channel_open_event_ex reported an error");
 }
 
-static void* cliprdr_virtual_channel_client_thread(void* arg)
+static DWORD WINAPI cliprdr_virtual_channel_client_thread(LPVOID arg)
 {
 	wStream* data;
 	wMessage message;
@@ -1099,8 +1099,8 @@ static void* cliprdr_virtual_channel_client_thread(void* arg)
 		setChannelError(cliprdr->context->rdpcontext, error,
 		                "cliprdr_virtual_channel_client_thread reported an error");
 
-	ExitThread((DWORD)error);
-	return NULL;
+	ExitThread(error);
+	return error;
 }
 
 /**
@@ -1131,8 +1131,7 @@ static UINT cliprdr_virtual_channel_event_connected(cliprdrPlugin* cliprdr,
 		return ERROR_NOT_ENOUGH_MEMORY;
 	}
 
-	if (!(cliprdr->thread = CreateThread(NULL, 0,
-	                                     (LPTHREAD_START_ROUTINE) cliprdr_virtual_channel_client_thread, (void*) cliprdr,
+	if (!(cliprdr->thread = CreateThread(NULL, 0, cliprdr_virtual_channel_client_thread, (void*) cliprdr,
 	                                     0, NULL)))
 	{
 		WLog_ERR(TAG, "CreateThread failed!");

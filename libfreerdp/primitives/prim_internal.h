@@ -17,8 +17,8 @@
 #ifndef FREERDP_LIB_PRIM_INTERNAL_H
 #define FREERDP_LIB_PRIM_INTERNAL_H
 
-#ifndef CMAKE_BUILD_TYPE
-#define CMAKE_BUILD_TYPE Release
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
 #include <freerdp/primitives.h>
@@ -33,11 +33,17 @@
 #endif
 #endif
 
+#if defined(WITH_SSE2) || defined(WITH_NEON)
+#define HAVE_OPTIMIZED_PRIMITIVES 1
+#endif
+
+#if defined(WITH_SSE2)
 /* Use lddqu for unaligned; load for 16-byte aligned. */
 #define LOAD_SI128(_ptr_) \
 	(((ULONG_PTR) (_ptr_) & 0x0f) \
 	 ? _mm_lddqu_si128((__m128i *) (_ptr_)) \
 	 : _mm_load_si128((__m128i *) (_ptr_)))
+#endif
 
 static INLINE BYTE* writePixelBGRX(BYTE* dst, DWORD formatSize, UINT32 format,
                                    BYTE R, BYTE G, BYTE B, BYTE A)
@@ -82,7 +88,7 @@ static INLINE BYTE* writePixelXRGB(BYTE* dst, DWORD formatSize, UINT32 format,
 static INLINE BYTE* writePixelGeneric(BYTE* dst, DWORD formatSize, UINT32 format,
                                       BYTE R, BYTE G, BYTE B, BYTE A)
 {
-	UINT32 color = GetColor(format, R, G, B, A);
+	UINT32 color = FreeRDPGetColor(format, R, G, B, A);
 	WriteColor(dst, format, color);
 	return dst + formatSize;
 }
@@ -178,6 +184,7 @@ FREERDP_LOCAL void primitives_init_colors(primitives_t* prims);
 FREERDP_LOCAL void primitives_init_YCoCg(primitives_t* prims);
 FREERDP_LOCAL void primitives_init_YUV(primitives_t* prims);
 
+#if defined(WITH_SSE2) || defined(WITH_NEON)
 FREERDP_LOCAL void primitives_init_copy_opt(primitives_t* prims);
 FREERDP_LOCAL void primitives_init_set_opt(primitives_t* prims);
 FREERDP_LOCAL void primitives_init_add_opt(primitives_t* prims);
@@ -188,5 +195,6 @@ FREERDP_LOCAL void primitives_init_alphaComp_opt(primitives_t* prims);
 FREERDP_LOCAL void primitives_init_colors_opt(primitives_t* prims);
 FREERDP_LOCAL void primitives_init_YCoCg_opt(primitives_t* prims);
 FREERDP_LOCAL void primitives_init_YUV_opt(primitives_t* prims);
+#endif
 
 #endif /* FREERDP_LIB_PRIM_INTERNAL_H */

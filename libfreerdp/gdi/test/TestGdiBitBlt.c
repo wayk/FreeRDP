@@ -500,7 +500,7 @@ static BOOL test_gdi_BitBlt(UINT32 SrcFormat, UINT32 DstFormat)
 	g.format = DstFormat;
 
 	for (x = 0; x < 256; x++)
-		g.palette[x] = GetColor(DstFormat, x, x, x, 0xFF);
+		g.palette[x] = FreeRDPGetColor(DstFormat, x, x, x, 0xFF);
 
 	if (!(hdcSrc = gdi_GetDC()))
 	{
@@ -530,7 +530,7 @@ static BOOL test_gdi_BitBlt(UINT32 SrcFormat, UINT32 DstFormat)
 		goto fail;
 
 	hBmpDstOriginal = test_convert_to_bitmap(bmp_DST, RawFormat, 0, 0, 0,
-	                  DstFormat, 0, 0, 0, 16, 16, hPalette);
+	                  SrcFormat, 0, 0, 0, 16, 16, hPalette);
 
 	if (!hBmpDstOriginal)
 		goto fail;
@@ -605,8 +605,8 @@ int TestGdiBitBlt(int argc, char* argv[])
 			if (!test_gdi_BitBlt(formatList[x], formatList[y]))
 			{
 				fprintf(stderr, "test_gdi_BitBlt(SrcFormat=%s, DstFormat=%s) failed!\n",
-				        GetColorFormatName(formatList[x]),
-				        GetColorFormatName(formatList[y]));
+				        FreeRDPGetColorFormatName(formatList[x]),
+				        FreeRDPGetColorFormatName(formatList[y]));
 				rc = -y;
 			}
 		}

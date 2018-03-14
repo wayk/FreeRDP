@@ -258,7 +258,7 @@ BOOL freerdp_connect(freerdp* instance)
 				Stream_SetLength(s, record.length);
 				Stream_SetPosition(s, 0);
 				update->BeginPaint(update->context);
-				update_recv_surfcmds(update, Stream_Length(s), s);
+				update_recv_surfcmds(update, s);
 				update->EndPaint(update->context);
 				Stream_Release(s);
 			}
@@ -279,6 +279,10 @@ freerdp_connect_finally:
 	EventArgsInit(&e, "freerdp");
 	e.result = status ? 0 : -1;
 	PubSub_OnConnectionResult(instance->context->pubSub, instance->context, &e);
+
+	if (!status)
+		freerdp_disconnect(instance);
+
 	return status;
 }
 
@@ -600,6 +604,9 @@ static wEventType FreeRDP_Events[] =
 	DEFINE_EVENT_ENTRY(ChannelConnected)
 	DEFINE_EVENT_ENTRY(ChannelDisconnected)
 	DEFINE_EVENT_ENTRY(MouseEvent)
+	DEFINE_EVENT_ENTRY(Activated)
+	DEFINE_EVENT_ENTRY(Timer)
+	DEFINE_EVENT_ENTRY(GraphicsReset)
 };
 
 /** Allocator function for a rdp context.
@@ -630,7 +637,7 @@ BOOL freerdp_context_new(freerdp* instance)
 		goto fail;
 
 	PubSub_AddEventTypes(context->pubSub, FreeRDP_Events,
-	                     sizeof(FreeRDP_Events) / sizeof(wEventType));
+	                     ARRAYSIZE(FreeRDP_Events));
 	context->metrics = metrics_new(context);
 
 	if (!context->metrics)

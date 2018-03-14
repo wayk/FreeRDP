@@ -3,6 +3,7 @@
  * X11 Monitor Handling
  *
  * Copyright 2011 Marc-Andre Moreau <marcandre.moreau@gmail.com>
+ * Copyright 2017 David Fort <contact@hardening-consulting.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,17 +38,25 @@
 #include <X11/extensions/Xinerama.h>
 #endif
 
+#ifdef WITH_XRANDR
+#include <X11/extensions/Xrandr.h>
+#include <X11/extensions/randr.h>
+
+#if (RANDR_MAJOR * 100 + RANDR_MINOR) >= 105
+#	define USABLE_XRANDR
+#endif
+
+#endif
+
 #include "xf_monitor.h"
 
 /* See MSDN Section on Multiple Display Monitors: http://msdn.microsoft.com/en-us/library/dd145071 */
 
 int xf_list_monitors(xfContext* xfc)
 {
-#ifdef WITH_XINERAMA
 	Display* display;
 	int major, minor;
 	int i, nmonitors = 0;
-	XineramaScreenInfo* screen = NULL;
 	display = XOpenDisplay(NULL);
 
 	if (!display)
@@ -56,41 +65,54 @@ int xf_list_monitors(xfContext* xfc)
 		return -1;
 	}
 
-	if (XineramaQueryExtension(display, &major, &minor))
+#if defined(USABLE_XRANDR)
+
+	if (XRRQueryExtension(xfc->display, &major, &minor) &&
+	    (XRRQueryVersion(xfc->display, &major, &minor) == True) &&
+	    (major * 100 + minor >= 105))
 	{
-		if (XineramaIsActive(display))
+		XRRMonitorInfo* monitors = XRRGetMonitors(xfc->display, DefaultRootWindow(xfc->display), 1,
+		                           &nmonitors);
+
+		for (i = 0; i < nmonitors; i++)
 		{
-			screen = XineramaQueryScreens(display, &nmonitors);
-
-			for (i = 0; i < nmonitors; i++)
-			{
-				printf("      %s [%d] %hdx%hd\t+%hd+%hd\n",
-				       (i == 0) ? "*" : " ", i,
-				       screen[i].width, screen[i].height,
-				       screen[i].x_org, screen[i].y_org);
-			}
-
-			XFree(screen);
+			printf("      %s [%d] %hdx%hd\t+%hd+%hd\n",
+			       monitors[i].primary ? "*" : " ", i,
+			       monitors[i].width, monitors[i].height,
+			       monitors[i].x, monitors[i].y);
 		}
+
+		XRRFreeMonitors(monitors);
 	}
-
-	XCloseDisplay(display);
-#else
-	Screen* screen;
-	Display* display;
-	display = XOpenDisplay(NULL);
-
-	if (!display)
-	{
-		WLog_ERR(TAG, "failed to open X display");
-		return -1;
-	}
-
-	screen = ScreenOfDisplay(display, DefaultScreen(display));
-	printf("      * [0] %dx%d\t+0+0\n", WidthOfScreen(screen),
-	       HeightOfScreen(screen));
-	XCloseDisplay(display);
+	else
 #endif
+#ifdef WITH_XINERAMA
+		if (XineramaQueryExtension(display, &major, &minor))
+		{
+			if (XineramaIsActive(display))
+			{
+				XineramaScreenInfo* screen = XineramaQueryScreens(display, &nmonitors);
+
+				for (i = 0; i < nmonitors; i++)
+				{
+					printf("      %s [%d] %hdx%hd\t+%hd+%hd\n",
+					       (i == 0) ? "*" : " ", i,
+					       screen[i].width, screen[i].height,
+					       screen[i].x_org, screen[i].y_org);
+				}
+
+				XFree(screen);
+			}
+		}
+		else
+#else
+	{
+		Screen* screen = ScreenOfDisplay(display, DefaultScreen(display));
+		printf("      * [0] %dx%d\t+0+0\n", WidthOfScreen(screen), HeightOfScreen(screen));
+	}
+
+#endif
+			XCloseDisplay(display);
 	return 0;
 }
 
@@ -123,9 +145,12 @@ BOOL xf_detect_monitors(xfContext* xfc, UINT32* pMaxWidth, UINT32* pMaxHeight)
 	Window _dummy_w;
 	int current_monitor = 0;
 	Screen* screen;
-#ifdef WITH_XINERAMA
+#if defined WITH_XINERAMA || defined WITH_XRANDR
 	int major, minor;
-	XineramaScreenInfo* screenInfo = NULL;
+#endif
+#if defined(USABLE_XRANDR)
+	XRRMonitorInfo* rrmonitors = NULL;
+	BOOL useXRandr = FALSE;
 #endif
 	vscreen = &xfc->vscreen;
 	*pMaxWidth = settings->DesktopWidth;
@@ -137,13 +162,39 @@ BOOL xf_detect_monitors(xfContext* xfc, UINT32* pMaxWidth, UINT32* pMaxHeight)
 	                   &_dummy_i, &_dummy_i, (void*) &_dummy_i))
 		mouse_x = mouse_y = 0;
 
-#ifdef WITH_XINERAMA
+#if defined(USABLE_XRANDR)
 
-	if (XineramaQueryExtension(xfc->display, &major, &minor))
+	if (XRRQueryExtension(xfc->display, &major, &minor) &&
+	    (XRRQueryVersion(xfc->display, &major, &minor) == True) &&
+	    (major * 100 + minor >= 105))
 	{
-		if (XineramaIsActive(xfc->display))
+		XRRMonitorInfo* rrmonitors = XRRGetMonitors(xfc->display, DefaultRootWindow(xfc->display), 1,
+		                             &vscreen->nmonitors);
+
+		if (vscreen->nmonitors > 16)
+			vscreen->nmonitors = 0;
+
+		if (vscreen->nmonitors)
 		{
-			screenInfo = XineramaQueryScreens(xfc->display, &vscreen->nmonitors);
+			for (i = 0; i < vscreen->nmonitors; i++)
+			{
+				vscreen->monitors[i].area.left = rrmonitors[i].x;
+				vscreen->monitors[i].area.top = rrmonitors[i].y;
+				vscreen->monitors[i].area.right = rrmonitors[i].x + rrmonitors[i].width - 1;
+				vscreen->monitors[i].area.bottom = rrmonitors[i].y + rrmonitors[i].height - 1;
+				vscreen->monitors[i].primary = rrmonitors[i].primary > 0;
+			}
+		}
+
+		XRRFreeMonitors(rrmonitors);
+		useXRandr = TRUE;
+	}
+	else
+#endif
+#ifdef WITH_XINERAMA
+		if (XineramaQueryExtension(xfc->display, &major, &minor) && XineramaIsActive(xfc->display))
+		{
+			XineramaScreenInfo* screenInfo = XineramaQueryScreens(xfc->display, &vscreen->nmonitors);
 
 			if (vscreen->nmonitors > 16)
 				vscreen->nmonitors = 0;
@@ -155,8 +206,7 @@ BOOL xf_detect_monitors(xfContext* xfc, UINT32* pMaxWidth, UINT32* pMaxHeight)
 					vscreen->monitors[i].area.left = screenInfo[i].x_org;
 					vscreen->monitors[i].area.top = screenInfo[i].y_org;
 					vscreen->monitors[i].area.right = screenInfo[i].x_org + screenInfo[i].width - 1;
-					vscreen->monitors[i].area.bottom = screenInfo[i].y_org + screenInfo[i].height -
-					                                   1;
+					vscreen->monitors[i].area.bottom = screenInfo[i].y_org + screenInfo[i].height - 1;
 
 					/* Determine which monitor that the mouse cursor is on */
 					if ((mouse_x >= vscreen->monitors[i].area.left) &&
@@ -169,7 +219,6 @@ BOOL xf_detect_monitors(xfContext* xfc, UINT32* pMaxWidth, UINT32* pMaxHeight)
 
 			XFree(screenInfo);
 		}
-	}
 
 #endif
 	xfc->fullscreenMonitors.top = xfc->fullscreenMonitors.bottom =
@@ -234,7 +283,7 @@ BOOL xf_detect_monitors(xfContext* xfc, UINT32* pMaxWidth, UINT32* pMaxHeight)
 	}
 
 	if (!settings->Fullscreen && !settings->Workarea && !settings->UseMultimon)
-		return TRUE;
+		goto out;
 
 	/* If single monitor fullscreen OR workarea without remote app */
 	if ((settings->Fullscreen && !settings->UseMultimon && !settings->SpanMonitors) ||
@@ -256,17 +305,31 @@ BOOL xf_detect_monitors(xfContext* xfc, UINT32* pMaxWidth, UINT32* pMaxHeight)
 	/* Create array of all active monitors by taking into account monitors requested on the command-line */
 	for (i = 0; i < vscreen->nmonitors; i++)
 	{
+		MONITOR_ATTRIBUTES* attrs;
+
 		if (!xf_is_monitor_id_active(xfc, i))
 			continue;
 
 		settings->MonitorDefArray[nmonitors].x = vscreen->monitors[i].area.left;
 		settings->MonitorDefArray[nmonitors].y = vscreen->monitors[i].area.top;
-		settings->MonitorDefArray[nmonitors].width = MIN(vscreen->monitors[i].area.right
-		        - vscreen->monitors[i].area.left + 1, *pMaxWidth);
-		settings->MonitorDefArray[nmonitors].height = MIN(
-		            vscreen->monitors[i].area.bottom - vscreen->monitors[i].area.top + 1,
-		            *pMaxHeight);
+		settings->MonitorDefArray[nmonitors].width =
+		    MIN(vscreen->monitors[i].area.right - vscreen->monitors[i].area.left + 1, *pMaxWidth);
+		settings->MonitorDefArray[nmonitors].height =
+		    MIN(vscreen->monitors[i].area.bottom - vscreen->monitors[i].area.top + 1, *pMaxHeight);
 		settings->MonitorDefArray[nmonitors].orig_screen = i;
+#ifdef USABLE_XRANDR
+
+		if (useXRandr && rrmonitors)
+		{
+			Rotation rot, ret;
+			attrs = &settings->MonitorDefArray[nmonitors].attributes;
+			attrs->physicalWidth = rrmonitors[i].mwidth;
+			attrs->physicalHeight = rrmonitors[i].mheight;
+			ret = XRRRotations(xfc->display, i, &rot);
+			attrs->orientation = rot;
+		}
+
+#endif
 
 		if (i == settings->MonitorIds[0])
 		{
@@ -420,5 +483,12 @@ BOOL xf_detect_monitors(xfContext* xfc, UINT32* pMaxWidth, UINT32* pMaxHeight)
 	if (settings->MonitorCount)
 		settings->SupportMonitorLayoutPdu = TRUE;
 
+out:
+#ifdef USABLE_XRANDR
+
+	if (rrmonitors)
+		XRRFreeMonitors(rrmonitors);
+
+#endif
 	return TRUE;
 }
