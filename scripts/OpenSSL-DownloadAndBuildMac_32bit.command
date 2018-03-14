@@ -5,7 +5,7 @@
 # This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. 
 # If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# This script will download and build openssl for iOS (armv7, armv7s) and simulator (x86_64)
+# This script will download and build openssl for iOS (armv7, armv7s) and simulator (i386)
 
 # Settings and definitions
 USER_OS_SDK=""
@@ -27,9 +27,9 @@ OS_SDK_PATH="/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platfor
 # Functions
 function buildArch(){
 	ARCH=$1
-	LOGFILE="BuildLog.darwin64-${ARCH}.txt"
+	LOGFILE="BuildLog.darwin-${ARCH}.txt"
 	echo "Building architecture ${ARCH}. Please wait ..."
-	./Configure darwin64-${ARCH}-cc > ${LOGFILE}
+	./Configure darwin-${ARCH}-cc > ${LOGFILE}
 	make ${MAKEOPTS} >> ${LOGFILE} 2>&1
 	echo "Done. Build log saved in ${LOGFILE}"
 	cp libcrypto.a ../../lib/libcrypto.a
@@ -104,7 +104,7 @@ rm -f ../../include/openssl/*.h
 mkdir -p ../../lib
 rm -f ../../lib/*.a
 
-buildArch x86_64
+buildArch i386
 
 echo "Copying header hiles ..."
 cp -RL include/openssl/ ../../include/openssl/
