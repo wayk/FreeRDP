@@ -258,17 +258,11 @@ endif()
 
 if(WITH_SSE2)
 	if(CMAKE_COMPILER_IS_GNUCC OR ${CMAKE_C_COMPILER_ID} STREQUAL "Clang")
-		set_source_files_properties(${PRIMITIVES_SSE2_SRCS}
-			PROPERTIES COMPILE_FLAGS "${OPTIMIZATION} -msse2")
-		set_source_files_properties(${PRIMITIVES_SSE3_SRCS}
-			PROPERTIES COMPILE_FLAGS "${OPTIMIZATION} -msse3")
-		set_source_files_properties(${PRIMITIVES_SSSE3_SRCS}
-			PROPERTIES COMPILE_FLAGS "${OPTIMIZATION} -mssse3")
+		set(OPTIMIZATION "${OPTIMIZATION} -msse2 -mssse3 -Wdeclaration-after-statement")
 	endif()
 
 	if(MSVC)
-		set_source_files_properties(${PRIMITIVES_OPT_SRCS}
-			PROPERTIES COMPILE_FLAGS "${OPTIMIZATION} /arch:SSE2")
+		set(OPTIMIZATION "${OPTIMIZATION} /arch:SSE2")
 	endif()
 endif()
 
@@ -279,6 +273,10 @@ if(WITH_NEON)
 		endif()
 	endif()
 	# TODO: Add MSVC equivalent
+endif()
+
+if(DEFINED OPTIMIZATION)
+	set_source_files_properties(${PRIMITIVES_OPT_SRCS} PROPERTIES COMPILE_FLAGS ${OPTIMIZATION})
 endif()
 
 set(PRIMITIVES_SRCS ${PRIMITIVES_SRCS} ${PRIMITIVES_OPT_SRCS})
