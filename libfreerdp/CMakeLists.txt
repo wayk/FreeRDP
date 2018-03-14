@@ -216,8 +216,17 @@ set(PRIMITIVES_SRCS
 	primitives/primitives.c
 	primitives/prim_internal.h)
 
+set(PRIMITIVES_SSE2_SRCS
+	primitives/prim_colors_opt.c
+	primitives/prim_set_opt.c)
+
+set(PRIMITIVES_SSE3_SRCS
 	primitives/prim_add_opt.c
 	primitives/prim_alphaComp_opt.c
+	primitives/prim_andor_opt.c
+	primitives/prim_shift_opt.c)
+
+set(PRIMITIVES_SSSE3_SRCS
 	primitives/prim_sign_opt.c
 	primitives/prim_YCoCg_opt.c)
 
