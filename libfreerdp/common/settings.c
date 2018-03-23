@@ -1838,9 +1838,6 @@ UINT32 freerdp_get_param_uint32(rdpSettings* settings, int id)
 
 		case FreeRDP_RedirectionFlags:
 			return settings->RedirectionFlags;
-            
-        case FreeRDP_LoadBalanceInfo:
-            return settings->LoadBalanceInfo;
 
 		case FreeRDP_LoadBalanceInfoLength:
 			return settings->LoadBalanceInfoLength;
@@ -2135,10 +2132,6 @@ int freerdp_set_param_uint32(rdpSettings* settings, int id, UINT32 param)
 		case FreeRDP_RedirectionFlags:
 			settings->RedirectionFlags = param;
 			break;
-            
-        case FreeRDP_LoadBalanceInfo:
-            settings->LoadBalanceInfo = param;
-            break;
 
 		case FreeRDP_LoadBalanceInfoLength:
 			settings->LoadBalanceInfoLength = param;

@@ -391,6 +391,14 @@ void MRDPViewController_ResizeWindowEventHandler(void* context, ResizeWindowEven
     return freerdp_set_param_uint64(context->settings, identifier, value);
 }
 
+- (void)setLoadBalanceInfo:(NSString *)info
+{
+    char* cString = (char*)[info UTF8String];
+    
+    context->settings->LoadBalanceInfo = (BYTE*)_strdup(cString);
+    context->settings->LoadBalanceInfoLength = (UINT32)strlen((char*) context->settings->LoadBalanceInfo);
+}
+
 - (NSString *)getStringSettingForIdentifier:(int)identifier
 {
     char* cString = freerdp_get_param_string(context-> settings, identifier);

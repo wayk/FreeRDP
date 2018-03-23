@@ -56,6 +56,7 @@
 - (int)setInt32SettingForIdentifier:(int)identifier withValue:(uint32)value;
 - (uint64)getInt64SettingForIdentifier:(int)identifier;
 - (int)setInt64SettingForIdentifier:(int)identifier withValue:(uint64)value;
+- (void)setLoadBalanceInfo:(NSString *)info;
 - (NSString *)getStringSettingForIdentifier:(int)identifier;
 - (int)setStringSettingForIdentifier:(int)identifier withValue:(NSString *)value;
 - (NSString *)getErrorInfoString:(int)code;
