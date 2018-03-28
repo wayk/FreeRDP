@@ -980,11 +980,12 @@ if (IOS AND NOT DEFINED CMAKE_OSX_SYSROOT)
 	endif()
 endif()
 
-# RdTk
-include_directories("${CMAKE_SOURCE_DIR}/rdtk/include")
-include_directories("${CMAKE_BINARY_DIR}/rdtk/include")
+if(WITH_RDTK)
+	include_directories("${CMAKE_SOURCE_DIR}/rdtk/include")
+	include_directories("${CMAKE_BINARY_DIR}/rdtk/include")
 
-add_subdirectory(rdtk)
+	add_subdirectory(rdtk)
+endif()
 
 if(WAYLAND_FOUND)
 	add_subdirectory(uwac)
@@ -1014,7 +1015,9 @@ if(WITH_SERVER)
 	add_subdirectory(server)
 endif()
 
-add_subdirectory(dotnet)
+if(WITH_DOTNET)
+	add_subdirectory(dotnet)
+endif()
 
 # Packaging
 
