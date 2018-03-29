@@ -105,6 +105,21 @@ message("FREERDP_VERSION=${FREERDP_VERSION_FULL}")
 
 set(FREERDP_INCLUDE_DIR "include/freerdp${FREERDP_VERSION_MAJOR}/")
 
+if(NOT DEFINED WITH_FREERDP)
+	set(WITH_FREERDP ON)
+endif()
+
+if(WINPR_ONLY)
+	set(WITH_FREERDP OFF)
+	set(WITH_CHANNELS OFF)
+	set(WITH_CLIENT OFF)
+	set(WITH_SERVER OFF)
+	set(WITH_RDTK OFF)
+	set(WITH_DOTNET OFF)
+	set(WITH_WAYLAND OFF)
+	set(WITH_CLIENT_COMMON OFF)
+endif()
+
 # Compatibility options
 if(DEFINED STATIC_CHANNELS)
 	message(WARNING "STATIC_CHANNELS is obsolete, please use BUILTIN_CHANNELS instead")
@@ -967,9 +982,11 @@ if(WITH_THIRD_PARTY)
 	endif()
 endif()
 
-add_subdirectory(include)
+if(WITH_FREERDP)
+	add_subdirectory(include)
 
-add_subdirectory(libfreerdp)
+	add_subdirectory(libfreerdp)
+endif()
 
 if (IOS AND NOT DEFINED CMAKE_OSX_SYSROOT)
 	set(CMAKE_OSX_DEPLOYMENT_TARGET "")
@@ -987,7 +1004,7 @@ if(WITH_RDTK)
 	add_subdirectory(rdtk)
 endif()
 
-if(WAYLAND_FOUND)
+if(WITH_WAYLAND AND WAYLAND_FOUND)
 	add_subdirectory(uwac)
 endif()
 
@@ -1008,7 +1025,7 @@ if(WITH_CHANNELS)
 endif()
 
 if(WITH_CLIENT_COMMON OR WITH_CLIENT)
-add_subdirectory(client)
+	add_subdirectory(client)
 endif()
 
 if(WITH_SERVER)
