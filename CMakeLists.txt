@@ -981,10 +981,6 @@ if(BUILD_TESTING)
 	endif()
 endif()
 
-# WinPR
-include_directories("${CMAKE_SOURCE_DIR}/winpr/include")
-include_directories("${CMAKE_BINARY_DIR}/winpr/include")
-
 if (${CMAKE_VERSION} VERSION_LESS 2.8.12)
 	set(PUBLIC_KEYWORD "")
 	set(PRIVATE_KEYWORD "")
@@ -993,11 +989,27 @@ else()
 	set(PRIVATE_KEYWORD "PRIVATE")
 endif()
 
-if(BUILD_SHARED_LIBS)
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWINPR_DLL")
+if(NOT DEFINED WINPR_IMPORT)
+	set(WINPR_IMPORT OFF)
 endif()
 
-add_subdirectory(winpr)
+if(WINPR_IMPORT)
+	message(STATUS "Using imported WinPR")
+
+	find_package(WinPR CONFIG REQUIRED PATH_SUFFIXES WinPR2)
+
+	add_definitions(-DWINPR_EXPORTS)
+	include_directories(${WinPR_INCLUDE_DIR})
+else()
+	include_directories("${CMAKE_SOURCE_DIR}/winpr/include")
+	include_directories("${CMAKE_BINARY_DIR}/winpr/include")
+
+	if(BUILD_SHARED_LIBS)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWINPR_DLL")
+	endif()
+
+	add_subdirectory(winpr)
+endif()
 
 # Sub-directories
 
