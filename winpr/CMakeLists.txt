@@ -172,13 +172,13 @@ endif()
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
 
-add_subdirectory(include)
-
-add_subdirectory(libwinpr)
-
 if(NOT DEFINED WITH_WINPR_TOOLS)
 	set(WITH_WINPR_TOOLS 0)
 endif()
+
+add_subdirectory(include)
+
+add_subdirectory(libwinpr)
 
 if(WITH_WINPR_TOOLS)
 	add_subdirectory(tools)
