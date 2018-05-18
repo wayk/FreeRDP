@@ -332,12 +332,6 @@ static void cs_post_disconnect(freerdp* instance)
     rdpContext* context = instance->context;
     
 	gdi_free(instance);
-    
-    if (context->cache)
-    {
-        cache_free(context->cache);
-        context->cache = NULL;
-    }
 }
 
 static BOOL cs_authenticate(freerdp* instance, char** username, char** password, char** domain)
@@ -639,6 +633,14 @@ void csharp_freerdp_set_redirect_home_drive(void* instance, BOOL redirect)
 	rdpSettings * settings = inst->settings;
 	
 	settings->RedirectHomeDrive = redirect;
+}
+
+void csharp_freerdp_set_redirect_smartcards(void* instance, BOOL redirect)
+{
+	freerdp* inst = (freerdp*)instance;
+	rdpSettings * settings = inst->settings;
+	
+	settings->RedirectSmartCards = redirect;
 }
 
 BOOL csharp_freerdp_set_data_directory(void* instance, const char* directory)
