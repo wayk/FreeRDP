@@ -114,10 +114,6 @@ static UINT rdpdr_send_device_list_remove_request(rdpdrPlugin* rdpdr,
 
 #ifdef _UWP
 
-void first_hotplug(rdpdrPlugin* rdpdr)
-{
-}
-
 static DWORD WINAPI drive_hotplug_thread_func(LPVOID arg)
 {
 	return CHANNEL_RC_OK;
@@ -138,37 +134,6 @@ BOOL check_path(char* path)
 		return FALSE;
 
 	return GetVolumeInformationA(path, NULL, 0, NULL, NULL, NULL, NULL, 0);
-}
-
-void first_hotplug(rdpdrPlugin* rdpdr)
-{
-	int i;
-	char drive_path[5] = { 'c', ':', '\\', '\0' };
-	DWORD unitmask = GetLogicalDrives();
-
-	for (i = 0; i < 26; i++)
-	{
-		if (unitmask & 0x01)
-		{
-			RDPDR_DRIVE* drive;
-			drive_path[0] = 'A' + i;
-			drive_path[1] = ':';
-
-			if (check_path(drive_path))
-			{
-				drive = (RDPDR_DRIVE*)malloc(sizeof(RDPDR_DRIVE));
-				ZeroMemory(drive, sizeof(RDPDR_DRIVE));
-				drive->Type = RDPDR_DTYP_FILESYSTEM;
-				drive->Path = _strdup(drive_path);
-				drive_path[1] = '\0';
-				drive->Name = _strdup(drive_path);
-				devman_load_device_service(rdpdr->devman, (RDPDR_DEVICE*)drive,
-				                           rdpdr->rdpcontext);
-			}
-		}
-
-		unitmask = unitmask >> 1;
-	}
 }
 
 LRESULT CALLBACK hotplug_proc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
@@ -548,16 +513,6 @@ static void drive_hotplug_fsevent_callback(ConstFSEventStreamRef streamRef,
 	}
 }
 
-void first_hotplug(rdpdrPlugin* rdpdr)
-{
-	UINT error;
-
-	if ((error = handle_hotplug(rdpdr)))
-	{
-		WLog_ERR(TAG, "handle_hotplug failed with error %"PRIu32"!", error);
-	}
-}
-
 static DWORD WINAPI drive_hotplug_thread_func(LPVOID arg)
 {
 	rdpdrPlugin* rdpdr;
@@ -913,16 +868,6 @@ cleanup:
 	return error;
 }
 
-static void first_hotplug(rdpdrPlugin* rdpdr)
-{
-	UINT error;
-
-	if ((error = handle_hotplug(rdpdr)))
-	{
-		WLog_ERR(TAG, "handle_hotplug failed with error %"PRIu32"!", error);
-	}
-}
-
 static DWORD WINAPI drive_hotplug_thread_func(LPVOID arg)
 {
 	rdpdrPlugin* rdpdr;
@@ -1064,18 +1009,14 @@ static UINT rdpdr_process_connect(rdpdrPlugin* rdpdr)
 		{
 			RDPDR_DRIVE* drive = (RDPDR_DRIVE*)device;
 
-			if (drive->Path && (strcmp(drive->Path, "*") == 0))
+			if (!rdpdr->hotplugThread && drive->Path && (strcmp(drive->Path, "*") == 0))
 			{
-				first_hotplug(rdpdr);
-
 				if (!(rdpdr->hotplugThread = CreateThread(NULL, 0,
 								 drive_hotplug_thread_func, rdpdr, 0, NULL)))
 				{
 					WLog_ERR(TAG, "CreateThread failed!");
 					return ERROR_INTERNAL_ERROR;
 				}
-
-				continue;
 			}
 		}
 
