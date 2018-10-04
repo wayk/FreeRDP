@@ -207,12 +207,8 @@ BOOL rdp_client_connect(rdpRdp* rdp)
 
 	if (settings->FIPSMode)
 		flags |= WINPR_SSL_INIT_ENABLE_FIPS;
-<<<<<<< HEAD
 
-	winpr_InitializeSSL(flags);
-=======
 	freerdp_InitializeSSL(flags);
->>>>>>> freerdp: separate SSL initialization between FreeRDP and WinPR
 
 	/* FIPS Mode forces the following and overrides the following(by happening later */
 	/* in the command line processing): */

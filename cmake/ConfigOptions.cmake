@@ -13,7 +13,7 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
 	set(TARGET_ARCH "sparc")
 endif()
 
-option(WITH_MANPAGES "Generate manpages." OFF)
+option(WITH_MANPAGES "Generate manpages." ON)
 option(WITH_PROFILER "Compile profiler." OFF)
 option(WITH_GPROF "Compile with GProf profiler." OFF)
 

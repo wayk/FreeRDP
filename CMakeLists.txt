@@ -69,6 +69,7 @@ include(GNUInstallDirsWrapper)
 include(CMakePackageConfigHelpers)
 include(InstallFreeRDPMan)
 include(GetGitRevisionDescription)
+include(SetFreeRDPCMakeInstallDir)
 
 # Soname versioning
 set(BUILD_NUMBER 0)
@@ -77,7 +78,7 @@ if ($ENV{BUILD_NUMBER})
 endif()
 set(WITH_LIBRARY_VERSIONING "ON")
 
-set(RAW_VERSTION_STRING "2.0.0-dev2")
+set(RAW_VERSTION_STRING "2.0.0-dev4")
 if(EXISTS "${CMAKE_SOURCE_DIR}/.source_tag")
 	file(READ ${CMAKE_SOURCE_DIR}/.source_tag RAW_VERSTION_STRING)
 elseif(USE_VERSION_FROM_GIT_TAG)
@@ -154,11 +155,16 @@ if(CCACHE AND WITH_CCACHE)
 	endif()
 endif(CCACHE AND WITH_CCACHE)
 
-include(GetGitRevisionDescription)
-git_get_exact_tag(GIT_REVISION --tags --always)
+if(EXISTS "${CMAKE_SOURCE_DIR}/.source_version" )
+	file(READ ${CMAKE_SOURCE_DIR}/.source_version GIT_REVISION)
 
-if (${GIT_REVISION} STREQUAL "n/a")
-	git_rev_parse (GIT_REVISION --short)
+  string(STRIP ${GIT_REVISION} GIT_REVISION)
+else()
+	git_get_exact_tag(GIT_REVISION --tags --always)
+
+	if (${GIT_REVISION} STREQUAL "n/a")
+		git_rev_parse (GIT_REVISION --short)
+	endif()
 endif()
 
 if(CMAKE_CROSSCOMPILING)
@@ -244,8 +250,8 @@ if(MSVC)
 	endif()
 endif()
 
-# Enable 64bit file support on linux.
-if("${CMAKE_SYSTEM_NAME}" MATCHES "Linux")
+# Enable 64bit file support on linux and FreeBSD.
+if("${CMAKE_SYSTEM_NAME}" MATCHES "Linux" OR FREEBSD)
 	add_definitions("-D_FILE_OFFSET_BITS=64")
 endif()
 
@@ -471,12 +477,12 @@ if(WIN32)
 	add_definitions(-D_WINSOCK_DEPRECATED_NO_WARNINGS)
 
 	set(CMAKE_USE_RELATIVE_PATH ON)
-	if (${CMAKE_GENERATOR} MATCHES "NMake Makefile*")
+    if (${CMAKE_GENERATOR} MATCHES "NMake Makefile*" OR ${CMAKE_GENERATOR} MATCHES "Ninja*")
 		set(CMAKE_PDB_BINARY_DIR ${CMAKE_BINARY_DIR})
 	elseif (${CMAKE_GENERATOR} MATCHES "Visual Studio*")
 		set(CMAKE_PDB_BINARY_DIR "${CMAKE_BINARY_DIR}/\${CMAKE_INSTALL_CONFIG_NAME}")
 	else()
-		message(FATAL "Unknown generator ${CMAKE_GENERATOR}")
+		message(FATAL_ERROR "Unknown generator ${CMAKE_GENERATOR}")
 	endif()
 
 	# Set product and vendor for dll and exe version information.
@@ -744,6 +750,18 @@ set(GSM_FEATURE_TYPE "OPTIONAL")
 set(GSM_FEATURE_PURPOSE "codec")
 set(GSM_FEATURE_DESCRIPTION "GSM audio codec library")
 
+set(LAME_FEATURE_TYPE "OPTIONAL")
+set(LAME_FEATURE_PURPOSE "codec")
+set(LAME_FEATURE_DESCRIPTION "lame MP3 audio codec library")
+
+set(FAAD2_FEATURE_TYPE "OPTIONAL")
+set(FAAD2_FEATURE_PURPOSE "codec")
+set(FAAD2_FEATURE_DESCRIPTION "FAAD2 AAC audio codec library")
+
+set(FAAC_FEATURE_TYPE "OPTIONAL")
+set(FAAC_FEATURE_PURPOSE "codec")
+set(FAAC_FEATURE_DESCRIPTION "FAAC AAC audio codec library")
+
 set(GSSAPI_FEATURE_TYPE "OPTIONAL")
 set(GSSAPI_FEATURE_PURPOSE "auth")
 set(GSSAPI_FEATURE_DESCRIPTION "add kerberos support")
@@ -870,13 +888,53 @@ find_feature(JPEG ${JPEG_FEATURE_TYPE} ${JPEG_FEATURE_PURPOSE} ${JPEG_FEATURE_DE
 find_feature(x264 ${X264_FEATURE_TYPE} ${X264_FEATURE_PURPOSE} ${X264_FEATURE_DESCRIPTION})
 find_feature(OpenH264 ${OPENH264_FEATURE_TYPE} ${OPENH264_FEATURE_PURPOSE} ${OPENH264_FEATURE_DESCRIPTION})
 find_feature(GSM ${GSM_FEATURE_TYPE} ${GSM_FEATURE_PURPOSE} ${GSM_FEATURE_DESCRIPTION})
+find_feature(LAME ${LAME_FEATURE_TYPE} ${LAME_FEATURE_PURPOSE} ${LAME_FEATURE_DESCRIPTION})
+find_feature(FAAD2 ${FAAD2_FEATURE_TYPE} ${FAAD2_FEATURE_PURPOSE} ${FAAD2_FEATURE_DESCRIPTION})
+find_feature(FAAC ${FAAC_FEATURE_TYPE} ${FAAC_FEATURE_PURPOSE} ${FAAC_FEATURE_DESCRIPTION})
 
 find_feature(GSSAPI ${GSSAPI_FEATURE_TYPE} ${GSSAPI_FEATURE_PURPOSE} ${GSSAPI_FEATURE_DESCRIPTION})
+
+if ((WITH_FFMPEG OR WITH_DSP_FFMPEG) AND NOT FFMPEG_FOUND)
+	message(FATAL_ERROR "FFMPEG support requested but not detected")
+endif()
+set(WITH_FFMPEG ${FFMPEG_FOUND})
+
+# Version check, if we have detected FFMPEG but the version is too old
+# deactivate it as sound backend.
+if (WITH_DSP_FFMPEG)
+	# Deactivate FFmpeg backend for sound, if the version is too old.
+	# See libfreerdp/codec/dsp_ffmpeg.h
+	file(STRINGS "${AVCODEC_INCLUDE_DIR}/libavcodec/version.h" AV_VERSION_FILE REGEX "LIBAVCODEC_VERSION_M[A-Z]+[\t ]*[0-9]+")
+	FOREACH(item ${AV_VERSION_FILE})
+	  STRING(REGEX MATCH "LIBAVCODEC_VERSION_M[A-Z]+[\t ]*[0-9]+" litem ${item})
+	IF(litem)
+			string(REGEX REPLACE "[ \t]+" ";" VSPLIT_LINE ${litem})
+			list(LENGTH VSPLIT_LINE VSPLIT_LINE_LEN)
+			if (NOT "${VSPLIT_LINE_LEN}" EQUAL "2")
+				message(ERROR "invalid entry in libavcodec version header ${item}")
+			endif(NOT "${VSPLIT_LINE_LEN}" EQUAL "2")
+			list(GET VSPLIT_LINE 0 VNAME)
+			list(GET VSPLIT_LINE 1 VVALUE)
+			set(${VNAME} ${VVALUE})
+	ENDIF(litem)
+	ENDFOREACH(item ${AV_VERSION_FILE})
+
+	set(AVCODEC_VERSION "${LIBAVCODEC_VERSION_MAJOR}.${LIBAVCODEC_VERSION_MINOR}.${LIBAVCODEC_VERSION_MICRO}")
+	if (AVCODEC_VERSION VERSION_LESS "57.48.101")
+		message(WARNING "FFmpeg version detected (${AVCODEC_VERSION}) is too old. (Require at least 57.48.101 for sound). Deactivating")
+		set(WITH_DSP_FFMPEG OFF)
+	endif()
+endif (WITH_DSP_FFMPEG)
+
+if (WITH_OPENH264 AND NOT OPENH264_FOUND)
+	message(FATAL_ERROR "OpenH264 support requested but not detected")
+endif()
+set(WITH_OPENH264 ${OPENH264_FOUND})
 
 if ( (WITH_GSSAPI) AND (NOT GSS_FOUND))
 	message(WARNING "-DWITH_GSSAPI=ON is set, but not GSSAPI implementation was found, disabling")
 elseif(WITH_GSSAPI)
-	if(GSS_FLAVOUR STREQUAL "MIT") 
+	if(GSS_FLAVOUR STREQUAL "MIT")
 		add_definitions("-DWITH_GSSAPI -DWITH_GSSAPI_MIT")
 		if(GSS_VERSION_1_13)
 			add_definitions("-DHAVE_AT_LEAST_KRB_V1_13")
@@ -952,7 +1010,9 @@ if (APPLE)
 	set(CMAKE_INSTALL_RPATH "@loader_path/../Frameworks")
 else (APPLE)
 	set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-	set(CMAKE_INSTALL_RPATH "\$ORIGIN/../${CMAKE_INSTALL_LIBDIR}:\$ORIGIN/..")
+	if (NOT FREEBSD)
+		set(CMAKE_INSTALL_RPATH "\$ORIGIN/../${CMAKE_INSTALL_LIBDIR}:\$ORIGIN/..")
+	endif()
 endif(APPLE)
 
 if (BUILD_SHARED_LIBS)
@@ -1065,7 +1125,7 @@ if(WITH_CHANNELS)
 endif()
 
 if(WITH_CLIENT_COMMON OR WITH_CLIENT)
-	add_subdirectory(client)
+add_subdirectory(client)
 endif()
 
 if(WITH_SERVER)
