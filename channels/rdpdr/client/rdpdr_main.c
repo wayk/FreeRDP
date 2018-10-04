@@ -1026,8 +1026,6 @@ static UINT rdpdr_process_connect(rdpdrPlugin* rdpdr)
 
 			if (drive->Path && (strcmp(drive->Path, "*") == 0))
 			{
-				first_hotplug(rdpdr);
-
 				if (!(rdpdr->hotplugThread = CreateThread(NULL, 0,
 				                             drive_hotplug_thread_func, rdpdr, 0, NULL)))
 				{
