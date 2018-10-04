@@ -116,7 +116,6 @@ if(WINPR_ONLY)
 	set(WITH_CLIENT OFF)
 	set(WITH_SERVER OFF)
 	set(WITH_RDTK OFF)
-	set(WITH_DOTNET OFF)
 	set(WITH_WAYLAND OFF)
 	set(WITH_CLIENT_COMMON OFF)
 endif()
@@ -1130,10 +1129,6 @@ endif()
 
 if(WITH_SERVER)
 	add_subdirectory(server)
-endif()
-
-if(WITH_DOTNET)
-	add_subdirectory(dotnet)
 endif()
 
 # Packaging
