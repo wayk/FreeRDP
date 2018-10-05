@@ -71,6 +71,11 @@ include(InstallFreeRDPMan)
 include(GetGitRevisionDescription)
 include(SetFreeRDPCMakeInstallDir)
 
+if(ANDROID)
+	list(APPEND CMAKE_FIND_ROOT_PATH ${CMAKE_PREFIX_PATH})
+	list(REMOVE_DUPLICATES CMAKE_FIND_ROOT_PATH)
+endif()
+
 # Soname versioning
 set(BUILD_NUMBER 0)
 if ($ENV{BUILD_NUMBER})
