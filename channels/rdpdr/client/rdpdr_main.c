@@ -172,6 +172,7 @@ LRESULT CALLBACK hotplug_proc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 									drive->Type = RDPDR_DTYP_FILESYSTEM;
 									drive->Path = _strdup(drive_path);
 									drive_path[1] = '\0';
+									drive->automount = TRUE;
 									drive->Name = _strdup(drive_path);
 									devman_load_device_service(rdpdr->devman, (RDPDR_DEVICE*)drive,
 									                           rdpdr->rdpcontext);
@@ -226,8 +227,6 @@ LRESULT CALLBACK hotplug_proc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 
 											break;
 										}
-
-										break;
 									}
 								}
 
@@ -1024,7 +1023,7 @@ static UINT rdpdr_process_connect(rdpdrPlugin* rdpdr)
 		{
 			RDPDR_DRIVE* drive = (RDPDR_DRIVE*)device;
 
-			if (drive->Path && (strcmp(drive->Path, "*") == 0))
+			if (!rdpdr->hotplugThread && drive->Path && (strcmp(drive->Path, "*") == 0))
 			{
 				if (!(rdpdr->hotplugThread = CreateThread(NULL, 0,
 				                             drive_hotplug_thread_func, rdpdr, 0, NULL)))
@@ -1032,8 +1031,6 @@ static UINT rdpdr_process_connect(rdpdrPlugin* rdpdr)
 					WLog_ERR(TAG, "CreateThread failed!");
 					return ERROR_INTERNAL_ERROR;
 				}
-
-				continue;
 			}
 		}
 
@@ -1570,7 +1567,6 @@ static VOID VCAPITYPE rdpdr_virtual_channel_open_event_ex(LPVOID lpUserParam, DW
 			break;
 
 		case CHANNEL_EVENT_WRITE_COMPLETE:
-			Stream_Free((wStream*) pData, TRUE);
 			break;
 
 		case CHANNEL_EVENT_USER:
