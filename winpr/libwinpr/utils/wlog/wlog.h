@@ -75,6 +75,7 @@ struct _wLog
 	wLog** Children;
 	DWORD ChildrenCount;
 	DWORD ChildrenSize;
+	CRITICAL_SECTION lock;
 };
 
 

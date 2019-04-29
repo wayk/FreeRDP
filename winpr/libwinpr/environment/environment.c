@@ -641,3 +641,72 @@ char** EnvironmentBlockToEnvpA(LPCH lpszEnvironmentBlock)
 
 	return envp;
 }
+
+#ifdef _WIN32
+
+DWORD GetEnvironmentVariableX(char* lpName, char* lpBuffer, DWORD nSize)
+{
+	int status;
+	DWORD result = 0;
+	DWORD nSizeW = 0;
+	LPWSTR lpNameW = NULL;
+	LPWSTR lpBufferW = NULL;
+	LPSTR lpBufferA = lpBuffer;
+
+	if (ConvertToUnicode(CP_UTF8, 0, lpName, -1, &lpNameW, 0) < 1)
+		goto cleanup;
+
+	if (!lpBuffer)
+	{
+		char lpBufferMaxA[2048];
+		WCHAR lpBufferMaxW[2048];
+
+		lpBufferA = lpBufferMaxA;
+		lpBufferW = lpBufferMaxW;
+		nSizeW = sizeof(lpBufferMaxW) / 2;
+
+		result = GetEnvironmentVariableW(lpNameW, lpBufferW, nSizeW);
+
+		status = ConvertFromUnicode(CP_UTF8, 0, lpBufferW, -1,
+			&lpBufferA, sizeof(lpBufferMaxA), NULL, NULL);
+
+		if (status > 0)
+			result = (DWORD) status;
+
+		return result;
+	}
+	else
+	{
+		nSizeW = (nSize + 1) * 2;
+		lpBufferW = calloc(1, nSizeW);
+
+		if (!lpBufferW)
+			goto cleanup;
+
+		result = GetEnvironmentVariableW(lpNameW, lpBufferW, nSizeW / 2);
+
+		if (result == 0)
+			goto cleanup;
+
+		status = ConvertFromUnicode(CP_UTF8, 0, lpBufferW, -1,
+			&lpBufferA, nSize, NULL, NULL);
+
+		if (status > 0)
+			result = (DWORD) (status - 1);
+	}
+
+cleanup:
+	free(lpBufferW);
+	free(lpNameW);
+
+	return result;
+}
+
+#else
+
+DWORD GetEnvironmentVariableX(char* lpName, char* lpBuffer, DWORD nSize)
+{
+	return GetEnvironmentVariableA(lpName, lpBuffer, nSize);
+}
+
+#endif
