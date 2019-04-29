@@ -172,11 +172,15 @@ endif()
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
 
+if(NOT DEFINED WITH_WINPR_TOOLS)
+	set(WITH_WINPR_TOOLS 0)
+endif()
+
 add_subdirectory(include)
 
 add_subdirectory(libwinpr)
 
-if(NOT ANDROID AND NOT IOS AND NOT UWP)
+if(WITH_WINPR_TOOLS)
 	add_subdirectory(tools)
 endif()
 

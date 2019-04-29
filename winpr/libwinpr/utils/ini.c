@@ -27,6 +27,7 @@
 
 #include <winpr/wtypes.h>
 #include <winpr/crt.h>
+#include <winpr/file.h>
 
 #include <winpr/ini.h>
 
@@ -79,9 +80,9 @@ int IniFile_Load_String(wIniFile* ini, const char* iniString)
 int IniFile_Open_File(wIniFile* ini, const char* filename)
 {
 	if (ini->readOnly)
-		ini->fp = fopen(filename, "rb");
+		ini->fp = winpr_fopen(filename, "rb");
 	else
-		ini->fp = fopen(filename, "w+b");
+		ini->fp = winpr_fopen(filename, "w+b");
 
 	if (!ini->fp)
 		return -1;

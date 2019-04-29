@@ -494,6 +494,8 @@ WINPR_API char* GetNamedPipeUnixDomainSocketFilePathA(LPCSTR lpName);
 WINPR_API int GetNamePipeFileDescriptor(HANDLE hNamedPipe);
 WINPR_API HANDLE GetFileHandleForFileDescriptor(int fd);
 
+WINPR_API FILE* winpr_fopen(const char* path, const char* mode);
+
 #ifdef __cplusplus
 }
 #endif

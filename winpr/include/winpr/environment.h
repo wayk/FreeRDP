@@ -128,6 +128,9 @@ WINPR_API BOOL SetEnvironmentVariableEBA(LPSTR* envBlock, LPCSTR lpName, LPCSTR 
 
 WINPR_API char** EnvironmentBlockToEnvpA(LPCH lpszEnvironmentBlock);
 
+WINPR_API DWORD GetEnvironmentVariableX(char* lpName, char* lpBuffer, DWORD nSize);
+WINPR_API char* GetEnvAlloc(LPCSTR lpName);
+
 #ifdef __cplusplus
 }
 #endif

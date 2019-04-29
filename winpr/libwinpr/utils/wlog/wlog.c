@@ -66,7 +66,6 @@ LPCSTR WLOG_LEVELS[7] =
 	"OFF"
 };
 
-static INIT_ONCE _WLogInitialized = INIT_ONCE_STATIC_INIT;
 static DWORD g_FilterCount = 0;
 static wLogFilter* g_Filters = NULL;
 static wLog* g_RootLog = NULL;
@@ -76,95 +75,6 @@ static void WLog_Free(wLog* log);
 static LONG WLog_GetFilterLogLevel(wLog* log);
 static int WLog_ParseLogLevel(LPCSTR level);
 static BOOL WLog_ParseFilter(wLogFilter* filter, LPCSTR name);
-static BOOL WLog_ParseFilters(void);
-
-#if !defined(_WIN32)
-static void WLog_Uninit_(void) __attribute__((destructor));
-#endif
-
-static void WLog_Uninit_(void)
-{
-	DWORD index;
-	wLog* child = NULL;
-	wLog* root = g_RootLog;
-
-	if (!root)
-		return;
-
-	for (index = 0; index < root->ChildrenCount; index++)
-	{
-		child = root->Children[index];
-		WLog_Free(child);
-	}
-
-	WLog_Free(root);
-	g_RootLog = NULL;
-}
-
-static BOOL CALLBACK WLog_InitializeRoot(PINIT_ONCE InitOnce, PVOID Parameter, PVOID* Context)
-{
-	char* env;
-	DWORD nSize;
-	DWORD logAppenderType;
-	LPCSTR appender = "WLOG_APPENDER";
-
-	if (!(g_RootLog = WLog_New("", NULL)))
-		return FALSE;
-
-	g_RootLog->IsRoot = TRUE;
-	WLog_ParseFilters();
-	logAppenderType = WLOG_APPENDER_CONSOLE;
-	nSize = GetEnvironmentVariableA(appender, NULL, 0);
-
-	if (nSize)
-	{
-		env = (LPSTR) malloc(nSize);
-
-		if (!env)
-			goto fail;
-
-		if (GetEnvironmentVariableA(appender, env, nSize) != nSize - 1)
-		{
-			fprintf(stderr, "%s environment variable modified in my back", appender);
-			free(env);
-			goto fail;
-		}
-
-		if (_stricmp(env, "CONSOLE") == 0)
-			logAppenderType = WLOG_APPENDER_CONSOLE;
-		else if (_stricmp(env, "FILE") == 0)
-			logAppenderType = WLOG_APPENDER_FILE;
-		else if (_stricmp(env, "BINARY") == 0)
-			logAppenderType = WLOG_APPENDER_BINARY;
-
-#ifdef HAVE_SYSLOG_H
-		else if (_stricmp(env, "SYSLOG") == 0)
-			logAppenderType = WLOG_APPENDER_SYSLOG;
-
-#endif /* HAVE_SYSLOG_H */
-#ifdef HAVE_JOURNALD_H
-		else if (_stricmp(env, "JOURNALD") == 0)
-			logAppenderType = WLOG_APPENDER_JOURNALD;
-
-#endif
-		else if (_stricmp(env, "UDP") == 0)
-			logAppenderType = WLOG_APPENDER_UDP;
-
-		free(env);
-	}
-
-	if (!WLog_SetLogAppenderType(g_RootLog, logAppenderType))
-		goto fail;
-
-#if defined(_WIN32)
-	atexit(WLog_Uninit_);
-#endif
-	return TRUE;
-fail:
-	free(g_RootLog);
-	g_RootLog = NULL;
-	return FALSE;
-}
 
 static BOOL log_recursion(LPCSTR file, LPCSTR fkt, int line)
 {
@@ -217,7 +127,17 @@ out:
 	return status;
 }
 
-static BOOL WLog_Write(wLog* log, wLogMessage* message)
+void WLog_Lock(wLog* log)
+{
+	EnterCriticalSection(&log->lock);
+}
+
+void WLog_Unlock(wLog* log)
+{
+	LeaveCriticalSection(&log->lock);
+}
+
+BOOL WLog_Write(wLog* log, wLogMessage* message)
 {
 	BOOL status;
 	wLogAppender* appender;
@@ -766,7 +686,7 @@ wLog* WLog_New(LPCSTR name, wLog* rootLogger)
 
 	log->Parent = rootLogger;
 	log->ChildrenCount = 0;
-	log->ChildrenSize = 16;
+	log->ChildrenSize = 32;
 	log->FilterLevel = -1;
 
 	if (!(log->Children = (wLog**) calloc(log->ChildrenSize, sizeof(wLog*))))
@@ -811,6 +731,8 @@ wLog* WLog_New(LPCSTR name, wLog* rootLogger)
 	if ((iLevel >= 0) && (iLevel != WLOG_LEVEL_INHERIT))
 		log->Level = (DWORD) iLevel;
 
+	InitializeCriticalSectionAndSpinCount(&log->lock, 4000);
+
 	return log;
 out_fail:
 	free(log->Children);
@@ -833,20 +755,85 @@ void WLog_Free(wLog* log)
 		free(log->Names[0]);
 		free(log->Names);
 		free(log->Children);
+
+		DeleteCriticalSection(&log->lock);
+
 		free(log);
 	}
 }
 
 wLog* WLog_GetRoot(void)
 {
-	if (!InitOnceExecuteOnce(&_WLogInitialized, WLog_InitializeRoot, NULL, NULL))
-		return NULL;
+	char* env;
+	DWORD nSize;
+	DWORD logAppenderType;
+
+	if (!g_RootLog)
+	{
+		LPCSTR appender = "WLOG_APPENDER";
+
+		if (!(g_RootLog = WLog_New("", NULL)))
+			return NULL;
+
+		g_RootLog->IsRoot = TRUE;
+		WLog_ParseFilters();
+		logAppenderType = WLOG_APPENDER_CONSOLE;
+		nSize = GetEnvironmentVariableA(appender, NULL, 0);
+
+		if (nSize)
+		{
+			env = (LPSTR) malloc(nSize);
+
+			if (!env)
+				goto fail;
+
+			if (GetEnvironmentVariableA(appender, env, nSize) != nSize - 1)
+			{
+				fprintf(stderr, "%s environment variable modified in my back", appender);
+				free(env);
+				goto fail;
+			}
+
+			if (_stricmp(env, "CONSOLE") == 0)
+				logAppenderType = WLOG_APPENDER_CONSOLE;
+			else if (_stricmp(env, "FILE") == 0)
+				logAppenderType = WLOG_APPENDER_FILE;
+			else if (_stricmp(env, "BINARY") == 0)
+				logAppenderType = WLOG_APPENDER_BINARY;
+
+#ifdef HAVE_SYSLOG_H
+			else if (_stricmp(env, "SYSLOG") == 0)
+				logAppenderType = WLOG_APPENDER_SYSLOG;
+
+#endif /* HAVE_SYSLOG_H */
+#ifdef HAVE_JOURNALD_H
+			else if (_stricmp(env, "JOURNALD") == 0)
+				logAppenderType = WLOG_APPENDER_JOURNALD;
+
+#endif
+			else if (_stricmp(env, "UDP") == 0)
+				logAppenderType = WLOG_APPENDER_UDP;
+
+			free(env);
+		}
+
+		if (!WLog_SetLogAppenderType(g_RootLog, logAppenderType))
+			goto fail;
+	}
 
 	return g_RootLog;
+fail:
+	free(g_RootLog);
+	g_RootLog = NULL;
+	return NULL;
 }
 
 static BOOL WLog_AddChild(wLog* parent, wLog* child)
 {
+	BOOL status = FALSE;
+
+	WLog_Lock(parent);
+
 	if (parent->ChildrenCount >= parent->ChildrenSize)
 	{
 		wLog** tmp;
@@ -869,7 +856,7 @@ static BOOL WLog_AddChild(wLog* parent, wLog* child)
 					free(parent->Children);
 
 				parent->Children = NULL;
-				return FALSE;
+				goto exit;
 			}
 
 			parent->Children = tmp;
@@ -877,11 +864,16 @@ static BOOL WLog_AddChild(wLog* parent, wLog* child)
 	}
 
 	if (!parent->Children)
-		return FALSE;
+		goto exit;
 
 	parent->Children[parent->ChildrenCount++] = child;
 	child->Parent = parent;
-	return TRUE;
+
+	WLog_Unlock(parent);
+
+	status = TRUE;
+exit:
+	return status;
 }
 
 static wLog* WLog_FindChild(LPCSTR name)
@@ -895,6 +887,8 @@ static wLog* WLog_FindChild(LPCSTR name)
 	if (!root)
 		return NULL;
 
+	WLog_Lock(root);
+
 	for (index = 0; index < root->ChildrenCount; index++)
 	{
 		child = root->Children[index];
@@ -905,6 +899,8 @@ static wLog* WLog_FindChild(LPCSTR name)
 			break;
 		}
 	}
+
+	WLog_Unlock(root);
 
 	return (found) ? child : NULL;
 }
@@ -940,6 +936,26 @@ BOOL WLog_Init(void)
 
 BOOL WLog_Uninit(void)
 {
+	DWORD index;
+	wLog* child = NULL;
+	wLog* root = g_RootLog;
+
+	if (!root)
+		return FALSE;
+
+	WLog_Lock(root);
+
+	for (index = 0; index < root->ChildrenCount; index++)
+	{
+		child = root->Children[index];
+		WLog_Free(child);
+	}
+
+	WLog_Unlock(root);
+
+	WLog_Free(root);
+	g_RootLog = NULL;
+
 	return TRUE;
 }
 
