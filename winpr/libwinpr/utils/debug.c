@@ -196,7 +196,7 @@ static BOOL g_RtlCaptureStackBackTrace_Detected = FALSE;
 static BOOL g_RtlCaptureStackBackTrace_Available = FALSE;
 static PRTL_CAPTURE_STACK_BACK_TRACE_FN g_pRtlCaptureStackBackTrace = NULL;
 
-USHORT RtlCaptureStackBackTrace(ULONG FramesToSkip, ULONG FramesToCapture, PVOID* BackTrace, PULONG BackTraceHash)
+USHORT winpr_RtlCaptureStackBackTrace(ULONG FramesToSkip, ULONG FramesToCapture, PVOID* BackTrace, PULONG BackTraceHash)
 {
 	if (!g_RtlCaptureStackBackTrace_Detected)
 	{
@@ -310,7 +310,7 @@ void* winpr_backtrace(DWORD size)
 	}
 
 	SymInitialize(process, NULL, TRUE);
-	data->used = RtlCaptureStackBackTrace(2, size, data->stack, NULL);
+	data->used = winpr_RtlCaptureStackBackTrace(2, size, data->stack, NULL);
 
 	return data;
 #else
