@@ -404,7 +404,8 @@ HANDLE CreateThread(LPSECURITY_ATTRIBUTES lpThreadAttributes,
 
 	if (thread->pipe_fd[0] < 0)
 	{
-		WLog_ERR(TAG, "failed to create thread pipe fd 0");
+		WLog_ERR(TAG, "failed to create thread pipe fd 0 %s (%d)",
+			strerror(errno), errno);
 		goto error_pipefd0;
 	}
 
@@ -412,7 +413,8 @@ HANDLE CreateThread(LPSECURITY_ATTRIBUTES lpThreadAttributes,
 
 	if (pipe(thread->pipe_fd) < 0)
 	{
-		WLog_ERR(TAG, "failed to create thread pipe");
+		WLog_ERR(TAG, "failed to create thread pipe %s (%d)",
+			 strerror(errno), errno);
 		goto error_pipefd0;
 	}
 
