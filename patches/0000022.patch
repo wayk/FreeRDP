@@ -1,0 +1,146 @@
+diff --git a/winpr/include/winpr/file.h b/winpr/include/winpr/file.h
+index b281a809e..ddc69c809 100644
+--- a/winpr/include/winpr/file.h
++++ b/winpr/include/winpr/file.h
+@@ -521,6 +521,8 @@ extern "C"
+ 	WINPR_API int GetNamePipeFileDescriptor(HANDLE hNamedPipe);
+ 	WINPR_API HANDLE GetFileHandleForFileDescriptor(int fd);
+ 
++WINPR_API FILE* winpr_fopen(const char* path, const char* mode);
++
+ #ifdef __cplusplus
+ }
+ #endif
+diff --git a/winpr/libwinpr/file/file.c b/winpr/libwinpr/file/file.c
+index 019149e3e..06a03783e 100644
+--- a/winpr/libwinpr/file/file.c
++++ b/winpr/libwinpr/file/file.c
+@@ -1358,3 +1358,30 @@ HANDLE GetFileHandleForFileDescriptor(int fd)
+ 	return (HANDLE)pFile;
+ #endif /* _WIN32 */
+ }
++
++FILE* winpr_fopen(const char* path, const char* mode)
++{
++#ifndef _WIN32
++	return fopen(path, mode);
++#else
++	LPWSTR lpPathW = NULL;
++	LPWSTR lpModeW = NULL;
++	FILE* result = NULL;
++
++	if (!path || !mode)
++		return NULL;
++
++	if (ConvertToUnicode(CP_UTF8, 0, path, -1, &lpPathW, 0) < 1)
++		goto cleanup;
++
++	if (ConvertToUnicode(CP_UTF8, 0, mode, -1, &lpModeW, 0) < 1)
++		goto cleanup;
++
++	result = _wfopen(lpPathW, lpModeW);
++
++cleanup:
++	free(lpPathW);
++	free(lpModeW);
++	return result;
++#endif
++}
+diff --git a/winpr/libwinpr/utils/image.c b/winpr/libwinpr/utils/image.c
+index 990b4e1c4..ddc296f0e 100644
+--- a/winpr/libwinpr/utils/image.c
++++ b/winpr/libwinpr/utils/image.c
+@@ -25,6 +25,7 @@
+ 
+ #include <winpr/wtypes.h>
+ #include <winpr/crt.h>
++#include <winpr/file.h>
+ 
+ #include <winpr/image.h>
+ 
+@@ -395,7 +396,8 @@ int winpr_image_read(wImage* image, const char* filename)
+ 	FILE* fp;
+ 	BYTE sig[8];
+ 	int status = -1;
+-	fp = fopen(filename, "rb");
++
++	fp = winpr_fopen(filename, "rb");
+ 
+ 	if (!fp)
+ 	{
+diff --git a/winpr/libwinpr/utils/ini.c b/winpr/libwinpr/utils/ini.c
+index e1a20e716..307b0f987 100644
+--- a/winpr/libwinpr/utils/ini.c
++++ b/winpr/libwinpr/utils/ini.c
+@@ -28,6 +28,7 @@
+ #include <errno.h>
+ #include <winpr/wtypes.h>
+ #include <winpr/crt.h>
++#include <winpr/file.h>
+ 
+ #include <winpr/ini.h>
+ 
+@@ -117,9 +118,9 @@ static BOOL IniFile_Open_File(wIniFile* ini, const char* filename)
+ 		return FALSE;
+ 
+ 	if (ini->readOnly)
+-		ini->fp = fopen(filename, "rb");
++		ini->fp = winpr_fopen(filename, "rb");
+ 	else
+-		ini->fp = fopen(filename, "w+b");
++		ini->fp = winpr_fopen(filename, "w+b");
+ 
+ 	if (!ini->fp)
+ 		return FALSE;
+diff --git a/winpr/libwinpr/utils/wlog/BinaryAppender.c b/winpr/libwinpr/utils/wlog/BinaryAppender.c
+index 1001c43b0..318af9273 100644
+--- a/winpr/libwinpr/utils/wlog/BinaryAppender.c
++++ b/winpr/libwinpr/utils/wlog/BinaryAppender.c
+@@ -77,7 +77,7 @@ static BOOL WLog_BinaryAppender_Open(wLog* log, wLogAppender* appender)
+ 		UnixChangeFileMode(binaryAppender->FilePath, 0xFFFF);
+ 	}
+ 
+-	binaryAppender->FileDescriptor = fopen(binaryAppender->FullFileName, "a+");
++	binaryAppender->FileDescriptor = winpr_fopen(binaryAppender->FullFileName, "a+");
+ 
+ 	if (!binaryAppender->FileDescriptor)
+ 		return FALSE;
+diff --git a/winpr/libwinpr/utils/wlog/DataMessage.c b/winpr/libwinpr/utils/wlog/DataMessage.c
+index 74263cf56..27a182d22 100644
+--- a/winpr/libwinpr/utils/wlog/DataMessage.c
++++ b/winpr/libwinpr/utils/wlog/DataMessage.c
+@@ -33,7 +33,7 @@ BOOL WLog_DataMessage_Write(char* filename, void* data, int length)
+ 	FILE* fp;
+ 	BOOL ret = TRUE;
+ 
+-	fp = fopen(filename, "w+b");
++	fp = winpr_fopen(filename, "w+b");
+ 
+ 	if (!fp)
+ 	{
+diff --git a/winpr/libwinpr/utils/wlog/FileAppender.c b/winpr/libwinpr/utils/wlog/FileAppender.c
+index 5ba71632c..b1fdf3a54 100644
+--- a/winpr/libwinpr/utils/wlog/FileAppender.c
++++ b/winpr/libwinpr/utils/wlog/FileAppender.c
+@@ -104,7 +104,7 @@ static BOOL WLog_FileAppender_Open(wLog* log, wLogAppender* appender)
+ 		UnixChangeFileMode(fileAppender->FilePath, 0xFFFF);
+ 	}
+ 
+-	fileAppender->FileDescriptor = fopen(fileAppender->FullFileName, "a+");
++	fileAppender->FileDescriptor = winpr_fopen(fileAppender->FullFileName, "a+");
+ 
+ 	if (!fileAppender->FileDescriptor)
+ 		return FALSE;
+diff --git a/winpr/libwinpr/utils/wlog/PacketMessage.c b/winpr/libwinpr/utils/wlog/PacketMessage.c
+index 2f450ce14..55f85f7b3 100644
+--- a/winpr/libwinpr/utils/wlog/PacketMessage.c
++++ b/winpr/libwinpr/utils/wlog/PacketMessage.c
+@@ -187,7 +187,7 @@ static BOOL Pcap_Write_Record(wPcap* pcap, wPcapRecord* record)
+ wPcap* Pcap_Open(char* name, BOOL write)
+ {
+ 	wPcap* pcap = NULL;
+-	FILE* pcap_fp = fopen(name, write ? "w+b" : "rb");
++	FILE* pcap_fp = winpr_fopen(name, write ? "w+b" : "rb");
+ 
+ 	if (!pcap_fp)
+ 	{

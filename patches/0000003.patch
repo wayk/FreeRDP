@@ -1,0 +1,21 @@
+diff --git a/winpr/libwinpr/utils/trio/triop.h b/winpr/libwinpr/utils/trio/triop.h
+index 9b0e5f90d..7b7dca8c8 100644
+--- a/winpr/libwinpr/utils/trio/triop.h
++++ b/winpr/libwinpr/utils/trio/triop.h
+@@ -300,8 +300,14 @@ extern "C"
+  *
+  * Do not compile trionan.c if you disable this.
+  */
+-#if !defined(TRIO_FEATURE_FLOAT)
+-#define TRIO_FEATURE_FLOAT 1
++
++/*
++ * temporary workaround for ARM64 compiler bug:
++ * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=214380
++ */
++
++#if !defined(TRIO_FEATURE_FLOAT) && !defined(__aarch64__)
++# define TRIO_FEATURE_FLOAT 1
+ #endif
+ 
+ /*

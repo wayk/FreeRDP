@@ -1,0 +1,18 @@
+diff --git a/libfreerdp/codec/h264_mf.c b/libfreerdp/codec/h264_mf.c
+index a5da42321..e65c2c1aa 100644
+--- a/libfreerdp/codec/h264_mf.c
++++ b/libfreerdp/codec/h264_mf.c
+@@ -498,7 +498,12 @@ static void mf_uninit(H264_CONTEXT* h264)
+ 
+ 		memset(h264->pYUVData, 0, sizeof(h264->pYUVData));
+ 		memset(h264->iStride, 0, sizeof(h264->iStride));
+-
++		if(sys->MFShutdown)
++		{
++			sys->MFShutdown();
++			sys->MFShutdown = NULL;
++		}
++		CoUninitialize();
+ 		free(sys);
+ 		h264->pSystemData = NULL;
+ 	}

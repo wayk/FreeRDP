@@ -1,0 +1,62 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index c630e3d74..fed7c8a85 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -602,14 +602,15 @@ if(NOT IOS)
+ endif()
+ 
+ if(NOT WIN32)
+-	CHECK_SYMBOL_EXISTS(pthread_mutex_timedlock pthread.h HAVE_PTHREAD_MUTEX_TIMEDLOCK_SYMBOL)
+-	if (NOT HAVE_PTHREAD_MUTEX_TIMEDLOCK_SYMBOL)
+-		CHECK_LIBRARY_EXISTS(pthread pthread_mutex_timedlock "" HAVE_PTHREAD_MUTEX_TIMEDLOCK_LIB)
++	check_symbol_exists(pthread_mutex_timedlock pthread.h HAVE_PTHREAD_MUTEX_TIMEDLOCK_SYMBOL)
++	if(NOT HAVE_PTHREAD_MUTEX_TIMEDLOCK_SYMBOL)
++		check_library_exists(pthread pthread_mutex_timedlock "" HAVE_PTHREAD_MUTEX_TIMEDLOCK_LIB)
+ 	endif()
+ 	if(NOT HAVE_PTHREAD_MUTEX_TIMEDLOCK_LIB)
+-		CHECK_LIBRARY_EXISTS(pthreads pthread_mutex_timedlock "" HAVE_PTHREAD_MUTEX_TIMEDLOCK_LIBS)
++		check_library_exists(pthreads pthread_mutex_timedlock "" HAVE_PTHREAD_MUTEX_TIMEDLOCK_LIBS)
++		set(HAVE_PTHREAD_MUTEX_TIMEDLOCK_LIB ${HAVE_PTHREAD_MUTEX_TIMEDLOCK_LIBS})
+ 	endif()
+-	if(HAVE_PTHREAD_MUTEX_TIMEDLOCK_SYMBOL AND HAVE_PTHREAD_MUTEX_TIMEDLOCK_LIB AND HAVE_PTHREAD_MUTEX_TIMEDLOCK_LIBS)
++	if(HAVE_PTHREAD_MUTEX_TIMEDLOCK_SYMBOL AND HAVE_PTHREAD_MUTEX_TIMEDLOCK_LIB)
+ 		set(HAVE_PTHREAD_MUTEX_TIMEDLOCK 1)
+ 	endif()
+ endif()
+diff --git a/winpr/libwinpr/synch/wait.c b/winpr/libwinpr/synch/wait.c
+index f4362ac39..5ca450ad1 100644
+--- a/winpr/libwinpr/synch/wait.c
++++ b/winpr/libwinpr/synch/wait.c
+@@ -128,12 +128,30 @@ static long long ts_difftime(const struct timespec* o, const struct timespec* n)
+ 	return newValue - oldValue;
+ }
+ 
+-/* Drop in replacement for pthread_mutex_timedlock
++/**
++ * Drop in replacement for pthread_mutex_timedlock
++ * http://code.google.com/p/android/issues/detail?id=7807
++ * http://aleksmaus.blogspot.ca/2011/12/missing-pthreadmutextimedlock-on.html
+  */
+ #if !defined(HAVE_PTHREAD_MUTEX_TIMEDLOCK)
++
+ #include <pthread.h>
+ 
+-static int pthread_mutex_timedlock(pthread_mutex_t* mutex, const struct timespec* timeout)
++#ifdef ANDROID
++#if (__ANDROID_API__ >= 21)
++#define CONST_NEEDED const
++#else
++#define CONST_NEEDED
++#endif
++#define STATIC_NEEDED
++#else /* ANDROID */
++#define CONST_NEEDED const
++#define STATIC_NEEDED static
++#endif
++
++//int pthread_mutex_timedlock(pthread_mutex_t* _Nonnull, const struct timespec* _Nonnull)
++
++STATIC_NEEDED int pthread_mutex_timedlock(pthread_mutex_t *mutex, CONST_NEEDED struct timespec *timeout)
+ {
+ 	struct timespec timenow;
+ 	struct timespec sleepytime;

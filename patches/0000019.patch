@@ -1,0 +1,12 @@
+diff --git a/winpr/libwinpr/sysinfo/cpufeatures/cpu-features.c b/winpr/libwinpr/sysinfo/cpufeatures/cpu-features.c
+index a5a0bf19a..c66de9060 100644
+--- a/winpr/libwinpr/sysinfo/cpufeatures/cpu-features.c
++++ b/winpr/libwinpr/sysinfo/cpufeatures/cpu-features.c
+@@ -72,6 +72,7 @@
+ #include <sys/system_properties.h>
+ #include <unistd.h>
+ #include <winpr/wtypes.h>
++#include <string.h>
+ 
+ static pthread_once_t g_once;
+ static int g_inited;

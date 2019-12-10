@@ -1,0 +1,24 @@
+diff --git a/winpr/libwinpr/utils/debug.c b/winpr/libwinpr/utils/debug.c
+index 503f4afe1..1988e3b50 100644
+--- a/winpr/libwinpr/utils/debug.c
++++ b/winpr/libwinpr/utils/debug.c
+@@ -224,8 +224,7 @@ static BOOL g_RtlCaptureStackBackTrace_Detected = FALSE;
+ static BOOL g_RtlCaptureStackBackTrace_Available = FALSE;
+ static PRTL_CAPTURE_STACK_BACK_TRACE_FN g_pRtlCaptureStackBackTrace = NULL;
+ 
+-USHORT RtlCaptureStackBackTrace(ULONG FramesToSkip, ULONG FramesToCapture, PVOID* BackTrace,
+-                                PULONG BackTraceHash)
++USHORT winpr_RtlCaptureStackBackTrace(ULONG FramesToSkip, ULONG FramesToCapture, PVOID* BackTrace, PULONG BackTraceHash)
+ {
+ 	if (!g_RtlCaptureStackBackTrace_Detected)
+ 	{
+@@ -337,7 +336,8 @@ void* winpr_backtrace(DWORD size)
+ 	}
+ 
+ 	SymInitialize(process, NULL, TRUE);
+-	data->used = RtlCaptureStackBackTrace(2, size, data->stack, NULL);
++	data->used = winpr_RtlCaptureStackBackTrace(2, size, data->stack, NULL);
++
+ 	return data;
+ #else
+ 	LOGF(support_msg);

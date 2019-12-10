@@ -1,0 +1,533 @@
+diff --git a/include/freerdp/crypto/ssl.h b/include/freerdp/crypto/ssl.h
+new file mode 100644
+index 000000000..936ad2588
+--- /dev/null
++++ b/include/freerdp/crypto/ssl.h
+@@ -0,0 +1,41 @@
++/**
++ * FreeRDP: A Remote Desktop Protocol Implementation
++ * OpenSSL Library Initialization
++ *
++ * Copyright 2014 Marc-Andre Moreau <marcandre.moreau@gmail.com>
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#ifndef FREERDP_SSL_H
++#define FREERDP_SSL_H
++
++#include <winpr/ssl.h>
++#include <freerdp/api.h>
++
++#ifdef	__cplusplus
++extern "C" {
++#endif
++
++FREERDP_API BOOL freerdp_InitializeSSL(DWORD flags);
++FREERDP_API BOOL freerdp_CleanupSSL(DWORD flags);
++
++FREERDP_API BOOL freerdp_FIPSMode(void);
++FREERDP_API BOOL freerdp_OpenSSL(void);
++
++#ifdef	__cplusplus
++}
++#endif
++
++#endif /* FREERDP_SSL_H */
++
+diff --git a/libfreerdp/core/connection.c b/libfreerdp/core/connection.c
+index 59842ab0a..cbc44d431 100644
+--- a/libfreerdp/core/connection.c
++++ b/libfreerdp/core/connection.c
+@@ -37,7 +37,11 @@
+ #include <freerdp/log.h>
+ #include <freerdp/error.h>
+ #include <freerdp/listener.h>
++<<<<<<< HEAD
+ #include <freerdp/cache/pointer.h>
++=======
++#include <freerdp/crypto/ssl.h>
++>>>>>>> feca76aaa... freerdp: separate SSL initialization between FreeRDP and WinPR
+ 
+ #define TAG FREERDP_TAG("core.connection")
+ 
+@@ -239,8 +243,7 @@ BOOL rdp_client_connect(rdpRdp* rdp)
+ 
+ 	if (settings->FIPSMode)
+ 		flags |= WINPR_SSL_INIT_ENABLE_FIPS;
+-
+-	winpr_InitializeSSL(flags);
++	freerdp_InitializeSSL(flags);
+ 
+ 	/* FIPS Mode forces the following and overrides the following(by happening later */
+ 	/* in the command line processing): */
+@@ -248,7 +251,7 @@ BOOL rdp_client_connect(rdpRdp* rdp)
+ 	 * algorithms */
+ 	/*      not allowed in FIPS for sensitive data. So, we disallow NLA when FIPS is required. */
+ 	/* 2. Forces the only supported RDP encryption method to be FIPS. */
+-	if (settings->FIPSMode || winpr_FIPSMode())
++	if (settings->FIPSMode || freerdp_FIPSMode())
+ 	{
+ 		settings->NlaSecurity = FALSE;
+ 		settings->EncryptionMethods = ENCRYPTION_METHOD_FIPS;
+diff --git a/libfreerdp/crypto/CMakeLists.txt b/libfreerdp/crypto/CMakeLists.txt
+index 87e9860a4..616d1ec86 100644
+--- a/libfreerdp/crypto/CMakeLists.txt
++++ b/libfreerdp/crypto/CMakeLists.txt
+@@ -27,6 +27,7 @@ freerdp_module_add(
+ 	certificate.c
+ 	crypto.c
+ 	tls.c
++	ssl.c
+ 	opensslcompat.c)
+ 
+ freerdp_include_directory_add(${OPENSSL_INCLUDE_DIR})
+diff --git a/libfreerdp/crypto/ssl.c b/libfreerdp/crypto/ssl.c
+new file mode 100644
+index 000000000..3f333c25c
+--- /dev/null
++++ b/libfreerdp/crypto/ssl.c
+@@ -0,0 +1,393 @@
++/**
++ * WinPR: Windows Portable Runtime
++ * OpenSSL Library Initialization
++ *
++ * Copyright 2014 Thincast Technologies GmbH
++ * Copyright 2014 Norbert Federa <norbert.federa@thincast.com>
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#ifdef HAVE_CONFIG_H
++#include "config.h"
++#endif
++
++#include <winpr/crt.h>
++#include <winpr/synch.h>
++#include <winpr/ssl.h>
++
++#ifdef WITH_OPENSSL
++
++#include <openssl/ssl.h>
++#include <openssl/err.h>
++
++#include <freerdp/log.h>
++
++#define TAG FREERDP_TAG("crypto")
++
++static BOOL g_freerdp_openssl_initialized_by_winpr = FALSE;
++
++
++/**
++ * Note from OpenSSL 1.1.0 "CHANGES":
++ * OpenSSL now uses a new threading API. It is no longer necessary to
++ * set locking callbacks to use OpenSSL in a multi-threaded environment.
++ */
++
++#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
++
++#define WINPR_OPENSSL_LOCKING_REQUIRED 1
++
++static int g_freerdp_openssl_num_locks = 0;
++static HANDLE* g_freerdp_openssl_locks = NULL;
++
++struct CRYPTO_dynlock_value
++{
++	HANDLE mutex;
++};
++
++
++#if (OPENSSL_VERSION_NUMBER < 0x10000000L)
++static unsigned long _freerdp_openssl_id(void)
++{
++	return (unsigned long)GetCurrentThreadId();
++}
++#endif
++
++static void _freerdp_openssl_locking(int mode, int type, const char* file, int line)
++{
++	if (mode & CRYPTO_LOCK)
++	{
++		WaitForSingleObject(g_freerdp_openssl_locks[type], INFINITE);
++	}
++	else
++	{
++		ReleaseMutex(g_freerdp_openssl_locks[type]);
++	}
++}
++
++static struct CRYPTO_dynlock_value* _freerdp_openssl_dynlock_create(const char* file, int line)
++{
++	struct CRYPTO_dynlock_value* dynlock;
++
++	if (!(dynlock = (struct CRYPTO_dynlock_value*) malloc(sizeof(struct CRYPTO_dynlock_value))))
++		return NULL;
++
++	if (!(dynlock->mutex = CreateMutex(NULL, FALSE, NULL)))
++	{
++		free(dynlock);
++		return NULL;
++	}
++
++	return dynlock;
++}
++
++static void _freerdp_openssl_dynlock_lock(int mode, struct CRYPTO_dynlock_value* dynlock,
++                                        const char* file, int line)
++{
++	if (mode & CRYPTO_LOCK)
++	{
++		WaitForSingleObject(dynlock->mutex, INFINITE);
++	}
++	else
++	{
++		ReleaseMutex(dynlock->mutex);
++	}
++}
++
++static void _freerdp_openssl_dynlock_destroy(struct CRYPTO_dynlock_value* dynlock, const char* file,
++        int line)
++{
++	CloseHandle(dynlock->mutex);
++	free(dynlock);
++}
++
++static BOOL _freerdp_openssl_initialize_locking(void)
++{
++	int i, count;
++
++	/* OpenSSL static locking */
++
++	if (CRYPTO_get_locking_callback())
++	{
++		WLog_WARN(TAG, "OpenSSL static locking callback is already set");
++	}
++	else
++	{
++		if ((count = CRYPTO_num_locks()) > 0)
++		{
++			HANDLE* locks;
++
++			if (!(locks = calloc(count, sizeof(HANDLE))))
++			{
++				WLog_ERR(TAG, "error allocating lock table");
++				return FALSE;
++			}
++
++			for (i = 0; i < count; i++)
++			{
++				if (!(locks[i] = CreateMutex(NULL, FALSE, NULL)))
++				{
++					WLog_ERR(TAG, "error creating lock #%d", i);
++
++					while (i--)
++					{
++						if (locks[i])
++							CloseHandle(locks[i]);
++					}
++
++					free(locks);
++					return FALSE;
++				}
++			}
++
++			g_freerdp_openssl_locks = locks;
++			g_freerdp_openssl_num_locks = count;
++			CRYPTO_set_locking_callback(_freerdp_openssl_locking);
++		}
++	}
++
++	/* OpenSSL dynamic locking */
++
++	if (CRYPTO_get_dynlock_create_callback() ||
++	    CRYPTO_get_dynlock_lock_callback()   ||
++	    CRYPTO_get_dynlock_destroy_callback())
++	{
++		WLog_WARN(TAG, "dynamic locking callbacks are already set");
++	}
++	else
++	{
++		CRYPTO_set_dynlock_create_callback(_freerdp_openssl_dynlock_create);
++		CRYPTO_set_dynlock_lock_callback(_freerdp_openssl_dynlock_lock);
++		CRYPTO_set_dynlock_destroy_callback(_freerdp_openssl_dynlock_destroy);
++	}
++
++	/* Use the deprecated CRYPTO_get_id_callback() if building against OpenSSL < 1.0.0 */
++#if (OPENSSL_VERSION_NUMBER < 0x10000000L)
++
++	if (CRYPTO_get_id_callback())
++	{
++		WLog_WARN(TAG, "OpenSSL id_callback is already set");
++	}
++	else
++	{
++		CRYPTO_set_id_callback(_freerdp_openssl_id);
++	}
++
++#endif
++	return TRUE;
++}
++
++static BOOL _freerdp_openssl_cleanup_locking(void)
++{
++	/* undo our static locking modifications */
++	if (CRYPTO_get_locking_callback() == _freerdp_openssl_locking)
++	{
++		int i;
++		CRYPTO_set_locking_callback(NULL);
++
++		for (i = 0; i < g_freerdp_openssl_num_locks; i++)
++		{
++			CloseHandle(g_freerdp_openssl_locks[i]);
++		}
++
++		g_freerdp_openssl_num_locks = 0;
++		free(g_freerdp_openssl_locks);
++		g_freerdp_openssl_locks = NULL;
++	}
++
++	/* unset our dynamic locking callbacks */
++
++	if (CRYPTO_get_dynlock_create_callback() == _freerdp_openssl_dynlock_create)
++	{
++		CRYPTO_set_dynlock_create_callback(NULL);
++	}
++
++	if (CRYPTO_get_dynlock_lock_callback() == _freerdp_openssl_dynlock_lock)
++	{
++		CRYPTO_set_dynlock_lock_callback(NULL);
++	}
++
++	if (CRYPTO_get_dynlock_destroy_callback() == _freerdp_openssl_dynlock_destroy)
++	{
++		CRYPTO_set_dynlock_destroy_callback(NULL);
++	}
++
++#if (OPENSSL_VERSION_NUMBER < 0x10000000L)
++
++	if (CRYPTO_get_id_callback() == _freerdp_openssl_id)
++	{
++		CRYPTO_set_id_callback(NULL);
++	}
++
++#endif
++	return TRUE;
++}
++
++#endif /* OpenSSL < 1.1.0 */
++
++
++static BOOL CALLBACK _freerdp_openssl_initialize(PINIT_ONCE once, PVOID param, PVOID* context)
++{
++	DWORD flags = param ? *(PDWORD)param : WINPR_SSL_INIT_DEFAULT;
++
++	if (flags & WINPR_SSL_INIT_ALREADY_INITIALIZED)
++	{
++		return TRUE;
++	}
++
++#ifdef WINPR_OPENSSL_LOCKING_REQUIRED
++
++	if (flags & WINPR_SSL_INIT_ENABLE_LOCKING)
++	{
++		if (!_freerdp_openssl_initialize_locking())
++		{
++			return FALSE;
++		}
++	}
++
++#endif
++	/* SSL_load_error_strings() is void */
++#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
++	SSL_load_error_strings();
++	/* SSL_library_init() always returns "1" */
++	SSL_library_init();
++	OpenSSL_add_all_digests();
++	OpenSSL_add_all_ciphers();
++#else
++
++	if (OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS |
++	                     OPENSSL_INIT_LOAD_CRYPTO_STRINGS |
++	                     OPENSSL_INIT_ADD_ALL_CIPHERS |
++	                     OPENSSL_INIT_ADD_ALL_DIGESTS |
++	                     OPENSSL_INIT_ENGINE_ALL_BUILTIN, NULL) != 1)
++		return FALSE;
++
++#endif
++	g_freerdp_openssl_initialized_by_winpr = TRUE;
++
++	if (flags & WINPR_SSL_INIT_ENABLE_FIPS)
++	{
++#if (OPENSSL_VERSION_NUMBER < 0x10001000L) || defined(LIBRESSL_VERSION_NUMBER)
++		WLog_ERR(TAG, "Openssl fips mode ENable not available on openssl versions less than 1.0.1!");
++#else
++		WLog_DBG(TAG, "Ensuring openssl fips mode is ENabled");
++
++		if (FIPS_mode() != 1)
++		{
++			if (FIPS_mode_set(1))
++				WLog_INFO(TAG, "Openssl fips mode ENabled!");
++			else
++				WLog_ERR(TAG, "Openssl fips mode ENable failed!");
++		}
++
++#endif
++	}
++
++	return TRUE;
++}
++
++
++/* exported functions */
++
++BOOL freerdp_InitializeSSL(DWORD flags)
++{
++	if (winpr_OpenSSL())
++		return winpr_InitializeSSL(flags);
++
++	static INIT_ONCE once = INIT_ONCE_STATIC_INIT;
++	return InitOnceExecuteOnce(&once, _freerdp_openssl_initialize, &flags, NULL);
++}
++
++BOOL freerdp_CleanupSSL(DWORD flags)
++{
++	if (winpr_OpenSSL())
++		return winpr_CleanupSSL(flags);
++
++	if (flags & WINPR_SSL_CLEANUP_GLOBAL)
++	{
++		if (!g_freerdp_openssl_initialized_by_winpr)
++		{
++			WLog_WARN(TAG, "ssl was not initialized by winpr");
++			return FALSE;
++		}
++
++		g_freerdp_openssl_initialized_by_winpr = FALSE;
++#ifdef WINPR_OPENSSL_LOCKING_REQUIRED
++		_freerdp_openssl_cleanup_locking();
++#endif
++#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
++		CRYPTO_cleanup_all_ex_data();
++		ERR_free_strings();
++		EVP_cleanup();
++#endif
++#ifdef WINPR_OPENSSL_LOCKING_REQUIRED
++		flags |= WINPR_SSL_CLEANUP_THREAD;
++#endif
++	}
++
++#ifdef WINPR_OPENSSL_LOCKING_REQUIRED
++
++	if (flags & WINPR_SSL_CLEANUP_THREAD)
++	{
++#if (OPENSSL_VERSION_NUMBER < 0x10000000L) || defined(LIBRESSL_VERSION_NUMBER)
++		ERR_remove_state(0);
++#else
++		ERR_remove_thread_state(NULL);
++#endif
++	}
++
++#endif
++	return TRUE;
++}
++
++BOOL freerdp_FIPSMode(void)
++{
++	if (winpr_OpenSSL())
++		return winpr_FIPSMode();
++
++#if (OPENSSL_VERSION_NUMBER < 0x10001000L) || defined(LIBRESSL_VERSION_NUMBER)
++	return FALSE;
++#else
++	return (FIPS_mode() == 1);
++#endif
++}
++
++BOOL freerdp_OpenSSL(void)
++{
++	return TRUE;
++}
++
++#else
++
++BOOL freerdp_InitializeSSL(DWORD flags)
++{
++	return TRUE;
++}
++
++BOOL freerdp_CleanupSSL(DWORD flags)
++{
++	return TRUE;
++}
++
++BOOL freerdp_FIPSMode(void)
++{
++	return FALSE;
++}
++
++BOOL freerdp_OpenSSL(void)
++{
++	return FALSE;
++}
++
++#endif
+diff --git a/winpr/include/winpr/ssl.h b/winpr/include/winpr/ssl.h
+index 942a062ed..53b190a72 100644
+--- a/winpr/include/winpr/ssl.h
++++ b/winpr/include/winpr/ssl.h
+@@ -39,7 +39,8 @@ extern "C"
+ 	WINPR_API BOOL winpr_InitializeSSL(DWORD flags);
+ 	WINPR_API BOOL winpr_CleanupSSL(DWORD flags);
+ 
+-	WINPR_API BOOL winpr_FIPSMode(void);
++WINPR_API BOOL winpr_FIPSMode(void);
++WINPR_API BOOL winpr_OpenSSL(void);
+ 
+ #ifdef __cplusplus
+ }
+diff --git a/winpr/libwinpr/utils/ssl.c b/winpr/libwinpr/utils/ssl.c
+index 3a8590390..af4bd14cf 100644
+--- a/winpr/libwinpr/utils/ssl.c
++++ b/winpr/libwinpr/utils/ssl.c
+@@ -361,6 +361,11 @@ BOOL winpr_FIPSMode(void)
+ #endif
+ }
+ 
++BOOL winpr_OpenSSL(void)
++{
++	return TRUE;
++}
++
+ #else
+ 
+ BOOL winpr_InitializeSSL(DWORD flags)
+@@ -378,4 +383,9 @@ BOOL winpr_FIPSMode(void)
+ 	return FALSE;
+ }
+ 
++BOOL winpr_OpenSSL(void)
++{
++	return FALSE;
++}
++
+ #endif

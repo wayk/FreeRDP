@@ -1,0 +1,15 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 60de31f69..91a58de9f 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -649,7 +649,9 @@ if(UNIX OR CYGWIN)
+ 		check_symbol_exists(eventfd_read sys/eventfd.h WITH_EVENTFD_READ_WRITE)
+ 	endif()
+ 	check_include_files(sys/timerfd.h HAVE_SYS_TIMERFD_H)
+-	check_include_files(poll.h HAVE_POLL_H)
++	if (NOT APPLE)
++		check_include_files(poll.h HAVE_POLL_H)
++	endif()
+ 	list(APPEND CMAKE_REQUIRED_LIBRARIES m)
+ 	check_symbol_exists(ceill math.h HAVE_MATH_C99_LONG_DOUBLE)
+ 	list(REMOVE_ITEM CMAKE_REQUIRED_LIBRARIES m)

@@ -1,0 +1,29 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 91a58de9f..9170f6e2b 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -73,6 +73,11 @@ include(CMakePackageConfigHelpers)
+ include(InstallFreeRDPMan)
+ include(GetGitRevisionDescription)
+ 
++if(ANDROID)
++	list(APPEND CMAKE_FIND_ROOT_PATH ${CMAKE_PREFIX_PATH})
++	list(REMOVE_DUPLICATES CMAKE_FIND_ROOT_PATH)
++endif()
++
+ # Soname versioning
+ set(BUILD_NUMBER 0)
+ if ($ENV{BUILD_NUMBER})
+diff --git a/cmake/ConfigOptions.cmake b/cmake/ConfigOptions.cmake
+index 70f128ebe..f3d2bc856 100644
+--- a/cmake/ConfigOptions.cmake
++++ b/cmake/ConfigOptions.cmake
+@@ -13,7 +13,7 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
+ 	set(TARGET_ARCH "sparc")
+ endif()
+ 
+-option(WITH_MANPAGES "Generate manpages." OFF)
++option(WITH_MANPAGES "Generate manpages." ON)
+ option(WITH_PROFILER "Compile profiler." OFF)
+ option(WITH_GPROF "Compile with GProf profiler." OFF)
+ 

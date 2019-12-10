@@ -1,0 +1,276 @@
+diff --git a/winpr/libwinpr/utils/wlog/wlog.c b/winpr/libwinpr/utils/wlog/wlog.c
+index 53d350cff..fbffaa706 100644
+--- a/winpr/libwinpr/utils/wlog/wlog.c
++++ b/winpr/libwinpr/utils/wlog/wlog.c
+@@ -28,7 +28,6 @@
+ #include <winpr/print.h>
+ #include <winpr/debug.h>
+ #include <winpr/environment.h>
+-#include <winpr/wlog.h>
+ 
+ #if defined(ANDROID)
+ #include <android/log.h>
+@@ -37,6 +36,7 @@
+ 
+ #include "wlog.h"
+ 
++
+ struct _wLogFilter
+ {
+ 	DWORD Level;
+@@ -59,13 +59,9 @@ typedef struct _wLogFilter wLogFilter;
+ 
+ LPCSTR WLOG_LEVELS[7] = { "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL", "OFF" };
+ 
+-static INIT_ONCE _WLogInitialized = INIT_ONCE_STATIC_INIT;
+ static DWORD g_FilterCount = 0;
+ static wLogFilter* g_Filters = NULL;
+-static wLog* g_RootLog = NULL;
+ 
+-static wLog* WLog_New(LPCSTR name, wLog* rootLogger);
+-static void WLog_Free(wLog* log);
+ static LONG WLog_GetFilterLogLevel(wLog* log);
+ static int WLog_ParseLogLevel(LPCSTR level);
+ static BOOL WLog_ParseFilter(wLogFilter* filter, LPCSTR name);
+@@ -161,8 +157,7 @@ fail:
+ 
+ static BOOL log_recursion(LPCSTR file, LPCSTR fkt, int line)
+ {
+-	BOOL status = FALSE;
+-	char** msg = NULL;
++	char** msg;
+ 	size_t used, i;
+ 	void* bt = winpr_backtrace(20);
+ #if defined(ANDROID)
+@@ -175,41 +170,40 @@ static BOOL log_recursion(LPCSTR file, LPCSTR fkt, int line)
+ 	msg = winpr_backtrace_symbols(bt, &used);
+ 
+ 	if (!msg)
+-		goto out;
++		return FALSE;
+ 
+ #if defined(ANDROID)
+ 
+ 	if (__android_log_print(ANDROID_LOG_FATAL, tag, "Recursion detected!!!") < 0)
+-		goto out;
++		return FALSE;
+ 
+-	if (__android_log_print(ANDROID_LOG_FATAL, tag, "Check %s [%s:%d]", fkt, file, line) < 0)
+-		goto out;
++	if (__android_log_print(ANDROID_LOG_FATAL, tag, "Check %s [%s:%d]", fkt, file,
++	                        line) < 0)
++		return FALSE;
+ 
+ 	for (i = 0; i < used; i++)
+ 		if (__android_log_print(ANDROID_LOG_FATAL, tag, "%zd: %s", i, msg[i]) < 0)
+-			goto out;
++			return FALSE;
+ 
+ #else
+ 
+ 	if (fprintf(stderr, "[%s]: Recursion detected!\n", fkt) < 0)
+-		goto out;
++		return FALSE;
+ 
+ 	if (fprintf(stderr, "[%s]: Check %s:%d\n", fkt, file, line) < 0)
+-		goto out;
++		return FALSE;
+ 
+ 	for (i = 0; i < used; i++)
+-		if (fprintf(stderr, "%s: %" PRIuz ": %s\n", fkt, i, msg[i]) < 0)
+-			goto out;
++		if (fprintf(stderr, "%s: %"PRIuz": %s\n", fkt, i, msg[i]) < 0)
++			return FALSE;
+ 
+ #endif
+-	status = TRUE;
+-out:
+ 	free(msg);
+ 	winpr_backtrace_free(bt);
+-	return status;
++	return TRUE;
+ }
+ 
+-static BOOL WLog_Write(wLog* log, wLogMessage* message)
++BOOL WLog_Write(wLog* log, wLogMessage* message)
+ {
+ 	BOOL status;
+ 	wLogAppender* appender;
+@@ -240,7 +234,7 @@ static BOOL WLog_Write(wLog* log, wLogMessage* message)
+ 	return status;
+ }
+ 
+-static BOOL WLog_WriteData(wLog* log, wLogMessage* message)
++BOOL WLog_WriteData(wLog* log, wLogMessage* message)
+ {
+ 	BOOL status;
+ 	wLogAppender* appender;
+@@ -271,7 +265,7 @@ static BOOL WLog_WriteData(wLog* log, wLogMessage* message)
+ 	return status;
+ }
+ 
+-static BOOL WLog_WriteImage(wLog* log, wLogMessage* message)
++BOOL WLog_WriteImage(wLog* log, wLogMessage* message)
+ {
+ 	BOOL status;
+ 	wLogAppender* appender;
+@@ -302,7 +296,7 @@ static BOOL WLog_WriteImage(wLog* log, wLogMessage* message)
+ 	return status;
+ }
+ 
+-static BOOL WLog_WritePacket(wLog* log, wLogMessage* message)
++BOOL WLog_WritePacket(wLog* log, wLogMessage* message)
+ {
+ 	BOOL status;
+ 	wLogAppender* appender;
+@@ -713,7 +707,6 @@ BOOL WLog_ParseFilters(void)
+ 
+ 	if (GetEnvironmentVariableA(filter, env, nSize) == nSize - 1)
+ 		res = WLog_AddStringLogFilters(env);
+-
+ 	free(env);
+ 	return res;
+ }
+@@ -761,7 +754,7 @@ LONG WLog_GetFilterLogLevel(wLog* log)
+ 	return log->FilterLevel;
+ }
+ 
+-static BOOL WLog_ParseName(wLog* log, LPCSTR name)
++BOOL WLog_ParseName(wLog* log, LPCSTR name)
+ {
+ 	char* p;
+ 	int count;
+@@ -843,6 +836,7 @@ wLog* WLog_New(LPCSTR name, wLog* rootLogger)
+ 	else
+ 	{
+ 		LPCSTR level = "WLOG_LEVEL";
++
+ 		log->Level = WLOG_INFO;
+ 		nSize = GetEnvironmentVariableA(level, NULL, 0);
+ 
+@@ -905,15 +899,75 @@ void WLog_Free(wLog* log)
+ 	}
+ }
+ 
++static wLog* g_RootLog = NULL;
++
+ wLog* WLog_GetRoot(void)
+ {
+-	if (!InitOnceExecuteOnce(&_WLogInitialized, WLog_InitializeRoot, NULL, NULL))
+-		return NULL;
++	char* env;
++	DWORD nSize;
++	DWORD logAppenderType;
++
++	if (!g_RootLog)
++	{
++		LPCSTR appender = "WLOG_APPENDER";
++
++		if (!(g_RootLog = WLog_New("", NULL)))
++			return NULL;
++
++		g_RootLog->IsRoot = TRUE;
++		WLog_ParseFilters();
++		logAppenderType = WLOG_APPENDER_CONSOLE;
++		nSize = GetEnvironmentVariableA(appender, NULL, 0);
++
++		if (nSize)
++		{
++			env = (LPSTR) malloc(nSize);
++
++			if (!env)
++				goto fail;
++
++			if (GetEnvironmentVariableA(appender, env, nSize) != nSize - 1)
++			{
++				fprintf(stderr, "%s environment variable modified in my back", appender);
++				free(env);
++				goto fail;
++			}
++
++			if (_stricmp(env, "CONSOLE") == 0)
++				logAppenderType = WLOG_APPENDER_CONSOLE;
++			else if (_stricmp(env, "FILE") == 0)
++				logAppenderType = WLOG_APPENDER_FILE;
++			else if (_stricmp(env, "BINARY") == 0)
++				logAppenderType = WLOG_APPENDER_BINARY;
++
++#ifdef HAVE_SYSLOG_H
++			else if (_stricmp(env, "SYSLOG") == 0)
++				logAppenderType = WLOG_APPENDER_SYSLOG;
++
++#endif /* HAVE_SYSLOG_H */
++#ifdef HAVE_JOURNALD_H
++			else if (_stricmp(env, "JOURNALD") == 0)
++				logAppenderType = WLOG_APPENDER_JOURNALD;
++
++#endif
++			else if (_stricmp(env, "UDP") == 0)
++				logAppenderType = WLOG_APPENDER_UDP;
++
++			free(env);
++		}
++
++		if (!WLog_SetLogAppenderType(g_RootLog, logAppenderType))
++			goto fail;
++	}
+ 
+ 	return g_RootLog;
++fail:
++	free(g_RootLog);
++	g_RootLog = NULL;
++	return NULL;
+ }
+ 
+-static BOOL WLog_AddChild(wLog* parent, wLog* child)
++BOOL WLog_AddChild(wLog* parent, wLog* child)
+ {
+ 	if (parent->ChildrenCount >= parent->ChildrenSize)
+ 	{
+@@ -952,7 +1006,7 @@ static BOOL WLog_AddChild(wLog* parent, wLog* child)
+ 	return TRUE;
+ }
+ 
+-static wLog* WLog_FindChild(LPCSTR name)
++wLog* WLog_FindChild(LPCSTR name)
+ {
+ 	DWORD index;
+ 	wLog* root;
+@@ -1008,5 +1062,25 @@ BOOL WLog_Init(void)
+ 
+ BOOL WLog_Uninit(void)
+ {
++	DWORD index;
++	wLog* child = NULL;
++	wLog* root = g_RootLog;
++
++	if (!root)
++		return FALSE;
++
++	WLog_Lock(root);
++
++	for (index = 0; index < root->ChildrenCount; index++)
++	{
++		child = root->Children[index];
++		WLog_Free(child);
++	}
++
++	WLog_Unlock(root);
++
++	WLog_Free(root);
++	g_RootLog = NULL;
++
+ 	return TRUE;
+ }
+diff --git a/winpr/libwinpr/utils/wlog/wlog.h b/winpr/libwinpr/utils/wlog/wlog.h
+index c5729718c..f62678174 100644
+--- a/winpr/libwinpr/utils/wlog/wlog.h
++++ b/winpr/libwinpr/utils/wlog/wlog.h
+@@ -78,6 +78,7 @@ struct _wLog
+ 	wLog** Children;
+ 	DWORD ChildrenCount;
+ 	DWORD ChildrenSize;
++	CRITICAL_SECTION lock;
+ };
+ 
+ BOOL WLog_Layout_GetMessagePrefix(wLog* log, wLogLayout* layout, wLogMessage* message);
