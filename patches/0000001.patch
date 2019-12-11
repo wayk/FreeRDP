@@ -6,6 +6,7 @@ index 6c20267f4..312081bfe 100644
  include(CMakePackageConfigHelpers)
  include(InstallFreeRDPMan)
  include(GetGitRevisionDescription)
+-include(SetFreeRDPCMakeInstallDir)
  
  # Soname versioning
  set(BUILD_NUMBER 0)
