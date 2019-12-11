@@ -1,8 +1,8 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 9170f6e2b..eed9b5578 100644
+index 2c957fe63..4012a2662 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -1066,10 +1066,22 @@ endif()
+@@ -1069,10 +1069,22 @@ endif()
  if(WINPR_IMPORT)
  	message(STATUS "Using imported WinPR")
  
