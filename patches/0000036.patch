@@ -1,0 +1,88 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index eed9b5578..4012a2662 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -72,6 +72,7 @@ include(GNUInstallDirsWrapper)
+ include(CMakePackageConfigHelpers)
+ include(InstallFreeRDPMan)
+ include(GetGitRevisionDescription)
++include(SetFreeRDPCMakeInstallDir)
+ 
+ if(ANDROID)
+ 	list(APPEND CMAKE_FIND_ROOT_PATH ${CMAKE_PREFIX_PATH})
+@@ -257,8 +258,8 @@ if(MSVC)
+ 	endif()
+ endif()
+ 
+-# Enable 64bit file support on linux.
+-if("${CMAKE_SYSTEM_NAME}" MATCHES "Linux")
++# Enable 64bit file support on linux and FreeBSD.
++if("${CMAKE_SYSTEM_NAME}" MATCHES "Linux" OR FREEBSD)
+ 	add_definitions("-D_FILE_OFFSET_BITS=64")
+ endif()
+ 
+@@ -489,7 +490,7 @@ if(WIN32)
+ 	elseif (${CMAKE_GENERATOR} MATCHES "Visual Studio*")
+ 		set(CMAKE_PDB_BINARY_DIR "${CMAKE_BINARY_DIR}/\${CMAKE_INSTALL_CONFIG_NAME}")
+ 	else()
+-		message(FATAL "Unknown generator ${CMAKE_GENERATOR}")
++		message(FATAL_ERROR "Unknown generator ${CMAKE_GENERATOR}")
+ 	endif()
+ 
+ 	string(TIMESTAMP RC_VERSION_YEAR "%Y")
+@@ -944,7 +945,7 @@ set(WITH_OPENH264 ${OPENH264_FOUND})
+ if ( (WITH_GSSAPI) AND (NOT GSS_FOUND))
+ 	message(WARNING "-DWITH_GSSAPI=ON is set, but not GSSAPI implementation was found, disabling")
+ elseif(WITH_GSSAPI)
+-	if(GSS_FLAVOUR STREQUAL "MIT") 
++	if(GSS_FLAVOUR STREQUAL "MIT")
+ 		add_definitions("-DWITH_GSSAPI -DWITH_GSSAPI_MIT")
+ 		if(GSS_VERSION_1_13)
+ 			add_definitions("-DHAVE_AT_LEAST_KRB_V1_13")
+@@ -1020,7 +1021,9 @@ if (APPLE)
+ 	set(CMAKE_INSTALL_RPATH "@loader_path/../Frameworks")
+ else (APPLE)
+ 	set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+-	set(CMAKE_INSTALL_RPATH "\$ORIGIN/../${CMAKE_INSTALL_LIBDIR}:\$ORIGIN/..")
++	if (NOT FREEBSD)
++		set(CMAKE_INSTALL_RPATH "\$ORIGIN/../${CMAKE_INSTALL_LIBDIR}:\$ORIGIN/..")
++	endif()
+ endif(APPLE)
+ 
+ if (BUILD_SHARED_LIBS)
+@@ -1145,7 +1148,7 @@ if(WITH_CHANNELS)
+ endif()
+ 
+ if(WITH_CLIENT_COMMON OR WITH_CLIENT)
+-	add_subdirectory(client)
++add_subdirectory(client)
+ endif()
+ 
+ if(WITH_SERVER)
+diff --git a/libfreerdp/core/connection.c b/libfreerdp/core/connection.c
+index cbc44d431..694d2de29 100644
+--- a/libfreerdp/core/connection.c
++++ b/libfreerdp/core/connection.c
+@@ -37,11 +37,8 @@
+ #include <freerdp/log.h>
+ #include <freerdp/error.h>
+ #include <freerdp/listener.h>
+-<<<<<<< HEAD
+ #include <freerdp/cache/pointer.h>
+-=======
+ #include <freerdp/crypto/ssl.h>
+->>>>>>> feca76aaa... freerdp: separate SSL initialization between FreeRDP and WinPR
+ 
+ #define TAG FREERDP_TAG("core.connection")
+ 
+@@ -243,6 +240,10 @@ BOOL rdp_client_connect(rdpRdp* rdp)
+ 
+ 	if (settings->FIPSMode)
+ 		flags |= WINPR_SSL_INIT_ENABLE_FIPS;
++<<<<<<< HEAD
++=======
++
++>>>>>>> a0b6bae4d... freerdp: fix messy rebase
+ 	freerdp_InitializeSSL(flags);
+ 
+ 	/* FIPS Mode forces the following and overrides the following(by happening later */
