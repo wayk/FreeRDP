@@ -46,22 +46,18 @@ index 000000000..936ad2588
 +#endif /* FREERDP_SSL_H */
 +
 diff --git a/libfreerdp/core/connection.c b/libfreerdp/core/connection.c
-index 59842ab0a..cbc44d431 100644
+index 59842ab0a..cea36dba5 100644
 --- a/libfreerdp/core/connection.c
 +++ b/libfreerdp/core/connection.c
-@@ -37,7 +37,11 @@
- #include <freerdp/log.h>
+@@ -38,6 +38,7 @@
  #include <freerdp/error.h>
  #include <freerdp/listener.h>
-+<<<<<<< HEAD
  #include <freerdp/cache/pointer.h>
-+=======
 +#include <freerdp/crypto/ssl.h>
-+>>>>>>> feca76aaa... freerdp: separate SSL initialization between FreeRDP and WinPR
  
  #define TAG FREERDP_TAG("core.connection")
  
-@@ -239,8 +243,7 @@ BOOL rdp_client_connect(rdpRdp* rdp)
+@@ -239,8 +240,7 @@ BOOL rdp_client_connect(rdpRdp* rdp)
  
  	if (settings->FIPSMode)
  		flags |= WINPR_SSL_INIT_ENABLE_FIPS;
@@ -71,7 +67,7 @@ index 59842ab0a..cbc44d431 100644
  
  	/* FIPS Mode forces the following and overrides the following(by happening later */
  	/* in the command line processing): */
-@@ -248,7 +251,7 @@ BOOL rdp_client_connect(rdpRdp* rdp)
+@@ -248,7 +248,7 @@ BOOL rdp_client_connect(rdpRdp* rdp)
  	 * algorithms */
  	/*      not allowed in FIPS for sensitive data. So, we disallow NLA when FIPS is required. */
  	/* 2. Forces the only supported RDP encryption method to be FIPS. */
