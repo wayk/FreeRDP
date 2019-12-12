@@ -10,7 +10,7 @@ index d9673f2d4..5aa37b606 100644
 -	winpr_library_add_private(rt)
 +    if(NOT IOS)
 +        add_definitions(-DWITH_POSIX_TIMER)
-+        winpr_library_add(rt)
++        winpr_library_add_private(rt)
 +    endif()
  endif()
  
