@@ -1,67 +1,381 @@
-diff --git a/winpr/libwinpr/timezone/timezone.c b/winpr/libwinpr/timezone/timezone.c
-index 8a07c795a..c1bd180e5 100644
---- a/winpr/libwinpr/timezone/timezone.c
-+++ b/winpr/libwinpr/timezone/timezone.c
-@@ -56,35 +56,43 @@ static UINT64 winpr_windows_gmtime(void)
+diff --git a/channels/rdpdr/client/rdpdr_main.c b/channels/rdpdr/client/rdpdr_main.c
+index 2347a3789..d902521c2 100644
+--- a/channels/rdpdr/client/rdpdr_main.c
++++ b/channels/rdpdr/client/rdpdr_main.c
+@@ -251,7 +251,6 @@ LRESULT CALLBACK hotplug_proc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+ 											devman_unregister_device(rdpdr->devman, (void*)keys[j]);
+ 											ids[0] = keys[j];
  
- static char* winpr_read_unix_timezone_identifier_from_file(FILE* fp)
+-<<<<<<< HEAD
+ 											if ((error = rdpdr_send_device_list_remove_request(
+ 											         rdpdr, 1, ids)))
+ 											{
+@@ -261,13 +260,6 @@ LRESULT CALLBACK hotplug_proc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+ 												    "rdpdr_send_device_list_remove_request failed "
+ 												    "with error %" PRIu32 "!",
+ 												    error);
+-=======
+-											if ((error = rdpdr_send_device_list_remove_request(rdpdr, 1, ids)))
+-											{
+-												// dont end on error, just report ?
+-												WLog_ERR(TAG, "rdpdr_send_device_list_remove_request failed with error %"PRIu32"!",
+-												         error);
+->>>>>>> a0b6bae4d... freerdp: fix messy rebase
+ 											}
+ 
+ 											break;
+@@ -409,12 +401,8 @@ static UINT handle_hotplug(rdpdrPlugin* rdpdr)
+ 		if (pDirent->d_name[0] != '.')
+ 		{
+ 			sprintf_s(fullpath, ARRAYSIZE(fullpath), "%s/%s", szdir, pDirent->d_name);
+-<<<<<<< HEAD
+ 			if (stat(fullpath, &buf) != 0)
+ 				continue;
+-=======
+-			lstat(fullpath, &buf);
+->>>>>>> a0b6bae4d... freerdp: fix messy rebase
+ 
+ 			if (S_ISDIR(buf.st_mode))
+ 			{
+@@ -446,11 +434,7 @@ static UINT handle_hotplug(rdpdrPlugin* rdpdr)
+ 		if (!device_ext || !device_ext->automount)
+ 			continue;
+ 
+-<<<<<<< HEAD
+ 		if (device_ext->device.type != RDPDR_DTYP_FILESYSTEM)
+-=======
+-		if (!device_ext || !device_ext->automount)
+->>>>>>> a0b6bae4d... freerdp: fix messy rebase
+ 			continue;
+ 
+ 		if (device_ext->path == NULL)
+@@ -501,27 +485,11 @@ static UINT handle_hotplug(rdpdrPlugin* rdpdr)
+ 			RDPDR_DRIVE drive = { 0 };
+ 			char* name;
+ 
+-<<<<<<< HEAD
+ 			drive.Type = RDPDR_DTYP_FILESYSTEM;
+ 			drive.Path = dev_array[i].path;
+ 			drive.automount = TRUE;
+ 			name = strrchr(drive.Path, '/') + 1;
+ 			drive.Name = name;
+-=======
+-			if (!drive)
+-			{
+-				WLog_ERR(TAG, "calloc failed!");
+-				error = CHANNEL_RC_NO_MEMORY;
+-				goto cleanup;
+-			}
+-
+-			drive->Type = RDPDR_DTYP_FILESYSTEM;
+-			drive->Path = dev_array[i].path;
+-			drive->automount = TRUE;
+-			dev_array[i].path = NULL;
+-			name = strrchr(drive->Path, '/') + 1;
+-			drive->Name = _strdup(name);
+->>>>>>> a0b6bae4d... freerdp: fix messy rebase
+ 
+ 			if (!drive.Name)
+ 			{
+@@ -669,102 +637,6 @@ static BOOL isAutomountLocation(const char* path)
+ 	return FALSE;
+ }
+ 
+-<<<<<<< HEAD
+-=======
+-static char* next_line(FILE* fd, size_t* len)
+-{
+-	size_t newsiz;
+-	int c;
+-	char* newbuf;
+-	char* lrbuf;
+-	int lrsiz;
+-	*len = 0;
+-	lrsiz = 0;
+-	lrbuf = NULL;
+-	newbuf = NULL;
+-
+-	for (;;)
+-	{
+-		c = fgetc(fd);
+-
+-		if (ferror(fd))
+-		{
+-			free(newbuf);
+-			return NULL;
+-		}
+-
+-		if (c == EOF)
+-		{
+-			if (*len == 0)
+-				return NULL;
+-			else
+-			{
+-				lrbuf[(*len)] = '\0';
+-				return lrbuf;
+-			}
+-		}
+-		else
+-		{
+-			if (*len == lrsiz)
+-			{
+-				newsiz = lrsiz + 4096;
+-				newbuf = realloc(lrbuf, newsiz);
+-
+-				if (newbuf == NULL)
+-					return NULL;
+-
+-				lrbuf = newbuf;
+-				lrsiz = newsiz;
+-			}
+-
+-			lrbuf[(*len)] = c;
+-
+-			if (c == '\n')
+-			{
+-				lrbuf[(*len)] = '\0';
+-				return lrbuf;
+-			}
+-
+-			(*len)++;
+-		}
+-	}
+-}
+-
+-static char* get_word(char* str, unsigned int* offset)
+-{
+-	char* p;
+-	char* tmp;
+-	char* word;
+-	int wlen;
+-
+-	if (*offset >= strlen(str))
+-		return NULL;
+-
+-	p = str + *offset;
+-	tmp = p;
+-
+-	while (*tmp != ' ' && *tmp  != '\0')
+-		tmp++;
+-
+-	wlen = tmp - p;
+-	*offset += wlen;
+-
+-	/* in case there are more than one space between words */
+-	while (*(str + *offset) == ' ')
+-		(*offset)++;
+-
+-	word = malloc(wlen + 1);
+-
+-	if (word != NULL)
+-	{
+-		CopyMemory(word, p, wlen);
+-		word[wlen] = '\0';
+-	}
+-
+-	return word;
+-}
+-
+->>>>>>> a0b6bae4d... freerdp: fix messy rebase
+ /**
+  * Function description
+  *
+@@ -773,22 +645,11 @@ static char* get_word(char* str, unsigned int* offset)
+ static UINT handle_hotplug(rdpdrPlugin* rdpdr)
  {
--	INT64 length;
--	char* tzid = NULL;
--
--	if (_fseeki64(fp, 0, SEEK_END) != 0)
--		return NULL;
--
--	length = _ftelli64(fp);
-+	const INT CHUNK_SIZE = 32;
-+	INT64 rc, read = 0, length = CHUNK_SIZE;
-+	char* tmp, *tzid = NULL;
+ 	FILE* f;
+-<<<<<<< HEAD
+ 	hotplug_dev dev_array[MAX_USB_DEVICES] = { 0 };
+ 	size_t i;
+ 	size_t size = 0;
+ 	int count, j;
+ 	struct mntent* ent;
+-=======
+-	size_t len;
+-	char* line;
+-	char* word;
+-	unsigned int wlen;
+-	hotplug_dev dev_array[MAX_USB_DEVICES];
+-	int i, j;
+-	int size = 0;
+-	int count;
+->>>>>>> a0b6bae4d... freerdp: fix messy rebase
+ 	ULONG_PTR* keys = NULL;
+ 	UINT32 ids[1];
+ 	UINT error = 0;
+@@ -826,12 +687,8 @@ static UINT handle_hotplug(rdpdrPlugin* rdpdr)
+ 		DEVICE_DRIVE_EXT* device_ext =
+ 		    (DEVICE_DRIVE_EXT*)ListDictionary_GetItemValue(rdpdr->devman->devices, (void*)keys[j]);
  
--	if (_fseeki64(fp, 0, SEEK_SET) != 0)
--		return NULL;
--
--	if (length < 2)
-+	tzid = (char*) malloc(length);
-+	if (!tzid)
- 		return NULL;
+-<<<<<<< HEAD
+ 		if (!device_ext || (device_ext->device.type != RDPDR_DTYP_FILESYSTEM) ||
+ 		    !device_ext->path || !device_ext->automount)
+-=======
+-		if (!device_ext || !device_ext->path || !device_ext->automount)
+->>>>>>> a0b6bae4d... freerdp: fix messy rebase
+ 			continue;
  
--	tzid = (char*)malloc((size_t)length + 1);
-+	do
-+	{
-+		rc = fread(tzid + read, 1, length - read - 1, fp);
-+		read += rc;
-+		
-+		if(read < (length - 1))
-+			break;
+ 		ConvertFromUnicode(CP_UTF8, 0, device_ext->path, -1, &path, 0, NULL, NULL);
+@@ -878,27 +735,11 @@ static UINT handle_hotplug(rdpdrPlugin* rdpdr)
+ 			RDPDR_DRIVE drive = { 0 };
+ 			char* name;
+ 
+-<<<<<<< HEAD
+ 			drive.Type = RDPDR_DTYP_FILESYSTEM;
+ 			drive.Path = dev_array[i].path;
+ 			drive.automount = TRUE;
+ 			name = strrchr(drive.Path, '/') + 1;
+ 			drive.Name = name;
+-=======
+-			if (!drive)
+-			{
+-				WLog_ERR(TAG, "calloc failed!");
+-				error = CHANNEL_RC_NO_MEMORY;
+-				goto cleanup;
+-			}
+-
+-			drive->Type = RDPDR_DTYP_FILESYSTEM;
+-			drive->Path = dev_array[i].path;
+-			drive->automount = TRUE;
+-			dev_array[i].path = NULL;
+-			name = strrchr(drive->Path, '/') + 1;
+-			drive->Name = _strdup(name);
+->>>>>>> a0b6bae4d... freerdp: fix messy rebase
+ 
+ 			if (!drive.Name)
+ 			{
+@@ -1074,6 +915,7 @@ static UINT rdpdr_process_connect(rdpdrPlugin* rdpdr)
+ 			BOOL hotplugLater = strncmp(drive->Path, DynamicDrives, sizeof(DynamicDrives)) == 0;
+ 			if (drive->Path && (hotplugAll || hotplugLater))
+ 			{
++<<<<<<< HEAD
+ 				if (hotplugAll)
+ 					first_hotplug(rdpdr);
+ #ifndef _WIN32
+@@ -1090,6 +932,8 @@ static UINT rdpdr_process_connect(rdpdrPlugin* rdpdr)
+ 				if (!(rdpdr->hotplugThread =
+ 				          CreateThread(NULL, 0, drive_hotplug_thread_func, rdpdr, 0, NULL)))
+ =======
++=======
++>>>>>>> ff29634a5... freerdp: fix messy merge
+ 				if (!(rdpdr->hotplugThread = CreateThread(NULL, 0,
+ 				                             drive_hotplug_thread_func, rdpdr, 0, NULL)))
+ >>>>>>> a0b6bae4d... freerdp: fix messy rebase
+diff --git a/libfreerdp/gdi/gdi.c b/libfreerdp/gdi/gdi.c
+index 7ba86dcee..cc370c901 100644
+--- a/libfreerdp/gdi/gdi.c
++++ b/libfreerdp/gdi/gdi.c
+@@ -1281,9 +1281,11 @@ BOOL gdi_init(freerdp* instance, UINT32 format)
+ BOOL gdi_init_ex(freerdp* instance, UINT32 format, UINT32 stride, BYTE* buffer,
+                  void (*pfree)(void*))
+ {
++	UINT32 flags;
+ 	UINT32 SrcFormat = gdi_get_pixel_format(instance->settings->ColorDepth);
+ 	rdpGdi* gdi = (rdpGdi*)calloc(1, sizeof(rdpGdi));
+ 	rdpContext* context = instance->context;
++	rdpSettings* settings = instance->settings;
+ 
+ 	if (!gdi)
+ 		goto fail;
+diff --git a/winpr/libwinpr/utils/wlog/wlog.c b/winpr/libwinpr/utils/wlog/wlog.c
+index 53d350cff..113721b50 100644
+--- a/winpr/libwinpr/utils/wlog/wlog.c
++++ b/winpr/libwinpr/utils/wlog/wlog.c
+@@ -209,6 +209,16 @@ out:
+ 	return status;
+ }
+ 
++void WLog_Lock(wLog* log)
++{
++	EnterCriticalSection(&log->lock);
++}
 +
-+		length += CHUNK_SIZE;
-+		tmp = (char*) realloc(tzid, length);
-+		if(!tmp)
-+		{
-+			free(tzid);
-+			return NULL;
-+		}
- 
--	if (!tzid)
--		return NULL;
-+		tzid = tmp;
-+	}
-+	while(rc > 0);
- 
--	if (fread(tzid, (size_t)length, 1, fp) != 1)
-+	if (ferror(fp))
- 	{
- 		free(tzid);
- 		return NULL;
++void WLog_Unlock(wLog* log)
++{
++	LeaveCriticalSection(&log->lock);
++}
++
+ static BOOL WLog_Write(wLog* log, wLogMessage* message)
+ {
+ 	BOOL status;
+@@ -879,6 +889,8 @@ wLog* WLog_New(LPCSTR name, wLog* rootLogger)
+ 			goto out_fail;
  	}
  
--	tzid[length] = '\0';
--
--	if (tzid[length - 1] == '\n')
--		tzid[length - 1] = '\0';
-+	tzid[read] = '\0';
-+	if (tzid[read - 1] == '\n')
-+		tzid[read - 1] = '\0';
- 
- 	return tzid;
++	InitializeCriticalSectionAndSpinCount(&log->lock, 4000);
++
+ 	return log;
+ out_fail:
+ 	free(log->Children);
+@@ -901,6 +913,9 @@ void WLog_Free(wLog* log)
+ 		free(log->Names[0]);
+ 		free(log->Names);
+ 		free(log->Children);
++
++		DeleteCriticalSection(&log->lock);
++
+ 		free(log);
+ 	}
  }
+@@ -915,6 +930,10 @@ wLog* WLog_GetRoot(void)
+ 
+ static BOOL WLog_AddChild(wLog* parent, wLog* child)
+ {
++	BOOL status = FALSE;
++
++	WLog_Lock(parent);
++
+ 	if (parent->ChildrenCount >= parent->ChildrenSize)
+ 	{
+ 		wLog** tmp;
+@@ -937,7 +956,7 @@ static BOOL WLog_AddChild(wLog* parent, wLog* child)
+ 					free(parent->Children);
+ 
+ 				parent->Children = NULL;
+-				return FALSE;
++				goto exit;
+ 			}
+ 
+ 			parent->Children = tmp;
+@@ -945,11 +964,16 @@ static BOOL WLog_AddChild(wLog* parent, wLog* child)
+ 	}
+ 
+ 	if (!parent->Children)
+-		return FALSE;
++		goto exit;
+ 
+ 	parent->Children[parent->ChildrenCount++] = child;
+ 	child->Parent = parent;
+-	return TRUE;
++
++	WLog_Unlock(parent);
++
++	status = TRUE;
++exit:
++	return status;
+ }
+ 
+ static wLog* WLog_FindChild(LPCSTR name)
+@@ -963,6 +987,8 @@ static wLog* WLog_FindChild(LPCSTR name)
+ 	if (!root)
+ 		return NULL;
+ 
++	WLog_Lock(root);
++
+ 	for (index = 0; index < root->ChildrenCount; index++)
+ 	{
+ 		child = root->Children[index];
+@@ -974,6 +1000,8 @@ static wLog* WLog_FindChild(LPCSTR name)
+ 		}
+ 	}
+ 
++	WLog_Unlock(root);
++
+ 	return (found) ? child : NULL;
+ }
+ 
+@@ -1010,3 +1038,4 @@ BOOL WLog_Uninit(void)
+ {
+ 	return TRUE;
+ }
++
