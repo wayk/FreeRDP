@@ -25,7 +25,7 @@ index 53d350cff..fbffaa706 100644
 -static INIT_ONCE _WLogInitialized = INIT_ONCE_STATIC_INIT;
  static DWORD g_FilterCount = 0;
  static wLogFilter* g_Filters = NULL;
--static wLog* g_RootLog = NULL;
+ static wLog* g_RootLog = NULL;
  
 -static wLog* WLog_New(LPCSTR name, wLog* rootLogger);
 -static void WLog_Free(wLog* log);
@@ -152,8 +152,6 @@ index 53d350cff..fbffaa706 100644
  	}
  }
  
-+static wLog* g_RootLog = NULL;
-+
  wLog* WLog_GetRoot(void)
  {
 -	if (!InitOnceExecuteOnce(&_WLogInitialized, WLog_InitializeRoot, NULL, NULL))
