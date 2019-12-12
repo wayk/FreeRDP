@@ -1,67 +1,473 @@
-diff --git a/winpr/libwinpr/timezone/timezone.c b/winpr/libwinpr/timezone/timezone.c
-index 8a07c795a..c1bd180e5 100644
---- a/winpr/libwinpr/timezone/timezone.c
-+++ b/winpr/libwinpr/timezone/timezone.c
-@@ -56,35 +56,43 @@ static UINT64 winpr_windows_gmtime(void)
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 9170f6e2b..2c957fe63 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -72,6 +72,7 @@ include(GNUInstallDirsWrapper)
+ include(CMakePackageConfigHelpers)
+ include(InstallFreeRDPMan)
+ include(GetGitRevisionDescription)
++include(SetFreeRDPCMakeInstallDir)
  
- static char* winpr_read_unix_timezone_identifier_from_file(FILE* fp)
- {
--	INT64 length;
--	char* tzid = NULL;
--
--	if (_fseeki64(fp, 0, SEEK_END) != 0)
--		return NULL;
--
--	length = _ftelli64(fp);
-+	const INT CHUNK_SIZE = 32;
-+	INT64 rc, read = 0, length = CHUNK_SIZE;
-+	char* tmp, *tzid = NULL;
+ if(ANDROID)
+ 	list(APPEND CMAKE_FIND_ROOT_PATH ${CMAKE_PREFIX_PATH})
+@@ -257,8 +258,8 @@ if(MSVC)
+ 	endif()
+ endif()
  
--	if (_fseeki64(fp, 0, SEEK_SET) != 0)
--		return NULL;
--
--	if (length < 2)
-+	tzid = (char*) malloc(length);
-+	if (!tzid)
- 		return NULL;
+-# Enable 64bit file support on linux.
+-if("${CMAKE_SYSTEM_NAME}" MATCHES "Linux")
++# Enable 64bit file support on linux and FreeBSD.
++if("${CMAKE_SYSTEM_NAME}" MATCHES "Linux" OR FREEBSD)
+ 	add_definitions("-D_FILE_OFFSET_BITS=64")
+ endif()
  
--	tzid = (char*)malloc((size_t)length + 1);
-+	do
-+	{
-+		rc = fread(tzid + read, 1, length - read - 1, fp);
-+		read += rc;
-+		
-+		if(read < (length - 1))
-+			break;
+@@ -489,7 +490,7 @@ if(WIN32)
+ 	elseif (${CMAKE_GENERATOR} MATCHES "Visual Studio*")
+ 		set(CMAKE_PDB_BINARY_DIR "${CMAKE_BINARY_DIR}/\${CMAKE_INSTALL_CONFIG_NAME}")
+ 	else()
+-		message(FATAL "Unknown generator ${CMAKE_GENERATOR}")
++		message(FATAL_ERROR "Unknown generator ${CMAKE_GENERATOR}")
+ 	endif()
+ 
+ 	string(TIMESTAMP RC_VERSION_YEAR "%Y")
+@@ -944,7 +945,7 @@ set(WITH_OPENH264 ${OPENH264_FOUND})
+ if ( (WITH_GSSAPI) AND (NOT GSS_FOUND))
+ 	message(WARNING "-DWITH_GSSAPI=ON is set, but not GSSAPI implementation was found, disabling")
+ elseif(WITH_GSSAPI)
+-	if(GSS_FLAVOUR STREQUAL "MIT") 
++	if(GSS_FLAVOUR STREQUAL "MIT")
+ 		add_definitions("-DWITH_GSSAPI -DWITH_GSSAPI_MIT")
+ 		if(GSS_VERSION_1_13)
+ 			add_definitions("-DHAVE_AT_LEAST_KRB_V1_13")
+@@ -1020,7 +1021,9 @@ if (APPLE)
+ 	set(CMAKE_INSTALL_RPATH "@loader_path/../Frameworks")
+ else (APPLE)
+ 	set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+-	set(CMAKE_INSTALL_RPATH "\$ORIGIN/../${CMAKE_INSTALL_LIBDIR}:\$ORIGIN/..")
++	if (NOT FREEBSD)
++		set(CMAKE_INSTALL_RPATH "\$ORIGIN/../${CMAKE_INSTALL_LIBDIR}:\$ORIGIN/..")
++	endif()
+ endif(APPLE)
+ 
+ if (BUILD_SHARED_LIBS)
+@@ -1133,7 +1136,7 @@ if(WITH_CHANNELS)
+ endif()
+ 
+ if(WITH_CLIENT_COMMON OR WITH_CLIENT)
+-	add_subdirectory(client)
++add_subdirectory(client)
+ endif()
+ 
+ if(WITH_SERVER)
+diff --git a/channels/rdpdr/client/rdpdr_main.c b/channels/rdpdr/client/rdpdr_main.c
+index a0b543d91..2347a3789 100644
+--- a/channels/rdpdr/client/rdpdr_main.c
++++ b/channels/rdpdr/client/rdpdr_main.c
+@@ -251,6 +251,7 @@ LRESULT CALLBACK hotplug_proc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+ 											devman_unregister_device(rdpdr->devman, (void*)keys[j]);
+ 											ids[0] = keys[j];
+ 
++<<<<<<< HEAD
+ 											if ((error = rdpdr_send_device_list_remove_request(
+ 											         rdpdr, 1, ids)))
+ 											{
+@@ -260,6 +261,13 @@ LRESULT CALLBACK hotplug_proc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+ 												    "rdpdr_send_device_list_remove_request failed "
+ 												    "with error %" PRIu32 "!",
+ 												    error);
++=======
++											if ((error = rdpdr_send_device_list_remove_request(rdpdr, 1, ids)))
++											{
++												// dont end on error, just report ?
++												WLog_ERR(TAG, "rdpdr_send_device_list_remove_request failed with error %"PRIu32"!",
++												         error);
++>>>>>>> a0b6bae4d... freerdp: fix messy rebase
+ 											}
+ 
+ 											break;
+@@ -401,8 +409,12 @@ static UINT handle_hotplug(rdpdrPlugin* rdpdr)
+ 		if (pDirent->d_name[0] != '.')
+ 		{
+ 			sprintf_s(fullpath, ARRAYSIZE(fullpath), "%s/%s", szdir, pDirent->d_name);
++<<<<<<< HEAD
+ 			if (stat(fullpath, &buf) != 0)
+ 				continue;
++=======
++			lstat(fullpath, &buf);
++>>>>>>> a0b6bae4d... freerdp: fix messy rebase
+ 
+ 			if (S_ISDIR(buf.st_mode))
+ 			{
+@@ -434,7 +446,11 @@ static UINT handle_hotplug(rdpdrPlugin* rdpdr)
+ 		if (!device_ext || !device_ext->automount)
+ 			continue;
+ 
++<<<<<<< HEAD
+ 		if (device_ext->device.type != RDPDR_DTYP_FILESYSTEM)
++=======
++		if (!device_ext || !device_ext->automount)
++>>>>>>> a0b6bae4d... freerdp: fix messy rebase
+ 			continue;
+ 
+ 		if (device_ext->path == NULL)
+@@ -485,11 +501,27 @@ static UINT handle_hotplug(rdpdrPlugin* rdpdr)
+ 			RDPDR_DRIVE drive = { 0 };
+ 			char* name;
+ 
++<<<<<<< HEAD
+ 			drive.Type = RDPDR_DTYP_FILESYSTEM;
+ 			drive.Path = dev_array[i].path;
+ 			drive.automount = TRUE;
+ 			name = strrchr(drive.Path, '/') + 1;
+ 			drive.Name = name;
++=======
++			if (!drive)
++			{
++				WLog_ERR(TAG, "calloc failed!");
++				error = CHANNEL_RC_NO_MEMORY;
++				goto cleanup;
++			}
 +
-+		length += CHUNK_SIZE;
-+		tmp = (char*) realloc(tzid, length);
-+		if(!tmp)
++			drive->Type = RDPDR_DTYP_FILESYSTEM;
++			drive->Path = dev_array[i].path;
++			drive->automount = TRUE;
++			dev_array[i].path = NULL;
++			name = strrchr(drive->Path, '/') + 1;
++			drive->Name = _strdup(name);
++>>>>>>> a0b6bae4d... freerdp: fix messy rebase
+ 
+ 			if (!drive.Name)
+ 			{
+@@ -637,6 +669,102 @@ static BOOL isAutomountLocation(const char* path)
+ 	return FALSE;
+ }
+ 
++<<<<<<< HEAD
++=======
++static char* next_line(FILE* fd, size_t* len)
++{
++	size_t newsiz;
++	int c;
++	char* newbuf;
++	char* lrbuf;
++	int lrsiz;
++	*len = 0;
++	lrsiz = 0;
++	lrbuf = NULL;
++	newbuf = NULL;
++
++	for (;;)
++	{
++		c = fgetc(fd);
++
++		if (ferror(fd))
 +		{
-+			free(tzid);
++			free(newbuf);
 +			return NULL;
 +		}
- 
--	if (!tzid)
--		return NULL;
-+		tzid = tmp;
++
++		if (c == EOF)
++		{
++			if (*len == 0)
++				return NULL;
++			else
++			{
++				lrbuf[(*len)] = '\0';
++				return lrbuf;
++			}
++		}
++		else
++		{
++			if (*len == lrsiz)
++			{
++				newsiz = lrsiz + 4096;
++				newbuf = realloc(lrbuf, newsiz);
++
++				if (newbuf == NULL)
++					return NULL;
++
++				lrbuf = newbuf;
++				lrsiz = newsiz;
++			}
++
++			lrbuf[(*len)] = c;
++
++			if (c == '\n')
++			{
++				lrbuf[(*len)] = '\0';
++				return lrbuf;
++			}
++
++			(*len)++;
++		}
 +	}
-+	while(rc > 0);
++}
++
++static char* get_word(char* str, unsigned int* offset)
++{
++	char* p;
++	char* tmp;
++	char* word;
++	int wlen;
++
++	if (*offset >= strlen(str))
++		return NULL;
++
++	p = str + *offset;
++	tmp = p;
++
++	while (*tmp != ' ' && *tmp  != '\0')
++		tmp++;
++
++	wlen = tmp - p;
++	*offset += wlen;
++
++	/* in case there are more than one space between words */
++	while (*(str + *offset) == ' ')
++		(*offset)++;
++
++	word = malloc(wlen + 1);
++
++	if (word != NULL)
++	{
++		CopyMemory(word, p, wlen);
++		word[wlen] = '\0';
++	}
++
++	return word;
++}
++
++>>>>>>> a0b6bae4d... freerdp: fix messy rebase
+ /**
+  * Function description
+  *
+@@ -645,11 +773,22 @@ static BOOL isAutomountLocation(const char* path)
+ static UINT handle_hotplug(rdpdrPlugin* rdpdr)
+ {
+ 	FILE* f;
++<<<<<<< HEAD
+ 	hotplug_dev dev_array[MAX_USB_DEVICES] = { 0 };
+ 	size_t i;
+ 	size_t size = 0;
+ 	int count, j;
+ 	struct mntent* ent;
++=======
++	size_t len;
++	char* line;
++	char* word;
++	unsigned int wlen;
++	hotplug_dev dev_array[MAX_USB_DEVICES];
++	int i, j;
++	int size = 0;
++	int count;
++>>>>>>> a0b6bae4d... freerdp: fix messy rebase
+ 	ULONG_PTR* keys = NULL;
+ 	UINT32 ids[1];
+ 	UINT error = 0;
+@@ -687,8 +826,12 @@ static UINT handle_hotplug(rdpdrPlugin* rdpdr)
+ 		DEVICE_DRIVE_EXT* device_ext =
+ 		    (DEVICE_DRIVE_EXT*)ListDictionary_GetItemValue(rdpdr->devman->devices, (void*)keys[j]);
  
--	if (fread(tzid, (size_t)length, 1, fp) != 1)
-+	if (ferror(fp))
- 	{
- 		free(tzid);
- 		return NULL;
++<<<<<<< HEAD
+ 		if (!device_ext || (device_ext->device.type != RDPDR_DTYP_FILESYSTEM) ||
+ 		    !device_ext->path || !device_ext->automount)
++=======
++		if (!device_ext || !device_ext->path || !device_ext->automount)
++>>>>>>> a0b6bae4d... freerdp: fix messy rebase
+ 			continue;
+ 
+ 		ConvertFromUnicode(CP_UTF8, 0, device_ext->path, -1, &path, 0, NULL, NULL);
+@@ -735,11 +878,27 @@ static UINT handle_hotplug(rdpdrPlugin* rdpdr)
+ 			RDPDR_DRIVE drive = { 0 };
+ 			char* name;
+ 
++<<<<<<< HEAD
+ 			drive.Type = RDPDR_DTYP_FILESYSTEM;
+ 			drive.Path = dev_array[i].path;
+ 			drive.automount = TRUE;
+ 			name = strrchr(drive.Path, '/') + 1;
+ 			drive.Name = name;
++=======
++			if (!drive)
++			{
++				WLog_ERR(TAG, "calloc failed!");
++				error = CHANNEL_RC_NO_MEMORY;
++				goto cleanup;
++			}
++
++			drive->Type = RDPDR_DTYP_FILESYSTEM;
++			drive->Path = dev_array[i].path;
++			drive->automount = TRUE;
++			dev_array[i].path = NULL;
++			name = strrchr(drive->Path, '/') + 1;
++			drive->Name = _strdup(name);
++>>>>>>> a0b6bae4d... freerdp: fix messy rebase
+ 
+ 			if (!drive.Name)
+ 			{
+@@ -927,8 +1086,13 @@ static UINT rdpdr_process_connect(rdpdrPlugin* rdpdr)
+ 
+ #endif
+ 
++<<<<<<< HEAD
+ 				if (!(rdpdr->hotplugThread =
+ 				          CreateThread(NULL, 0, drive_hotplug_thread_func, rdpdr, 0, NULL)))
++=======
++				if (!(rdpdr->hotplugThread = CreateThread(NULL, 0,
++				                             drive_hotplug_thread_func, rdpdr, 0, NULL)))
++>>>>>>> a0b6bae4d... freerdp: fix messy rebase
+ 				{
+ 					WLog_ERR(TAG, "CreateThread failed!");
+ #ifndef _WIN32
+@@ -1630,8 +1794,14 @@ static UINT rdpdr_virtual_channel_event_connected(rdpdrPlugin* rdpdr, LPVOID pDa
+ 		return CHANNEL_RC_NO_MEMORY;
  	}
  
--	tzid[length] = '\0';
--
--	if (tzid[length - 1] == '\n')
--		tzid[length - 1] = '\0';
-+	tzid[read] = '\0';
-+	if (tzid[read - 1] == '\n')
-+		tzid[read - 1] = '\0';
++<<<<<<< HEAD
+ 	if (!(rdpdr->thread =
+ 	          CreateThread(NULL, 0, rdpdr_virtual_channel_client_thread, (void*)rdpdr, 0, NULL)))
++=======
++	if (!(rdpdr->thread = CreateThread(NULL, 0,
++	                                   rdpdr_virtual_channel_client_thread, (void*) rdpdr, 0,
++	                                   NULL)))
++>>>>>>> a0b6bae4d... freerdp: fix messy rebase
+ 	{
+ 		WLog_ERR(TAG, "CreateThread failed!");
+ 		return ERROR_INTERNAL_ERROR;
+@@ -1652,8 +1822,13 @@ static UINT rdpdr_virtual_channel_event_disconnected(rdpdrPlugin* rdpdr)
+ 	if (rdpdr->OpenHandle == 0)
+ 		return CHANNEL_RC_OK;
  
- 	return tzid;
- }
++<<<<<<< HEAD
+ 	if (MessageQueue_PostQuit(rdpdr->queue, 0) &&
+ 	    (WaitForSingleObject(rdpdr->thread, INFINITE) == WAIT_FAILED))
++=======
++	if (MessageQueue_PostQuit(rdpdr->queue, 0)
++	    && (WaitForSingleObject(rdpdr->thread, INFINITE) == WAIT_FAILED))
++>>>>>>> a0b6bae4d... freerdp: fix messy rebase
+ 	{
+ 		error = GetLastError();
+ 		WLog_ERR(TAG, "WaitForSingleObject failed with error %" PRIu32 "!", error);
+@@ -1768,7 +1943,13 @@ BOOL VCAPITYPE VirtualChannelEntryEx(PCHANNEL_ENTRY_POINTS pEntryPoints, PVOID p
+ 	}
+ 
+ 	rdpdr->channelDef.options =
++<<<<<<< HEAD
+ 	    CHANNEL_OPTION_INITIALIZED | CHANNEL_OPTION_ENCRYPT_RDP | CHANNEL_OPTION_COMPRESS_RDP;
++=======
++	    CHANNEL_OPTION_INITIALIZED |
++	    CHANNEL_OPTION_ENCRYPT_RDP |
++	    CHANNEL_OPTION_COMPRESS_RDP;
++>>>>>>> a0b6bae4d... freerdp: fix messy rebase
+ 	sprintf_s(rdpdr->channelDef.name, ARRAYSIZE(rdpdr->channelDef.name), "rdpdr");
+ 	rdpdr->sequenceId = 0;
+ 	pEntryPointsEx = (CHANNEL_ENTRY_POINTS_FREERDP_EX*)pEntryPoints;
+diff --git a/libfreerdp/core/connection.c b/libfreerdp/core/connection.c
+index cbc44d431..694d2de29 100644
+--- a/libfreerdp/core/connection.c
++++ b/libfreerdp/core/connection.c
+@@ -37,11 +37,8 @@
+ #include <freerdp/log.h>
+ #include <freerdp/error.h>
+ #include <freerdp/listener.h>
+-<<<<<<< HEAD
+ #include <freerdp/cache/pointer.h>
+-=======
+ #include <freerdp/crypto/ssl.h>
+->>>>>>> feca76aaa... freerdp: separate SSL initialization between FreeRDP and WinPR
+ 
+ #define TAG FREERDP_TAG("core.connection")
+ 
+@@ -243,6 +240,10 @@ BOOL rdp_client_connect(rdpRdp* rdp)
+ 
+ 	if (settings->FIPSMode)
+ 		flags |= WINPR_SSL_INIT_ENABLE_FIPS;
++<<<<<<< HEAD
++=======
++
++>>>>>>> a0b6bae4d... freerdp: fix messy rebase
+ 	freerdp_InitializeSSL(flags);
+ 
+ 	/* FIPS Mode forces the following and overrides the following(by happening later */
+diff --git a/libfreerdp/gdi/gdi.c b/libfreerdp/gdi/gdi.c
+index b624e1174..7ba86dcee 100644
+--- a/libfreerdp/gdi/gdi.c
++++ b/libfreerdp/gdi/gdi.c
+@@ -1012,6 +1012,7 @@ static BOOL gdi_surface_bits(rdpContext* context, const SURFACE_BITS_COMMAND* cm
+ 		return FALSE;
+ 
+ 	gdi = context->gdi;
++<<<<<<< HEAD
+ 	WLog_Print(
+ 	    gdi->log, WLOG_DEBUG,
+ 	    "destLeft %" PRIu32 " destTop %" PRIu32 " destRight %" PRIu32 " destBottom %" PRIu32 " "
+@@ -1019,6 +1020,14 @@ static BOOL gdi_surface_bits(rdpContext* context, const SURFACE_BITS_COMMAND* cm
+ 	    " length %" PRIu32 "",
+ 	    cmd->destLeft, cmd->destTop, cmd->destRight, cmd->destBottom, cmd->bmp.bpp, cmd->bmp.flags,
+ 	    cmd->bmp.codecID, cmd->bmp.width, cmd->bmp.height, cmd->bmp.bitmapDataLength);
++=======
++	WLog_Print(gdi->log, WLOG_DEBUG,
++	           "destLeft %"PRIu32" destTop %"PRIu32" destRight %"PRIu32" destBottom %"PRIu32" "
++	           "bpp %"PRIu8" flags %"PRIx8" codecID %"PRIu16" width %"PRIu16" height %"PRIu16" length %"PRIu32"",
++	           cmd->destLeft, cmd->destTop, cmd->destRight, cmd->destBottom,
++	           cmd->bmp.bpp, cmd->bmp.flags, cmd->bmp.codecID, cmd->bmp.width, cmd->bmp.height,
++	           cmd->bmp.bitmapDataLength);
++>>>>>>> a0b6bae4d... freerdp: fix messy rebase
+ 	region16_init(&region);
+ 	cmdRect.left = cmd->destLeft;
+ 	cmdRect.top = cmd->destTop;
+@@ -1029,9 +1038,16 @@ static BOOL gdi_surface_bits(rdpContext* context, const SURFACE_BITS_COMMAND* cm
+ 	{
+ 		case RDP_CODEC_ID_REMOTEFX:
+ 			if (!rfx_process_message(context->codecs->rfx, cmd->bmp.bitmapData,
++<<<<<<< HEAD
+ 			                         cmd->bmp.bitmapDataLength, cmd->destLeft, cmd->destTop,
+ 			                         gdi->primary_buffer, gdi->dstFormat, gdi->stride, gdi->height,
+ 			                         &region))
++=======
++			                         cmd->bmp.bitmapDataLength,
++			                         cmd->destLeft, cmd->destTop,
++			                         gdi->primary_buffer, gdi->dstFormat,
++			                         gdi->stride, gdi->height, &region))
++>>>>>>> a0b6bae4d... freerdp: fix messy rebase
+ 			{
+ 				WLog_ERR(TAG, "Failed to process RemoteFX message");
+ 				goto out;
+@@ -1044,9 +1060,15 @@ static BOOL gdi_surface_bits(rdpContext* context, const SURFACE_BITS_COMMAND* cm
+ 
+ 			if (!nsc_process_message(context->codecs->nsc, cmd->bmp.bpp, cmd->bmp.width,
+ 			                         cmd->bmp.height, cmd->bmp.bitmapData,
++<<<<<<< HEAD
+ 			                         cmd->bmp.bitmapDataLength, gdi->primary_buffer, format,
+ 			                         gdi->stride, cmd->destLeft, cmd->destTop, cmd->bmp.width,
+ 			                         cmd->bmp.height, FREERDP_FLIP_VERTICAL))
++=======
++			                         cmd->bmp.bitmapDataLength, gdi->primary_buffer,
++			                         format, gdi->stride, cmd->destLeft, cmd->destTop,
++			                         cmd->bmp.width, cmd->bmp.height, FREERDP_FLIP_VERTICAL))
++>>>>>>> a0b6bae4d... freerdp: fix messy rebase
+ 			{
+ 				WLog_ERR(TAG, "Failed to process NSCodec message");
+ 				goto out;
+@@ -1057,6 +1079,7 @@ static BOOL gdi_surface_bits(rdpContext* context, const SURFACE_BITS_COMMAND* cm
+ 
+ 		case RDP_CODEC_ID_NONE:
+ 			format = gdi_get_pixel_format(cmd->bmp.bpp);
++<<<<<<< HEAD
+ 			size = cmd->bmp.width * cmd->bmp.height * GetBytesPerPixel(format);
+ 			if (size > cmd->bmp.bitmapDataLength)
+ 			{
+@@ -1068,6 +1091,13 @@ static BOOL gdi_surface_bits(rdpContext* context, const SURFACE_BITS_COMMAND* cm
+ 			                        cmd->destTop, cmd->bmp.width, cmd->bmp.height,
+ 			                        cmd->bmp.bitmapData, format, 0, 0, 0, &gdi->palette,
+ 			                        FREERDP_FLIP_VERTICAL))
++=======
++
++			if (!freerdp_image_copy(gdi->primary_buffer, gdi->dstFormat, gdi->stride,
++			                        cmd->destLeft, cmd->destTop, cmd->bmp.width, cmd->bmp.height,
++			                        cmd->bmp.bitmapData, format, 0, 0, 0,
++			                        &gdi->palette, FREERDP_FLIP_VERTICAL))
++>>>>>>> a0b6bae4d... freerdp: fix messy rebase
+ 			{
+ 				WLog_ERR(TAG, "Failed to process nocodec message");
+ 				goto out;

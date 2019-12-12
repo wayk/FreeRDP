@@ -1,17 +1,67 @@
-diff --git a/winpr/libwinpr/CMakeLists.txt b/winpr/libwinpr/CMakeLists.txt
-index d9673f2d4..5aa37b606 100644
---- a/winpr/libwinpr/CMakeLists.txt
-+++ b/winpr/libwinpr/CMakeLists.txt
-@@ -83,8 +83,10 @@ check_function_exists(timer_delete TIMER_DELETE)
- check_function_exists(timer_settime TIMER_SETTIME)
- check_function_exists(timer_gettime TIMER_GETTIME)
- if (TIMER_CREATE AND TIMER_DELETE AND TIMER_SETTIME AND TIMER_GETTIME)
--    add_definitions(-DWITH_POSIX_TIMER)
--	winpr_library_add_private(rt)
-+    if(NOT IOS)
-+        add_definitions(-DWITH_POSIX_TIMER)
-+        winpr_library_add_private(rt)
-+    endif()
- endif()
+diff --git a/winpr/libwinpr/timezone/timezone.c b/winpr/libwinpr/timezone/timezone.c
+index 8a07c795a..c1bd180e5 100644
+--- a/winpr/libwinpr/timezone/timezone.c
++++ b/winpr/libwinpr/timezone/timezone.c
+@@ -56,35 +56,43 @@ static UINT64 winpr_windows_gmtime(void)
  
- if (ANDROID)
+ static char* winpr_read_unix_timezone_identifier_from_file(FILE* fp)
+ {
+-	INT64 length;
+-	char* tzid = NULL;
+-
+-	if (_fseeki64(fp, 0, SEEK_END) != 0)
+-		return NULL;
+-
+-	length = _ftelli64(fp);
++	const INT CHUNK_SIZE = 32;
++	INT64 rc, read = 0, length = CHUNK_SIZE;
++	char* tmp, *tzid = NULL;
+ 
+-	if (_fseeki64(fp, 0, SEEK_SET) != 0)
+-		return NULL;
+-
+-	if (length < 2)
++	tzid = (char*) malloc(length);
++	if (!tzid)
+ 		return NULL;
+ 
+-	tzid = (char*)malloc((size_t)length + 1);
++	do
++	{
++		rc = fread(tzid + read, 1, length - read - 1, fp);
++		read += rc;
++		
++		if(read < (length - 1))
++			break;
++
++		length += CHUNK_SIZE;
++		tmp = (char*) realloc(tzid, length);
++		if(!tmp)
++		{
++			free(tzid);
++			return NULL;
++		}
+ 
+-	if (!tzid)
+-		return NULL;
++		tzid = tmp;
++	}
++	while(rc > 0);
+ 
+-	if (fread(tzid, (size_t)length, 1, fp) != 1)
++	if (ferror(fp))
+ 	{
+ 		free(tzid);
+ 		return NULL;
+ 	}
+ 
+-	tzid[length] = '\0';
+-
+-	if (tzid[length - 1] == '\n')
+-		tzid[length - 1] = '\0';
++	tzid[read] = '\0';
++	if (tzid[read - 1] == '\n')
++		tzid[read - 1] = '\0';
+ 
+ 	return tzid;
+ }

@@ -1,24 +1,24 @@
-diff --git a/winpr/libwinpr/thread/thread.c b/winpr/libwinpr/thread/thread.c
-index a67d2bc5e..a0bf6c119 100644
---- a/winpr/libwinpr/thread/thread.c
-+++ b/winpr/libwinpr/thread/thread.c
-@@ -411,7 +411,8 @@ HANDLE CreateThread(LPSECURITY_ATTRIBUTES lpThreadAttributes, SIZE_T dwStackSize
+diff --git a/winpr/libwinpr/utils/debug.c b/winpr/libwinpr/utils/debug.c
+index 503f4afe1..1988e3b50 100644
+--- a/winpr/libwinpr/utils/debug.c
++++ b/winpr/libwinpr/utils/debug.c
+@@ -224,8 +224,7 @@ static BOOL g_RtlCaptureStackBackTrace_Detected = FALSE;
+ static BOOL g_RtlCaptureStackBackTrace_Available = FALSE;
+ static PRTL_CAPTURE_STACK_BACK_TRACE_FN g_pRtlCaptureStackBackTrace = NULL;
  
- 	if (thread->pipe_fd[0] < 0)
+-USHORT RtlCaptureStackBackTrace(ULONG FramesToSkip, ULONG FramesToCapture, PVOID* BackTrace,
+-                                PULONG BackTraceHash)
++USHORT winpr_RtlCaptureStackBackTrace(ULONG FramesToSkip, ULONG FramesToCapture, PVOID* BackTrace, PULONG BackTraceHash)
+ {
+ 	if (!g_RtlCaptureStackBackTrace_Detected)
  	{
--		WLog_ERR(TAG, "failed to create thread pipe fd 0");
-+		WLog_ERR(TAG, "failed to create thread pipe fd 0 %s (%d)",
-+			strerror(errno), errno);
- 		goto error_pipefd0;
+@@ -337,7 +336,8 @@ void* winpr_backtrace(DWORD size)
  	}
  
-@@ -419,7 +420,8 @@ HANDLE CreateThread(LPSECURITY_ATTRIBUTES lpThreadAttributes, SIZE_T dwStackSize
- 
- 	if (pipe(thread->pipe_fd) < 0)
- 	{
--		WLog_ERR(TAG, "failed to create thread pipe");
-+		WLog_ERR(TAG, "failed to create thread pipe %s (%d)",
-+			 strerror(errno), errno);
- 		goto error_pipefd0;
- 	}
- 
+ 	SymInitialize(process, NULL, TRUE);
+-	data->used = RtlCaptureStackBackTrace(2, size, data->stack, NULL);
++	data->used = winpr_RtlCaptureStackBackTrace(2, size, data->stack, NULL);
++
+ 	return data;
+ #else
+ 	LOGF(support_msg);
