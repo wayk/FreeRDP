@@ -1,0 +1,13 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 4012a2662..178e129dc 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1155,6 +1155,8 @@ if(WITH_SERVER)
+ 	add_subdirectory(server)
+ endif()
+ 
++add_subdirectory(devolutionsrdp)
++
+ # Packaging
+ 
+ set(CMAKE_CPACK_INCLUDE_FILE "CMakeCPack.cmake")
