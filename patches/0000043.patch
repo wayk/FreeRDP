@@ -1,0 +1,15 @@
+diff --git a/cmake/FindOpenSSL.cmake b/cmake/FindOpenSSL.cmake
+index 11874e085..47e74b556 100644
+--- a/cmake/FindOpenSSL.cmake
++++ b/cmake/FindOpenSSL.cmake
+@@ -25,8 +25,8 @@
+ #  License text for the above reference.)
+ 
+ if (UNIX AND NOT ANDROID)
+-  find_package(PkgConfig QUIET)
+-  pkg_check_modules(_OPENSSL QUIET openssl)
++  #find_package(PkgConfig QUIET)
++  #pkg_check_modules(_OPENSSL QUIET openssl)
+ endif (UNIX AND NOT ANDROID)
+ 
+ # http://www.slproweb.com/products/Win32OpenSSL.html
