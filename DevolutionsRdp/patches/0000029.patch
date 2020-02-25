@@ -1,0 +1,21 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 609d4ac3a..2ab18fce2 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1043,11 +1043,12 @@ if (IOS AND NOT DEFINED CMAKE_OSX_SYSROOT)
+ 	endif()
+ endif()
+ 
+-# RdTk
+-include_directories("${CMAKE_SOURCE_DIR}/rdtk/include")
+-include_directories("${CMAKE_BINARY_DIR}/rdtk/include")
++if(WITH_RDTK)
++	include_directories("${CMAKE_SOURCE_DIR}/rdtk/include")
++	include_directories("${CMAKE_BINARY_DIR}/rdtk/include")
+ 
+-add_subdirectory(rdtk)
++	add_subdirectory(rdtk)
++endif()
+ 
+ if(WAYLAND_FOUND)
+ 	add_subdirectory(uwac)

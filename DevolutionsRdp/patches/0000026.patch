@@ -1,0 +1,47 @@
+diff --git a/winpr/libwinpr/path/shell.c b/winpr/libwinpr/path/shell.c
+index 200aa8ae3..52ea79a94 100644
+--- a/winpr/libwinpr/path/shell.c
++++ b/winpr/libwinpr/path/shell.c
+@@ -66,7 +66,7 @@ char* GetEnvAlloc(LPCSTR lpName)
+ 	DWORD nStatus;
+ 	char* env = NULL;
+ 
+-	nSize = GetEnvironmentVariableX(lpName, NULL, 0);
++	nSize = GetEnvironmentVariableX((char*) lpName, NULL, 0);
+ 
+ 	if (nSize > 0)
+ 	{
+@@ -75,7 +75,7 @@ char* GetEnvAlloc(LPCSTR lpName)
+ 		if (!env)
+ 			return NULL;
+ 
+-		nStatus = GetEnvironmentVariableX(lpName, env, nSize);
++		nStatus = GetEnvironmentVariableX((char*) lpName, env, nSize);
+ 
+ 		if (nStatus != (nSize - 1))
+ 		{
+diff --git a/winpr/libwinpr/utils/wlog/DataMessage.c b/winpr/libwinpr/utils/wlog/DataMessage.c
+index 27a182d22..dabe664ac 100644
+--- a/winpr/libwinpr/utils/wlog/DataMessage.c
++++ b/winpr/libwinpr/utils/wlog/DataMessage.c
+@@ -25,6 +25,8 @@
+ 
+ #include "wlog/DataMessage.h"
+ 
++#include <winpr/file.h>
++
+ #include "../../log.h"
+ #define TAG WINPR_TAG("utils.wlog")
+ 
+diff --git a/winpr/libwinpr/utils/wlog/PacketMessage.c b/winpr/libwinpr/utils/wlog/PacketMessage.c
+index 55f85f7b3..6d61bedc7 100644
+--- a/winpr/libwinpr/utils/wlog/PacketMessage.c
++++ b/winpr/libwinpr/utils/wlog/PacketMessage.c
+@@ -29,6 +29,7 @@
+ 
+ #include <winpr/wtypes.h>
+ #include <winpr/crt.h>
++#include <winpr/file.h>
+ #include <winpr/stream.h>
+ 
+ #include "../../log.h"

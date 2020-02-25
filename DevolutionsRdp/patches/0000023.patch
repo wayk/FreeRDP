@@ -1,0 +1,180 @@
+diff --git a/winpr/include/winpr/path.h b/winpr/include/winpr/path.h
+index bd45d53a7..f12cc7fec 100644
+--- a/winpr/include/winpr/path.h
++++ b/winpr/include/winpr/path.h
+@@ -334,6 +334,12 @@ extern "C"
+ 
+ #endif
+ 
++WINPR_API BOOL winpr_MoveFile(LPCSTR lpExistingFileName, LPCSTR lpNewFileName);
++WINPR_API BOOL winpr_DeleteFile(const char* lpFileName);
++WINPR_API BOOL winpr_RemoveDirectory(LPCSTR lpPathName);
++WINPR_API BOOL winpr_PathFileExists(const char* pszPath);
++WINPR_API BOOL winpr_PathMakePath(const char* path, LPSECURITY_ATTRIBUTES lpAttributes);
++
+ #ifdef __cplusplus
+ }
+ #endif
+diff --git a/winpr/libwinpr/path/shell.c b/winpr/libwinpr/path/shell.c
+index 2db02f134..8d9906e83 100644
+--- a/winpr/libwinpr/path/shell.c
++++ b/winpr/libwinpr/path/shell.c
+@@ -614,3 +614,110 @@ BOOL PathIsDirectoryEmptyW(LPCWSTR pszPath)
+ #endif
+ 
+ #endif
++
++BOOL winpr_MoveFile(LPCSTR lpExistingFileName, LPCSTR lpNewFileName)
++{
++#ifndef _WIN32
++	return MoveFileA(lpExistingFileName, lpNewFileName);
++#else
++	BOOL result = FALSE;
++	LPWSTR lpExistingFileNameW = NULL;
++	LPWSTR lpNewFileNameW = NULL;
++
++	if (!lpExistingFileName || !lpNewFileName)
++		return FALSE;
++
++	if (ConvertToUnicode(CP_UTF8, 0, lpExistingFileName, -1, &lpExistingFileNameW, 0) < 1)
++		goto cleanup;
++
++	if (ConvertToUnicode(CP_UTF8, 0, lpNewFileName, -1, &lpNewFileNameW, 0) < 1)
++		goto cleanup;
++
++	result = MoveFileW(lpExistingFileNameW, lpNewFileNameW);
++
++cleanup:
++	free(lpExistingFileNameW);
++	free(lpNewFileNameW);
++	return result;
++#endif
++}
++
++BOOL winpr_DeleteFile(const char* lpFileName)
++{
++#ifndef _WIN32
++	return DeleteFileA(lpFileName);
++#else
++	LPWSTR lpFileNameW = NULL;
++	BOOL result = FALSE;
++
++	if (lpFileName)
++	{
++		if (ConvertToUnicode(CP_UTF8, 0, lpFileName, -1, &lpFileNameW, 0) < 1)
++			goto cleanup;
++	}
++
++	result = DeleteFileW(lpFileNameW);
++
++cleanup:
++	free(lpFileNameW);
++	return result;
++#endif
++}
++
++BOOL winpr_RemoveDirectory(LPCSTR lpPathName)
++{
++#ifndef _WIN32
++	return RemoveDirectoryA(lpPathName);
++#else
++	LPWSTR lpPathNameW = NULL;
++	BOOL result = FALSE;
++
++	if (lpPathName)
++	{
++		if (ConvertToUnicode(CP_UTF8, 0, lpPathName, -1, &lpPathNameW, 0) < 1)
++			goto cleanup;
++	}
++
++	result = RemoveDirectoryW(lpPathNameW);
++
++cleanup:
++	free(lpPathNameW);
++	return result;
++#endif
++}
++
++BOOL winpr_PathFileExists(const char* pszPath)
++{
++#ifndef _WIN32
++	return PathFileExistsA(pszPath);
++#else
++	WCHAR* pszPathW = NULL;
++	BOOL result = FALSE;
++
++	if (ConvertToUnicode(CP_UTF8, 0, pszPath, -1, &pszPathW, 0) < 1)
++		return FALSE;
++
++	result = PathFileExistsW(pszPathW);
++	free(pszPathW);
++
++	return result;
++#endif
++}
++
++BOOL winpr_PathMakePath(const char* path, LPSECURITY_ATTRIBUTES lpAttributes)
++{
++#ifndef _WIN32
++	return PathMakePathA(path, lpAttributes);
++#else
++	WCHAR* pathW = NULL;
++	BOOL result = FALSE;
++
++	if (ConvertToUnicode(CP_UTF8, 0, path, -1, &pathW, 0) < 1)
++		return FALSE;
++
++	result = SHCreateDirectoryExW(NULL, pathW, lpAttributes) == ERROR_SUCCESS;
++	free(pathW);
++
++	return result;
++#endif
++}
+diff --git a/winpr/libwinpr/utils/wlog/BinaryAppender.c b/winpr/libwinpr/utils/wlog/BinaryAppender.c
+index 318af9273..6604dfaba 100644
+--- a/winpr/libwinpr/utils/wlog/BinaryAppender.c
++++ b/winpr/libwinpr/utils/wlog/BinaryAppender.c
+@@ -70,9 +70,9 @@ static BOOL WLog_BinaryAppender_Open(wLog* log, wLogAppender* appender)
+ 			return FALSE;
+ 	}
+ 
+-	if (!PathFileExistsA(binaryAppender->FilePath))
++	if (!winpr_PathFileExists(binaryAppender->FilePath))
+ 	{
+-		if (!PathMakePathA(binaryAppender->FilePath, 0))
++		if (!winpr_PathMakePath(binaryAppender->FilePath, 0))
+ 			return FALSE;
+ 		UnixChangeFileMode(binaryAppender->FilePath, 0xFFFF);
+ 	}
+diff --git a/winpr/libwinpr/utils/wlog/FileAppender.c b/winpr/libwinpr/utils/wlog/FileAppender.c
+index b1fdf3a54..8303826b3 100644
+--- a/winpr/libwinpr/utils/wlog/FileAppender.c
++++ b/winpr/libwinpr/utils/wlog/FileAppender.c
+@@ -96,9 +96,9 @@ static BOOL WLog_FileAppender_Open(wLog* log, wLogAppender* appender)
+ 			return FALSE;
+ 	}
+ 
+-	if (!PathFileExistsA(fileAppender->FilePath))
++	if (!winpr_PathFileExists(fileAppender->FilePath))
+ 	{
+-		if (!PathMakePathA(fileAppender->FilePath, 0))
++		if (!winpr_PathMakePath(fileAppender->FilePath, 0))
+ 			return FALSE;
+ 
+ 		UnixChangeFileMode(fileAppender->FilePath, 0xFFFF);
+diff --git a/winpr/libwinpr/utils/wlog/Message.c b/winpr/libwinpr/utils/wlog/Message.c
+index 3903d0c25..d24dce91d 100644
+--- a/winpr/libwinpr/utils/wlog/Message.c
++++ b/winpr/libwinpr/utils/wlog/Message.c
+@@ -41,9 +41,9 @@ char* WLog_Message_GetOutputFileName(int id, const char* ext)
+ 
+ 	FilePath = GetKnownSubPath(KNOWN_PATH_TEMP, "wlog");
+ 
+-	if (!PathFileExistsA(FilePath))
++	if (!winpr_PathFileExists(FilePath))
+ 	{
+-		if (!PathMakePathA(FilePath, NULL))
++		if (!winpr_PathMakePath(FilePath, NULL))
+ 		{
+ 			free(FileName);
+ 			free(FilePath);

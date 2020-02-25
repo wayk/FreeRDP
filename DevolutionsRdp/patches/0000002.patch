@@ -1,0 +1,28 @@
+diff --git a/libfreerdp/core/gateway/rpc_client.c b/libfreerdp/core/gateway/rpc_client.c
+index 75f31d4da..c9d9ab79c 100644
+--- a/libfreerdp/core/gateway/rpc_client.c
++++ b/libfreerdp/core/gateway/rpc_client.c
+@@ -383,7 +383,8 @@ static int rpc_client_recv_fragment(rdpRpc* rpc, wStream* fragment)
+ 				pdu->Type = PTYPE_RESPONSE;
+ 				pdu->CallId = rpc->StubCallId;
+ 				Stream_SealLength(pdu->s);
+-				rpc_client_recv_pdu(rpc, pdu);
++				if(rpc_client_recv_pdu(rpc, pdu) < 0)
++                     return -1;
+ 				rpc_pdu_reset(pdu);
+ 				rpc->StubFragCount = 0;
+ 				rpc->StubCallId = 0;
+diff --git a/winpr/libwinpr/clipboard/clipboard.c b/winpr/libwinpr/clipboard/clipboard.c
+index 2e88d75bb..0d236e8da 100644
+--- a/winpr/libwinpr/clipboard/clipboard.c
++++ b/winpr/libwinpr/clipboard/clipboard.c
+@@ -89,6 +89,9 @@ static wClipboardFormat* ClipboardFindFormat(wClipboard* clipboard, UINT32 forma
+ 	{
+ 		for (index = 0; index < clipboard->numFormats; index++)
+ 		{
++			if (!clipboard->formats[index].formatName)
++				continue;
++
+ 			if (strcmp(name, clipboard->formats[index].formatName) == 0)
+ 			{
+ 				format = &clipboard->formats[index];

@@ -1,0 +1,29 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 2c957fe63..4012a2662 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1069,10 +1069,22 @@ endif()
+ if(WINPR_IMPORT)
+ 	message(STATUS "Using imported WinPR")
+ 
+-	find_package(WinPR CONFIG REQUIRED PATH_SUFFIXES WinPR2)
++	find_path(WINPR_INCLUDE_DIR
++		NAMES winpr/winpr.h
++		PATH_SUFFIXES include/winpr2)
++
++	find_library(WINPR_LIBRARY
++		NAMES winpr2
++		PATH_SUFFIXES lib)
++
++	message(STATUS "WINPR: ${WINPR_INCLUDE_DIR} ${WINPR_LIBRARY}")
++
++	add_library(winpr STATIC IMPORTED)
++	set_property(TARGET winpr PROPERTY IMPORTED_LOCATION "${WINPR_LIBRARY}")
++	set_property(TARGET winpr PROPERTY INCLUDE_DIRECTORIES "${WINPR_INCLUDE_DIR}")
+ 
+ 	add_definitions(-DWINPR_EXPORTS)
+-	include_directories(${WinPR_INCLUDE_DIR})
++	include_directories(${WINPR_INCLUDE_DIR})
+ else()
+ 	include_directories("${CMAKE_SOURCE_DIR}/winpr/include")
+ 	include_directories("${CMAKE_BINARY_DIR}/winpr/include")

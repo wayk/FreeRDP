@@ -1,0 +1,17 @@
+diff --git a/libfreerdp/CMakeLists.txt b/libfreerdp/CMakeLists.txt
+index 71e45891b..af1195cdf 100644
+--- a/libfreerdp/CMakeLists.txt
++++ b/libfreerdp/CMakeLists.txt
+@@ -381,6 +381,12 @@ endif()
+ add_library(${MODULE_NAME} ${LIBFREERDP_SRCS})
+ add_definitions(${LIBFREERDP_DEFINITIONS})
+ 
++if(ANDROID_ABI STREQUAL arm64-v8a)
++	# https://github.com/android/ndk/issues/910
++	add_definitions(-D__ARM_NEON__)
++	set_target_properties(${MODULE_NAME} PROPERTIES COMPILE_FLAGS -mfloat-abi=softfp)
++endif()
++
+ set_target_properties(${MODULE_NAME} PROPERTIES LINKER_LANGUAGE C)
+ set_target_properties(${MODULE_NAME} PROPERTIES OUTPUT_NAME ${MODULE_NAME}${FREERDP_VERSION_MAJOR})
+ 

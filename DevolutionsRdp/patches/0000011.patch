@@ -1,0 +1,33 @@
+diff --git a/libfreerdp/CMakeLists.txt b/libfreerdp/CMakeLists.txt
+index 71e45891b..5e28e664a 100644
+--- a/libfreerdp/CMakeLists.txt
++++ b/libfreerdp/CMakeLists.txt
+@@ -268,17 +268,8 @@ set(PRIMITIVES_SRCS
+ 	primitives/primitives.c
+ 	primitives/prim_internal.h)
+ 
+-set(PRIMITIVES_SSE2_SRCS
+-	primitives/prim_colors_opt.c
+-	primitives/prim_set_opt.c)
+-
+-set(PRIMITIVES_SSE3_SRCS
+ 	primitives/prim_add_opt.c
+ 	primitives/prim_alphaComp_opt.c
+-	primitives/prim_andor_opt.c
+-	primitives/prim_shift_opt.c)
+-
+-set(PRIMITIVES_SSSE3_SRCS
+ 	primitives/prim_sign_opt.c
+ 	primitives/prim_YCoCg_opt.c)
+ 
+@@ -331,7 +322,9 @@ if(WITH_SSE2)
+ 		set_source_files_properties(${PRIMITIVES_OPT_SRCS}
+ 			PROPERTIES COMPILE_FLAGS "${OPTIMIZATION} /arch:SSE2")
+ 	endif()
+-elseif(WITH_NEON)
++endif()
++
++if(WITH_NEON)
+ 	if(CMAKE_COMPILER_IS_GNUCC)
+ 		set_source_files_properties(${PRIMITIVES_OPT_SRCS}
+ 			PROPERTIES COMPILE_FLAGS "${OPTIMIZATION} -mfpu=neon")

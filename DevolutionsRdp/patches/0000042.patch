@@ -1,0 +1,24 @@
+diff --git a/winpr/libwinpr/thread/thread.c b/winpr/libwinpr/thread/thread.c
+index a67d2bc5e..a0bf6c119 100644
+--- a/winpr/libwinpr/thread/thread.c
++++ b/winpr/libwinpr/thread/thread.c
+@@ -411,7 +411,8 @@ HANDLE CreateThread(LPSECURITY_ATTRIBUTES lpThreadAttributes, SIZE_T dwStackSize
+ 
+ 	if (thread->pipe_fd[0] < 0)
+ 	{
+-		WLog_ERR(TAG, "failed to create thread pipe fd 0");
++		WLog_ERR(TAG, "failed to create thread pipe fd 0 %s (%d)",
++			strerror(errno), errno);
+ 		goto error_pipefd0;
+ 	}
+ 
+@@ -419,7 +420,8 @@ HANDLE CreateThread(LPSECURITY_ATTRIBUTES lpThreadAttributes, SIZE_T dwStackSize
+ 
+ 	if (pipe(thread->pipe_fd) < 0)
+ 	{
+-		WLog_ERR(TAG, "failed to create thread pipe");
++		WLog_ERR(TAG, "failed to create thread pipe %s (%d)",
++			 strerror(errno), errno);
+ 		goto error_pipefd0;
+ 	}
+ 

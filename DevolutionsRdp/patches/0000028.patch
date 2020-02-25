@@ -1,0 +1,59 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index e027116cb..609d4ac3a 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -313,6 +313,9 @@ if(CMAKE_COMPILER_IS_GNUCC)
+ 		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g")
+ 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
+ 	endif()
++	if(WITH_SSE2)
++		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse2")
++	endif()
+ endif()
+ 
+ # When building with Unix Makefiles and doing any release builds
+@@ -337,6 +340,9 @@ if(${CMAKE_C_COMPILER_ID} STREQUAL "Clang")
+ 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-macros -Wno-padded")
+ 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-c11-extensions -Wno-gnu")
+ 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-command-line-argument")
++	if(WITH_SSE2)
++		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mssse3")
++	endif()
+ 	CHECK_C_COMPILER_FLAG(-Wno-deprecated-declarations Wno-deprecated-declarations)
+ 	if(Wno-deprecated-declarations)
+ 		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-deprecated-declarations")
+diff --git a/libfreerdp/CMakeLists.txt b/libfreerdp/CMakeLists.txt
+index b16365303..608b6586a 100644
+--- a/libfreerdp/CMakeLists.txt
++++ b/libfreerdp/CMakeLists.txt
+@@ -319,17 +319,11 @@ endif()
+ 
+ if(WITH_SSE2)
+ 	if(CMAKE_COMPILER_IS_GNUCC OR ${CMAKE_C_COMPILER_ID} STREQUAL "Clang")
+-		set_source_files_properties(${PRIMITIVES_SSE2_SRCS}
+-			PROPERTIES COMPILE_FLAGS "${OPTIMIZATION} -msse2")
+-		set_source_files_properties(${PRIMITIVES_SSE3_SRCS}
+-			PROPERTIES COMPILE_FLAGS "${OPTIMIZATION} -msse3")
+-		set_source_files_properties(${PRIMITIVES_SSSE3_SRCS}
+-			PROPERTIES COMPILE_FLAGS "${OPTIMIZATION} -mssse3")
++		set(OPTIMIZATION "${OPTIMIZATION} -msse2 -mssse3 -Wdeclaration-after-statement")
+ 	endif()
+ 
+ 	if(MSVC)
+-		set_source_files_properties(${PRIMITIVES_OPT_SRCS}
+-			PROPERTIES COMPILE_FLAGS "${OPTIMIZATION} /arch:SSE2")
++		set(OPTIMIZATION "${OPTIMIZATION} /arch:SSE2")
+ 	endif()
+ endif()
+ 
+@@ -341,6 +335,10 @@ if(WITH_NEON)
+ 	# TODO: Add MSVC equivalent
+ endif()
+ 
++if(DEFINED OPTIMIZATION)
++	set_source_files_properties(${PRIMITIVES_OPT_SRCS} PROPERTIES COMPILE_FLAGS ${OPTIMIZATION})
++endif()
++
+ set(PRIMITIVES_SRCS ${PRIMITIVES_SRCS} ${PRIMITIVES_OPT_SRCS})
+ 
+ freerdp_module_add(${PRIMITIVES_SRCS})

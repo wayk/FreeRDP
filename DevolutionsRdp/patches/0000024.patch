@@ -1,0 +1,107 @@
+diff --git a/winpr/include/winpr/environment.h b/winpr/include/winpr/environment.h
+index 21c9c8f0f..5a780285c 100644
+--- a/winpr/include/winpr/environment.h
++++ b/winpr/include/winpr/environment.h
+@@ -134,6 +134,9 @@ extern "C"
+ 
+ 	WINPR_API char** EnvironmentBlockToEnvpA(LPCH lpszEnvironmentBlock);
+ 
++WINPR_API DWORD GetEnvironmentVariableX(char* lpName, char* lpBuffer, DWORD nSize);
++WINPR_API char* GetEnvAlloc(LPCSTR lpName);
++
+ #ifdef __cplusplus
+ }
+ #endif
+diff --git a/winpr/libwinpr/environment/environment.c b/winpr/libwinpr/environment/environment.c
+index b71a23836..9eea455a6 100644
+--- a/winpr/libwinpr/environment/environment.c
++++ b/winpr/libwinpr/environment/environment.c
+@@ -645,3 +645,43 @@ char** EnvironmentBlockToEnvpA(LPCH lpszEnvironmentBlock)
+ 
+ 	return envp;
+ }
++
++#ifdef _WIN32
++
++DWORD GetEnvironmentVariableX(char* lpName, char* lpBuffer, DWORD nSize)
++{
++	WCHAR* lpNameW = NULL;
++	WCHAR* lpBufferW = NULL;
++	DWORD result = 0;
++
++	lpBufferW = calloc(nSize, sizeof(WCHAR));
++
++	if (!lpBufferW)
++		goto cleanup;
++
++	if (ConvertToUnicode(CP_UTF8, 0, lpName, -1, &lpNameW, 0) < 1)
++		goto cleanup;
++
++	result = GetEnvironmentVariableW(lpNameW, lpBufferW, nSize);
++
++	if (result == 0 || result > nSize)
++		goto cleanup;
++
++	if (ConvertFromUnicode(CP_UTF8, 0, lpBufferW, -1, &lpBuffer, nSize, NULL, NULL) < 1)
++		result = 0;
++
++cleanup:
++	free(lpBufferW);
++	free(lpNameW);
++
++	return result;
++}
++
++#else
++
++DWORD GetEnvironmentVariableX(char* lpName, char* lpBuffer, DWORD nSize)
++{
++	return GetEnvironmentVariableA(lpName, lpBuffer, nSize);
++}
++
++#endif
+diff --git a/winpr/libwinpr/path/shell.c b/winpr/libwinpr/path/shell.c
+index 8d9906e83..75fc76b5f 100644
+--- a/winpr/libwinpr/path/shell.c
++++ b/winpr/libwinpr/path/shell.c
+@@ -60,11 +60,11 @@ static char* GetPath_XDG_RUNTIME_DIR(void);
+  * http://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
+  */
+ 
+-static char* GetEnvAlloc(LPCSTR lpName)
++char* GetEnvAlloc(LPCSTR lpName)
+ {
+ 	DWORD length;
+ 	char* env = NULL;
+-	length = GetEnvironmentVariableA(lpName, NULL, 0);
++	length = GetEnvironmentVariableX(lpName, NULL, 0);
+ 
+ 	if (length > 0)
+ 	{
+@@ -73,7 +73,7 @@ static char* GetEnvAlloc(LPCSTR lpName)
+ 		if (!env)
+ 			return NULL;
+ 
+-		if (GetEnvironmentVariableA(lpName, env, length) != length - 1)
++		if (GetEnvironmentVariableX(lpName, env, length) != length - 1)
+ 		{
+ 			free(env);
+ 			return NULL;
+@@ -377,7 +377,7 @@ char* GetEnvironmentPath(char* name)
+ {
+ 	char* env = NULL;
+ 	DWORD nSize;
+-	nSize = GetEnvironmentVariableA(name, NULL, 0);
++	nSize = GetEnvironmentVariableX(name, NULL, 0);
+ 
+ 	if (nSize)
+ 	{
+@@ -386,7 +386,7 @@ char* GetEnvironmentPath(char* name)
+ 		if (!env)
+ 			return NULL;
+ 
+-		if (GetEnvironmentVariableA(name, env, nSize) != nSize - 1)
++		if (GetEnvironmentVariableX(name, env, nSize) != nSize - 1)
+ 		{
+ 			free(env);
+ 			return NULL;

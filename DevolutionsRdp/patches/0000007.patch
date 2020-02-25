@@ -1,0 +1,15 @@
+diff --git a/winpr/include/winpr/winpr.h b/winpr/include/winpr/winpr.h
+index 5983d3e5a..2e52e5afa 100644
+--- a/winpr/include/winpr/winpr.h
++++ b/winpr/include/winpr/winpr.h
+@@ -65,8 +65,8 @@
+ #elif !defined(__IOS__)
+ #define WINPR_TLS __thread
+ #else
+-#warning "Target iOS does not support Thread Local Storage!"
+-#warning "Multi Instance support is disabled!"
++//#warning "Target iOS does not support Thread Local Storage!"
++//#warning "Multi Instance support is disabled!"
+ #define WINPR_TLS
+ #endif
+ 

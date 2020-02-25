@@ -1,0 +1,17 @@
+diff --git a/winpr/CMakeLists.txt b/winpr/CMakeLists.txt
+index 5a7b380a9..ef24eb694 100644
+--- a/winpr/CMakeLists.txt
++++ b/winpr/CMakeLists.txt
+@@ -195,11 +195,7 @@ add_subdirectory(include)
+ add_subdirectory(libwinpr)
+ 
+ if(NOT DEFINED WITH_WINPR_TOOLS)
+-	if(NOT ANDROID AND NOT IOS AND NOT UWP)
+-		set(WITH_WINPR_TOOLS 0)
+-	else()
+-		set(WITH_WINPR_TOOLS 1)
+-	endif()
++	set(WITH_WINPR_TOOLS 0)
+ endif()
+ 
+ if(WITH_WINPR_TOOLS)
