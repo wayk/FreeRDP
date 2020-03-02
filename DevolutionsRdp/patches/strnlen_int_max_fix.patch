@@ -1,0 +1,68 @@
+diff --git a/winpr/libwinpr/crt/unicode.c b/winpr/libwinpr/crt/unicode.c
+index e4f7ae66d..10aa2ab09 100644
+--- a/winpr/libwinpr/crt/unicode.c
++++ b/winpr/libwinpr/crt/unicode.c
+@@ -170,7 +170,7 @@ int MultiByteToWideChar(UINT CodePage, DWORD dwFlags, LPCSTR lpMultiByteStr, int
+ 
+ 	if (cbMultiByte == -1)
+ 	{
+-		size_t len = strnlen((const char*)lpMultiByteStr, INT32_MAX);
++		size_t len = strlen((const char*)lpMultiByteStr);
+ 		if (len >= INT32_MAX)
+ 			return 0;
+ 		cbMultiByte = (int)len + 1;
+@@ -392,7 +392,7 @@ int ConvertToUnicode(UINT CodePage, DWORD dwFlags, LPCSTR lpMultiByteStr, int cb
+ 
+ 	if (cbMultiByte == -1)
+ 	{
+-		size_t len = strnlen(lpMultiByteStr, INT_MAX);
++		size_t len = strlen(lpMultiByteStr);
+ 		if (len >= INT_MAX)
+ 			return 0;
+ 		cbMultiByte = (int)(len + 1);
+diff --git a/winpr/libwinpr/registry/registry.c b/winpr/libwinpr/registry/registry.c
+index d5e84a0a4..731d52013 100644
+--- a/winpr/libwinpr/registry/registry.c
++++ b/winpr/libwinpr/registry/registry.c
+@@ -297,7 +297,7 @@ LONG RegQueryValueExA(HKEY hKey, LPCSTR lpValueName, LPDWORD lpReserved, LPDWORD
+ 				size_t length;
+ 				char* pData = (char*)lpData;
+ 
+-				length = strnlen(pValue->data.string, INT_MAX);
++				length = strlen(pValue->data.string);
+ 
+ 				if (pData != NULL)
+ 				{
+diff --git a/winpr/libwinpr/utils/wlog/BinaryAppender.c b/winpr/libwinpr/utils/wlog/BinaryAppender.c
+index 1001c43b0..263bbb29f 100644
+--- a/winpr/libwinpr/utils/wlog/BinaryAppender.c
++++ b/winpr/libwinpr/utils/wlog/BinaryAppender.c
+@@ -125,9 +125,9 @@ static BOOL WLog_BinaryAppender_WriteMessage(wLog* log, wLogAppender* appender,
+ 	if (!fp)
+ 		return FALSE;
+ 
+-	FileNameLength = strnlen(message->FileName, INT_MAX);
+-	FunctionNameLength = strnlen(message->FunctionName, INT_MAX);
+-	TextStringLength = strnlen(message->TextString, INT_MAX);
++	FileNameLength = strlen(message->FileName);
++	FunctionNameLength = strlen(message->FunctionName);
++	TextStringLength = strlen(message->TextString);
+ 
+ 	MessageLength =
+ 	    16 + (4 + FileNameLength + 1) + (4 + FunctionNameLength + 1) + (4 + TextStringLength + 1);
+diff --git a/winpr/libwinpr/utils/wlog/UdpAppender.c b/winpr/libwinpr/utils/wlog/UdpAppender.c
+index 5a40a7181..f23ec8b06 100644
+--- a/winpr/libwinpr/utils/wlog/UdpAppender.c
++++ b/winpr/libwinpr/utils/wlog/UdpAppender.c
+@@ -102,9 +102,9 @@ static BOOL WLog_UdpAppender_WriteMessage(wLog* log, wLogAppender* appender, wLo
+ 	udpAppender = (wLogUdpAppender*)appender;
+ 	message->PrefixString = prefix;
+ 	WLog_Layout_GetMessagePrefix(log, appender->Layout, message);
+-	_sendto(udpAppender->sock, message->PrefixString, (int)strnlen(message->PrefixString, INT_MAX),
++	_sendto(udpAppender->sock, message->PrefixString, (int)strlen(message->PrefixString),
+ 	        0, &udpAppender->targetAddr, udpAppender->targetAddrLen);
+-	_sendto(udpAppender->sock, message->TextString, (int)strnlen(message->TextString, INT_MAX), 0,
++	_sendto(udpAppender->sock, message->TextString, (int)strlen(message->TextString), 0,
+ 	        &udpAppender->targetAddr, udpAppender->targetAddrLen);
+ 	_sendto(udpAppender->sock, "\n", 1, 0, &udpAppender->targetAddr, udpAppender->targetAddrLen);
+ 	return TRUE;
