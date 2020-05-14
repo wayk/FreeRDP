@@ -1,0 +1,45 @@
+From f01d666493e0fa62fb254f9bea300bba07cbb452 Mon Sep 17 00:00:00 2001
+From: Richard Markiewicz <rmarkiewicz@devolutions.net>
+Date: Wed, 13 May 2020 15:00:15 -0700
+Subject: [PATCH] freerdp: ensure that pipe_fd[1] is always closed in event.c
+ (it is never reassigned)
+
+---
+ winpr/libwinpr/synch/event.c | 19 ++++++++-----------
+ 1 file changed, 8 insertions(+), 11 deletions(-)
+
+diff --git a/winpr/libwinpr/synch/event.c b/winpr/libwinpr/synch/event.c
+index ca00349b7..a87b6196d 100644
+--- a/winpr/libwinpr/synch/event.c
++++ b/winpr/libwinpr/synch/event.c
+@@ -79,19 +79,16 @@ static BOOL EventCloseHandle_(WINPR_EVENT* event)
+ 	if (!event)
+ 		return FALSE;
+ 
+-	if (!event->bAttached)
++	if (!event->bAttached && event->pipe_fd[0] != -1)
+ 	{
+-		if (event->pipe_fd[0] != -1)
+-		{
+-			close(event->pipe_fd[0]);
+-			event->pipe_fd[0] = -1;
+-		}
++		close(event->pipe_fd[0]);
++		event->pipe_fd[0] = -1;
++	}
+ 
+-		if (event->pipe_fd[1] != -1)
+-		{
+-			close(event->pipe_fd[1]);
+-			event->pipe_fd[1] = -1;
+-		}
++	if (event->pipe_fd[1] != -1)
++	{
++		close(event->pipe_fd[1]);
++		event->pipe_fd[1] = -1;
+ 	}
+ 
+ 	free(event->name);
+-- 
+2.24.2 (Apple Git-127)
+
