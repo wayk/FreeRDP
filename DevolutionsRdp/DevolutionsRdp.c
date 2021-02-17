@@ -657,7 +657,7 @@ void csharp_freerdp_set_on_desktop_size_changed(void* instance, fnDesktopSizeCha
 	ctxt->desktopSizeChanged = fn;
 }
 
-BOOL csharp_freerdp_set_gateway_settings(void* instance, const char* hostname, UINT32 port, const char* username, const char* password, const char* domain, BOOL bypassLocal)
+BOOL csharp_freerdp_set_gateway_settings(void* instance, const char* hostname, UINT32 port, const char* username, const char* password, const char* domain, BOOL bypassLocal, BOOL httpTransport, BOOL rpcTransport)
 {
     freerdp* inst = (freerdp*)instance;
     rdpSettings* settings = inst->settings;
@@ -670,8 +670,8 @@ BOOL csharp_freerdp_set_gateway_settings(void* instance, const char* hostname, U
     settings->GatewayPassword = strdup(password);
     settings->GatewayDomain = strdup(domain);
     settings->GatewayBypassLocal = bypassLocal;
-    settings->GatewayHttpTransport = TRUE;
-    settings->GatewayRpcTransport = TRUE;
+    settings->GatewayHttpTransport = httpTransport;
+    settings->GatewayRpcTransport = rpcTransport;
     settings->CredentialsFromStdin = FALSE;
 
     freerdp_update_gateway_usage_method(settings, TRUE, bypassLocal);
