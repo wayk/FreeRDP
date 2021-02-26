@@ -685,6 +685,17 @@ BOOL csharp_freerdp_set_gateway_settings(void* instance, const char* hostname, U
     return TRUE;
 }
 
+BOOL csharp_freerdp_set_client_hostname(void* instance, const char* clientHostname)
+{
+	freerdp* inst = (freerdp*)instance;
+	rdpSettings* settings = inst->settings;
+	
+	if (!(settings->ClientHostname = strdup(clientHostname)))
+		return FALSE;
+
+	return TRUE;
+}
+
 BOOL csharp_freerdp_set_console_mode(void* instance, BOOL useConsoleMode, BOOL useRestrictedAdminMode)
 {
 	freerdp* inst = (freerdp*)instance;

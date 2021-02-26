@@ -56,6 +56,7 @@ FREERDP_API void csharp_freerdp_set_shell_working_directory(void* instance, cons
 FREERDP_API void csharp_freerdp_set_initial_buffer(void* instance, void* buffer);
 FREERDP_API void csharp_freerdp_set_on_region_updated(void* instance, fnRegionUpdated fn);
 FREERDP_API void csharp_freerdp_set_on_desktop_size_changed(void* instance, fnDesktopSizeChanged fn);
+FREERDP_API BOOL csharp_freerdp_set_client_hostname(void* instance, const char* clientHostname);
 FREERDP_API BOOL csharp_freerdp_set_console_mode(void* instance, BOOL useConsoleMode, BOOL useRestrictedAdminMode);
 FREERDP_API BOOL csharp_freerdp_set_redirect_clipboard(void* instance, BOOL redirectClipboard);
 FREERDP_API BOOL csharp_freerdp_set_connection_info(void* instance, const char* hostname, const char* username, const char* password, const char* domain, UINT32 width, UINT32 height, UINT32 color_depth, UINT32 port, int codecLevel);
