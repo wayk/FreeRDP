@@ -60,6 +60,8 @@ endif()
 
 add_library(${MODULE_NAME} ${TARGET_TYPE} ${${MODULE_PREFIX}_HEADERS} ${${MODULE_PREFIX}_SOURCES} ${${MODULE_PREFIX}_RESOURCES})
 
+target_link_libraries(${MODULE_NAME} ${OPENSSL_LIBRARIES})
+
 if(WIN32)
 	set(MBEDTLS_LIBRARIES "${MBEDTLS_LIB_DIR}/mbedtls.lib;${MBEDTLS_LIB_DIR}/mbedcrypto.lib;${MBEDTLS_LIB_DIR}/mbedx509.lib")
 else()
